@@ -31,16 +31,11 @@ struct addrss get_addrss(packet)
 			offset += 6;
 			addrss.mac.dest = get_mac(packet, offset);
 
-			// add offset for 802.11Q tag
-			if (is_1q(packet))
-			{
-				offset += 4;
-			}
-
 			// skip to payload
 			offset += 8;
 
 			// set offset based on payload type
+			// get_eth_type() should take 802.1Q in mind
 			switch (get_eth_type(packet))
 			{
 				case IPv4:
