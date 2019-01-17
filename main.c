@@ -36,28 +36,29 @@ struct addrss get_addrss(packet)
 
 			// set offset based on payload type
 			// get_eth_type() should take 802.1Q in mind
+			// source IP address should be sufficient
 			switch (get_eth_type(packet))
 			{
 				case IPv4:
 					addrss.ipv = 4;
 					offset += 12;
 					addrss.ip_source.offset = offset;
-					offset += 7;
-					addrss.ip_dest.offset = offset;
+					//offset += 7;
+					//addrss.ip_dest.offset = offset;
 					break;
 				case ARP:
 					addrss.ipv = 4;
 					offset += 14;
 					addrss.ip_source.offset = offset;
-					offset += 10;
-					addrss.ip_dest.offset = offset;
+					//offset += 10;
+					//addrss.ip_dest.offset = offset;
 					break;
 				case IPv6:
 					addrss.ipv = 6;
 					offset += 8;
 					addrss.ip_source.offset = offset;
-					offset += 16;
-					addrss.ip_dest.offset = offset;
+					//offset += 16;
+					//addrss.ip_dest.offset = offset;
 					break;
 				default:
 					warn ("unknown ethernet type");
@@ -74,21 +75,16 @@ struct addrss get_addrss(packet)
 				case data_frame:
 					addrss.mac.source = get_mac(packet,
 					offset += 4);
-					addrss.mac.dest = get_mac(packet,
-					offset += 6);
+					//addrss.mac.dest = get_mac(packet,
+					//offset += 6);
 					addrss.mac.tx_sta= get_mac(packet,
 					offset += 6);
-					addrss.mac.rx_sta= get_mac(packet,
-					offset += 8);
+					//addrss.mac.rx_sta= get_mac(packet,
+					//offset += 8);
 
 				//TODO, other cases?
 
 			}
-
-			// TODO get IP out of frame body
-			// if it's the first of an IP sequence
-			// Reuse the ethernet switch etc?
-
 	}
 }
 
