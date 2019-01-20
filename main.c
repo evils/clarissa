@@ -29,8 +29,22 @@ int main (int argc, char *argv[])
 	// TODO
 
 
-	// loop to capture, extract and update list of, MAC and IP addresses?
+	// main loop
+	// capture, extract and update list of addresses
 	// TODO
+
+		// capture packet
+
+		// extract addresses
+			// TODO also get receive timestamps?
+
+		// update internal list
+
+		// remove MACs with "tries" > limit
+		// query timed out MACs, increment "tries" counter
+
+		// update file with MAC list?
+		// just keep the internal list as a file in /dev/shm?
 
 
 
