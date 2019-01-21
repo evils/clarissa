@@ -44,7 +44,6 @@ int main (int argc, char *argv[])
 		// query timed out MACs, increment "tries" counter
 
 		// update file with MAC list?
-		// just keep the internal list as a file in /dev/shm?
 
 
 

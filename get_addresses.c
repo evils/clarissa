@@ -1,7 +1,7 @@
 #include "get_addresses.h"
 
 // get MAC and IP addresses out of a frame (first 54 bytes should have this?)
-struct Addrss get_addrss(pcap_t frame)
+struct Addrss get_addrss(const uint8_t* frame)
 {
         // network to host byte order
         // do this after pcap_datalink()?
