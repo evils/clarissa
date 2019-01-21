@@ -19,18 +19,13 @@ int main (int argc, char *argv[])
 	}
 	printf ("Device opened.\n");
 
-	if (pcap_set_snaplen(handle, 54) == PCAP_ERROR_ACTIVATED)
-	{
-		warn("Failed to set snaplen.\n");
-	}
-
 	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
 	{
 		packet = pcap_next(handle, &header);
-		printf("Success, got frame with byte length %d\n"
-			, header.len);
+		printf("Success, got %d saved %d\n"
+			, header.caplen, header.len);
 
 		printf("Link type ");
 		int link_type = pcap_datalink(handle);
