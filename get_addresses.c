@@ -4,9 +4,6 @@
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
-	// fail early
-	if (header->len < header->caplen) exit(0);
-
         struct Addrss addrss;
         memset(&addrss, 0, sizeof(addrss));
 
@@ -26,13 +23,13 @@ struct Addrss get_addrss
                         addrss.offset += 14;
 
 			// get the source MAC address
-			memcpy(&addrss.mac, frame[addrss.offset], 6);
+			memcpy(&addrss.mac, &frame[addrss.offset], 6);
 
                         // skip to payload
                         addrss.offset += 8;
 
                         // set offset based on payload type
-                        switch (get_frame_type(&frame, &addrss))
+                        switch (get_frame_type(frame, &addrss))
                         {
                                 case IPv4:
                                         addrss.offset += 12;
@@ -40,24 +37,26 @@ struct Addrss get_addrss
 					// map IPv4 onto IPv6 address
 					memset(&addrss.ip, 0, 10);
 					memset(&addrss.ip[10], 1, 2);
-					memcpy(&addrss.ip[12], frame[addrss.offset], 4);
-
+					memcpy(&addrss.ip[12],
+						&frame[addrss.offset], 4);
                                         break;
+
                                 case ARP:
                                         addrss.offset += 14;
 
 					// map IPv4 onto IPv6 address
 					memset(&addrss.ip, 0, 10);
 					memset(&addrss.ip[10], 1, 2);
-					memcpy(&addrss.ip[12], frame[addrss.offset], 4);
-
+					memcpy(&addrss.ip[12],
+						&frame[addrss.offset], 4);
                                         break;
+
                                 case IPv6:
                                         addrss.offset += 8;
 
 					// copy IPv6 address to addrss
-					memcpy(&addrss.ip, frame[addrss.offset], 16);
-
+					memcpy(&addrss.ip,
+						&frame[addrss.offset], 16);
                                         break;
 
                                 default:
@@ -79,7 +78,7 @@ struct Addrss get_addrss
 			exit(1);
         }
 
-        return addrss;
+        exit(1);
 }
 
 
@@ -91,4 +90,14 @@ int get_frame_type(const uint8_t* frame, struct Addrss* addrss)
 	// TODO, account for 802.1Q
 
         return 0;
+}
+
+// update the list (indicated by start) with a new entry
+int addrss_list_update(struct Addrss* start, struct Addrss* new_addrss)
+{
+	// go through list and see if the new MAC address occurs
+	// if it occurs, swap out struct or values
+	// while going over the list, check for timed out elements
+
+	return 0;
 }

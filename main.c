@@ -17,40 +17,21 @@ int main (int argc, char *argv[])
 		fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
 		return 2;
 	}
-	printf ("Device opened.\n");
+
+	// TODO, start the list, make the first Addrss struct with host ID
 
 	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
 	{
-		packet = pcap_next(handle, &header);
-		printf("Success, got %d saved %d\n"
-			, header.caplen, header.len);
-
-		printf("Link type ");
-		int link_type = pcap_datalink(handle);
-		switch (link_type)
+		do
 		{
-			case DLT_EN10MB:
-				printf("DLT_EN10MB\n");
-			break;
-
-			case DLT_LINUX_SLL:
-				printf("DLT_LINUX_SLL\n");
-			break;
-
-			case DLT_IEEE802_11:
-				printf("DLT_IEEE802_11\n");
-			break;
-
-			default:
-				printf("Unknown, %d\n", link_type);
+			packet = pcap_next(handle, &header);
 		}
+		while (header.len < header.caplen);
 
-		// extract addresses
-			// TODO also get receive timestamps?
+		// TEMPORARY, output the MAC address
 		int offset = 6;
-		printf("MAC ");
 		for (int byte = offset; byte <=(offset+4); byte++)
 		{
 			printf("%02x:", packet[byte]);
@@ -61,9 +42,14 @@ int main (int argc, char *argv[])
 		}
 
 		// update internal list
+		/*
+		// extract addresses and update the list
+		addrss_list_update(get_addresses(&frame, &header));
 
-		// remove MACs with "tries" > limit
-		// query timed out MACs, increment "tries" counter
+		*/
+
+		// TODO, TEMPORARY, once a second output the list
+
 
 	}
 
