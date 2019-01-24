@@ -5,11 +5,12 @@ int main (int argc, char *argv[])
 {
 	// pcap setup
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t *handle;
+	pcap_t* handle;
 	struct pcap_pkthdr header;
-	const uint8_t* packet;
-	//char* dev = pcap_lookupdev(errbuf);
-	char* dev = "any";
+	const uint8_t* frame;
+	char* dev = pcap_lookupdev(errbuf);
+	//char* dev = "any";
+	struct Addrss* head = NULL;
 
 	handle = pcap_open_live(dev, 54, 1, 1000, errbuf);
 	if (handle == NULL)
@@ -26,27 +27,21 @@ int main (int argc, char *argv[])
 	{
 		do
 		{
-			packet = pcap_next(handle, &header);
+			frame = pcap_next(handle, &header);
 		}
 		while (header.len < header.caplen);
 
-		// TEMPORARY, output the MAC address
-		int offset = 6;
-		for (int byte = offset; byte <=(offset+4); byte++)
-		{
-			printf("%02x:", packet[byte]);
-			if (byte >=(offset+4))
-			{
-				printf("%02x\n", packet[byte+1]);
-			}
-		}
+		// TEST
+		head = malloc(sizeof(struct Addrss));
+		*head = get_addrss(handle, frame, &header);
+
+		print_mac(head);
+
+		free(head);
 
 		// update internal list
-		/*
 		// extract addresses and update the list
-		addrss_list_update(get_addresses(&frame, &header));
-
-		*/
+		//addrss_list_update(head, get_addrss(handle, frame, &header));
 
 		// TODO, TEMPORARY, once a second output the list
 
