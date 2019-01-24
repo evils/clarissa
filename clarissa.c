@@ -1,4 +1,4 @@
-#include "get_addresses.h"
+#include "clarissa.h"
 
 // Save the source addresses and receive time from a packet in a struct.
 struct Addrss get_addrss
@@ -40,6 +40,7 @@ struct Addrss get_addrss
 					memset(&addrss.ip[10], 1, 2);
 					memcpy(&addrss.ip[12],
 						&frame[addrss.offset], 4);
+
                                         break;
 
                                 case ARP:
@@ -71,9 +72,13 @@ struct Addrss get_addrss
                                         warn
 					("unsupported ethernet type: %i\n",
 					get_eth_protocol(frame, &addrss));
+
+                                        addrss.offset = 0;
 					exit(1);
                         }
 
+			// zero offset to use as the tries counter in the list
+			addrss.offset = 0;
                         return addrss;
 
 		case DLT_LINUX_SLL:
@@ -136,14 +141,51 @@ int dot1_extend(const uint8_t* frame, struct Addrss* addrss)
 	return 0;
 }
 
-// update the list (indicated by start) with a new entry
-int addrss_list_update(struct Addrss* head, struct Addrss new_addrss)
+// update the list with a new entry
+int addrss_list_update(struct Addrss* head, struct Addrss* new_addrss)
 {
-	// go through list and see if the new MAC address occurs
-	// if it occurs, swap out struct or values
-	// while going over the list, check for timed out elements
+	if (/*we have a null pointer*/0)
+	{
+		// make a new node
+		// change the pointer to the new node
+	}
 
-	return 0;
+	// check for timed out elements, query them if timed out
+	// and remove the ones with tries >= limit (reuses offset)
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	if (usec_diff(head->cap_time, now) > TIMEOUT)
+	{
+		if (head->offset >= TRIES)
+		{
+			// TODO, remove the struct from the list
+		}
+		else
+		{
+			query(head);
+			head->offset++;
+		}
+	}
+
+	// recurse if this isn't the same MAC address
+	if (!memcmp(head->mac, new_addrss->mac, 6))
+	{
+		addrss_list_update(head->next, new_addrss);
+	}
+
+	// if it's the same MAC address, update timestamp and IP address
+	else
+	{
+		head->cap_time = new_addrss->cap_time;
+		if (new_addrss->ip == 0)
+		{
+			memcpy(head->ip, new_addrss->ip, 16);
+		}
+		return 0;
+	}
+
+
+	exit(1);
 }
 
 int print_mac(struct Addrss* addrss)
@@ -156,5 +198,20 @@ int print_mac(struct Addrss* addrss)
 			printf("%02x\n", addrss->mac[byte+1]);
 		}
 	}
+	return 0;
+}
+
+int print_ip(struct Addrss* addrss)
+{
+	// TODO, check for mapped IPv4 and print IPv4 or IPv6?
+	// or just print the IPv6 with mapped IPv4 address?
+	return 0;
+}
+
+// send something to the target MAC to see if it's online
+int query(struct Addrss* addrss)
+{
+	// TODO, attempt to find an IP if none is set for the target?
+	// send an ARP packet?
 	return 0;
 }
