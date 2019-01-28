@@ -6,4 +6,4 @@ clarissa: main.o clarissa.o time_tools.o
 %.o: %.c
 	gcc $(CFLAGS) -c $<
 clean:
-	rm clarissa main.o clarissa.o time_tools.o
+	rm -rf clarissa main.o clarissa.o time_tools.o

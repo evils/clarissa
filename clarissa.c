@@ -94,6 +94,7 @@ struct Addrss get_addrss
 			exit(1);
         }
 
+	warn ("You shouldn't see this, please fix me");
         exit(1);
 }
 
@@ -134,58 +135,89 @@ int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss)
 // extend the offset for 802.1Q and 802.1ad
 int dot1_extend(const uint8_t* frame, struct Addrss* addrss)
 {
-	while
-	((frame[addrss->offset] == DOTQ) || (frame[addrss->offset] == DOTAD
-		|| frame[addrss->offset] == DOUBLETAG))
-		addrss->offset += 4;
+	for (;;)
+		// get a uint16_t from the frame
+		// TODO, byte order?
+		switch (*(uint16_t*) (frame + addrss->offset))
+		{
+			case DOTQ:
+			case DOTAD:
+			case DOUBLETAG:
+				addrss->offset += 4;
+			default:
+				// piss off the puritans
+				goto end;
+		}
+	end:
 	return 0;
 }
 
 // update the list with a new entry
-int addrss_list_update(struct Addrss* head, struct Addrss* new_addrss)
+int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 {
-	if (/*we have a null pointer*/0)
-	{
-		// make a new node
-		// change the pointer to the new node
-	}
-
-	// check for timed out elements, query them if timed out
-	// and remove the ones with tries >= limit (reuses offset)
+	struct Addrss** current;
 	struct timeval now;
-	gettimeofday(&now, NULL);
-	if (usec_diff(head->cap_time, now) > TIMEOUT)
+	int found = 0;
+
+	// go through the list while keeping a pointer
+	// to the previous pointer
+	for (current = head; *current != NULL;
+		current = &((*current)->next))
 	{
-		if (head->offset >= TRIES)
+		// check if this has the new MAC address
+		if (memcmp(&(*current)->mac, &new_addrss.mac, 6))
 		{
-			// TODO, remove the struct from the list
+			// update time and ip
+			memcpy(&(*current)->cap_time, &new_addrss.cap_time,
+				sizeof(struct timeval));
+			if (ip_check((*current)->ip))
+				memcpy((*current)->ip, new_addrss.ip, 16);
+
+			// move it to the start of the list
+			struct Addrss* move = *current;
+			*current = (*current)->next;
+			move->next = *head;
+			*head = move;
+
+			// can't return here, stale entries won't be caught
+			found = 1;
 		}
-		else
+
+		// check if it's timed out
+		gettimeofday(&now, NULL);
+
+		if (usec_diff((*current)->cap_time, now) > TIMEOUT)
 		{
-			query(head);
-			head->offset++;
+			// remove if exceeded tries
+			if ((*current)->offset >= TRIES)
+			{
+				// remove the struct from the list
+				struct Addrss* discard = *current;
+				*current = (*current)->next;
+				free(discard);
+			}
+			else
+			{
+				query((*current));
+				// reset timeval to allow for response time
+				(*current)->cap_time = now;
+				(*current)->offset++;
+			}
 		}
 	}
 
-	// recurse if this isn't the same MAC address
-	if (!memcmp(head->mac, new_addrss->mac, 6))
+	// insert at start of the list
+	if (!found)
 	{
-		addrss_list_update(head->next, new_addrss);
+		current = head;
+		*head = malloc(sizeof(struct Addrss));
+		memcpy(*head, &new_addrss, sizeof(struct Addrss));
+		(*head)->next = *current;
+
+		// temporary
+		print_mac(&new_addrss);
 	}
-
-	// if it's the same MAC address, update timestamp and IP address
-	else
-	{
-		head->cap_time = new_addrss->cap_time;
-		if (new_addrss->ip == 0)
-		{
-			memcpy(head->ip, new_addrss->ip, 16);
-		}
-		return 0;
-	}
-
-
-	exit(1);
+	return 0;
 }
 
 int print_mac(struct Addrss* addrss)
@@ -213,5 +245,12 @@ int query(struct Addrss* addrss)
 {
 	// TODO, attempt to find an IP if none is set for the target?
 	// send an ARP packet?
+	return 0;
+}
+
+// check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
+int ip_check(uint8_t* ip)
+{
+	// TODO
 	return 0;
 }

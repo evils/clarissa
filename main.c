@@ -31,21 +31,10 @@ int main (int argc, char *argv[])
 		}
 		while (header.len < header.caplen);
 
-		// TEST
-		head = malloc(sizeof(struct Addrss));
-		*head = get_addrss(handle, frame, &header);
-
-		print_mac(head);
-
-		free(head);
-
-		// update internal list
-		// extract addresses and update the list
-		//addrss_list_update(head, get_addrss(handle, frame, &header));
+		// extract addresses and update the internal list
+		addrss_list_update(&head, get_addrss(handle, frame, &header));
 
 		// TODO, TEMPORARY, once a second output the list
-
-
 	}
 
 
