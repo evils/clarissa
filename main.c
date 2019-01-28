@@ -25,11 +25,7 @@ int main (int argc, char *argv[])
 	// capture, extract and update list of addresses
 	for (;;)
 	{
-		do
-		{
-			frame = pcap_next(handle, &header);
-		}
-		while (header.len < header.caplen);
+		frame = pcap_next(handle, &header);
 
 		// extract addresses and update the internal list
 		addrss_list_update(&head, get_addrss(handle, frame, &header));

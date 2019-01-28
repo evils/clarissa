@@ -99,7 +99,7 @@ struct Addrss get_addrss
 }
 
 // return payload type, adjust offset appropriately
-// TODO, verify and/or clean up, sort out byte order?
+// TODO, verify and/or clean up?
 int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss)
 {
 
@@ -107,7 +107,8 @@ int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss)
 	dot1_extend(frame, addrss);
 
 	// save ethtype/size
-	uint16_t type = frame[addrss->offset];
+	uint16_t type = ((uint16_t)(frame[addrss->offset]) << 8)
+			| (uint16_t)(frame[addrss->offset+1]);
 
 	// 802.3 frame size
 	if (type <= 1500)
@@ -136,9 +137,12 @@ int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss)
 int dot1_extend(const uint8_t* frame, struct Addrss* addrss)
 {
 	for (;;)
+	{
 		// get a uint16_t from the frame
 		// TODO, byte order?
-		switch (*(uint16_t*) (frame + addrss->offset))
+		uint16_t type = ((uint16_t)(frame[addrss->offset]) << 8)
+				| (uint16_t)(frame[addrss->offset+1]);
+		switch (type)
 		{
 			case DOTQ:
 			case DOTAD:
@@ -148,7 +152,8 @@ int dot1_extend(const uint8_t* frame, struct Addrss* addrss)
 				// piss off the puritans
 				goto end;
 		}
-	end:
+	}
+end:
 	return 0;
 }
 
@@ -164,23 +169,31 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 	for (current = head; *current != NULL;
 		current = &((*current)->next))
 	{
+top_of_loop:
 		// check if this has the new MAC address
-		if (memcmp(&(*current)->mac, &new_addrss.mac, 6))
+		if (!memcmp(&(*current)->mac, &new_addrss.mac, 6))
 		{
 			// update time and ip
-			memcpy(&(*current)->cap_time, &new_addrss.cap_time,
-				sizeof(struct timeval));
+			(*current)->cap_time = new_addrss.cap_time;
 			if (ip_check((*current)->ip))
 				memcpy((*current)->ip, new_addrss.ip, 16);
 
-			// move it to the start of the list
-			struct Addrss* move = *current;
-			*current = (*current)->next;
-			move->next = *head;
-			*head = move;
-
-			// can't return here, stale entries won't be caught
 			found = 1;
+
+			// move it to the start of the list
+			if (current != head) {
+				struct Addrss* move = *current;
+				*current = (*current)->next;
+				move->next = *head;
+				*head = move;
+
+				// can't return here, stale entries won't be caught
+				if (*current != NULL) {
+					goto top_of_loop;
+				} else {
+					break;
+				}
+			}
 		}
 
 		// check if it's timed out
@@ -195,6 +208,12 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 				struct Addrss* discard = *current;
 				*current = (*current)->next;
 				free(discard);
+
+				if (*current != NULL) {
+					goto top_of_loop;
+				} else {
+					break;
+				}
 			}
 			else
 			{
@@ -209,10 +228,10 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 	// insert at start of the list
 	if (!found)
 	{
-		current = head;
-		*head = malloc(sizeof(struct Addrss));
-		memcpy(*head, &new_addrss, sizeof(struct Addrss));
-		(*head)->next = *current;
+		struct Addrss *new_head = malloc(sizeof *new_head);
+		*new_head = new_addrss;
+		new_head->next = *head;
+		*head = new_head;
 
 		// temporary
 		print_mac(&new_addrss);

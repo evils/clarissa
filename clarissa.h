@@ -19,7 +19,7 @@
 #define ETH_SIZE 0x600
 
 // time to wait before querying a target (in microseconds (µs))
-#define TIMEOUT 3000000
+#define TIMEOUT 10000000
 // number of times to query a target before dropping them from the list
 #define TRIES 3
 
