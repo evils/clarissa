@@ -1,4 +1,3 @@
-fix multiple outputs on flood
 implement query()
 accept a file input
 accept several user provided devices
