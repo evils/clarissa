@@ -11,11 +11,13 @@ int main (int argc, char *argv[])
 	char* dev = pcap_lookupdev(errbuf);
 	struct Addrss* head = NULL;
 
+/*
 	if (filepath)
 	{
 		handle = pcap_open_offline(filepath, errbuf);
 	}
 	else
+*/
 	handle = pcap_open_live(dev, 54, 1, 1000, errbuf);
 	if (handle == NULL)
 	{
