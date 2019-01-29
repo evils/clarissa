@@ -33,6 +33,7 @@ int main (int argc, char *argv[])
 	for (;;)
 	{
 		frame = pcap_next(handle, &header);
+		if (frame == NULL) continue;
 
 		// extract addresses and update the internal list
 		addrss_list_update(&head, get_addrss(handle, frame, &header));

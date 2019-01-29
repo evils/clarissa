@@ -19,9 +19,9 @@
 #define ETH_SIZE 0x600
 
 // time to wait before querying a target (in microseconds (µs))
-#define TIMEOUT 1000000
+#define TIMEOUT 5000000
 // number of times to query a target before dropping them from the list
-#define TRIES 30000
+#define TRIES 3
 
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header);

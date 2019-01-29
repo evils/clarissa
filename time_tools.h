@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sys/time.h>
-#include <err.h>
+#include <inttypes.h>
 
-unsigned int usec_diff(struct timeval x, struct timeval y);
+intmax_t usec_diff(struct timeval x, struct timeval y);
 

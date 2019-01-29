@@ -139,6 +139,7 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 	for (current = head; *current != NULL;
 		current = &((*current)->next))
 	{
+top_of_loop:
 		// check if this has the new MAC address
 		if (!memcmp((*current)->mac, new_addrss.mac, 6))
 		{
@@ -156,7 +157,11 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 				move->next = *head;
 				*head = move;
 
-				if (*current == NULL) break;
+				if (*current != NULL)
+				{
+					goto top_of_loop;
+				}
+				else break;
 			}
 		}
 
@@ -172,7 +177,11 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 				*current = (*current)->next;
 				free(discard);
 
-				if (*current == NULL) break;
+				if (*current != NULL)
+				{
+					goto top_of_loop;
+				}
+				else break;
 			}
 			else
 			{
