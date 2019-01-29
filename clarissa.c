@@ -5,7 +5,7 @@ struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
         struct Addrss addrss;
-        memset(&addrss, 0, sizeof(addrss));
+        memset(&addrss, 0, sizeof(struct Addrss));
 
 	addrss.cap_time = header->ts;
 
@@ -16,69 +16,17 @@ struct Addrss get_addrss
         // link type is separately stored metadata?
         switch (pcap_datalink(handle))
         {
-                // doesn't match offsets in dsniff/pcaputil.c
                 case DLT_EN10MB:
 
 			// preamble and start of frame delimiter not included
-			// skip destination MAC address
-                        addrss.offset += 6;
 
-			// get the source MAC address
-			memcpy(&addrss.mac, &frame[addrss.offset], 6);
+			// skip to source MAC address and store it
+			memcpy(addrss.mac, frame += 6, 6);
 
-                        // skip to metadata
-                        addrss.offset += 6;
+			// skip to metadata and get IP address
+			frame += 6;
+			get_eth_ip(&frame, &addrss);
 
-                        // set offset based on payload protocol
-                        switch (get_eth_protocol(frame, &addrss))
-                        {
-                                case IPv4:
-                                        addrss.offset += 12;
-
-					// map IPv4 onto IPv6 address
-					memset(&addrss.ip, 0, 10);
-					memset(&addrss.ip[10], 1, 2);
-					memcpy(&addrss.ip[12],
-						&frame[addrss.offset], 4);
-
-                                        break;
-
-                                case ARP:
-                                        addrss.offset += 14;
-
-					// map IPv4 onto IPv6 address
-					memset(&addrss.ip, 0, 10);
-					memset(&addrss.ip[10], 1, 2);
-					memcpy(&addrss.ip[12],
-						&frame[addrss.offset], 4);
-                                        break;
-
-                                case IPv6:
-                                        addrss.offset += 8;
-
-					// copy IPv6 address to addrss
-					memcpy(&addrss.ip,
-						&frame[addrss.offset], 16);
-                                        break;
-
-				case ETH_SIZE:
-					// TODO, determine payload type
-					// and extract IP
-
-					// continue without IP
-					break;
-
-                                default:
-                                        warn
-					("unsupported ethernet type: %i\n",
-					get_eth_protocol(frame, &addrss));
-
-                                        addrss.offset = 0;
-					exit(1);
-                        }
-
-			// zero offset to use as the tries counter in the list
-			addrss.offset = 0;
                         return addrss;
 
 		case DLT_LINUX_SLL:
@@ -86,75 +34,97 @@ struct Addrss get_addrss
 			warn ("\"any\" device not yet supported\n");
 			exit(1);
 
-                // TODO, 802.11, only get this link type in monitor mode...
+		case DLT_IEEE802_11:
+
+			warn ("WLAN is not yet supported\n");
+			exit(1);
 
                 default:
                         warn ("unsupported link type: %i\n",
 				pcap_datalink(handle));
-			exit(1);
         }
 
-	warn ("You shouldn't see this, please fix me");
         exit(1);
 }
 
-// return payload type, adjust offset appropriately
-// TODO, verify and/or clean up?
-int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss)
+int get_eth_ip(const uint8_t** frame, struct Addrss* addrss)
 {
-
-	// sort out 802.1Q and ad
-	dot1_extend(frame, addrss);
-
-	// save ethtype/size
-	uint16_t type = ((uint16_t)(frame[addrss->offset]) << 8)
-			| (uint16_t)(frame[addrss->offset+1]);
-
-	// 802.3 frame size
-	if (type <= 1500)
+	int eth_type = get_eth_protocol(frame);
+	switch (eth_type)
 	{
-		addrss->offset += 2;
-		return ETH_SIZE;
-	}
-	// EtherType
-	switch (type)
-	{
-		case (IPv4):
-			addrss->offset += 2;
-			return IPv4;
-		case (ARP):
-			addrss->offset += 2;
-			return ARP;
-		case (IPv6):
-			addrss->offset += 2;
-			return IPv6;
-	}
+		case IPv4:
 
-        return -1;
+			// map IPv4 onto IPv6 address
+			memset(addrss->ip, 0, 10);
+			memset(addrss->ip+10, 1, 2);
+			memcpy(addrss->ip+12, *frame+12, 4);
+
+			return 0;
+
+		case ARP:
+
+			// map IPv4 onto IPv6 address
+			memset(addrss->ip, 0, 10);
+			memset(addrss->ip+10, 1, 2);
+			memcpy(addrss->ip+12, *frame+14, 4);
+			return 0;
+
+		case IPv6:
+
+			// copy IPv6 address to addrss
+			memcpy(addrss->ip, *frame+8, 16);
+			return 0;
+
+		case ETH_SIZE:
+			// TODO, determine payload type
+			// and extract IP
+
+			// continue without IP
+			warn ("ETH_SIZE");
+			return 0;
+
+		default:
+			warn
+			("unsupported EtherType: 0x%04x\n",
+			eth_type);
+
+			exit(1);
+	}
 }
 
-// extend the offset for 802.1Q and 802.1ad
-int dot1_extend(const uint8_t* frame, struct Addrss* addrss)
+int get_eth_protocol(const uint8_t** frame)
+{
+	// sort out 802.1Q and ad
+	dot1_extend(frame);
+
+	// save ethtype/size
+	uint16_t type = ((uint16_t)(**frame) << 8)
+			| (uint16_t)(*(*frame+1));
+
+	//skip to payload
+	*frame += 2;
+
+	// this assumes it's a supported type
+	return type <= 1500 ? ETH_SIZE : type;
+}
+
+// shift the pointer for 802.1Q and 802.1ad fields
+int dot1_extend(const uint8_t** frame)
 {
 	for (;;)
 	{
-		// get a uint16_t from the frame
-		// TODO, byte order?
-		uint16_t type = ((uint16_t)(frame[addrss->offset]) << 8)
-				| (uint16_t)(frame[addrss->offset+1]);
+		uint16_t type = ((uint16_t)(**frame) << 8)
+				| (uint16_t)(*(*frame+1));
 		switch (type)
 		{
 			case DOTQ:
 			case DOTAD:
 			case DOUBLETAG:
-				addrss->offset += 4;
+				*frame += 4;
 			default:
-				// piss off the puritans
-				goto end;
+				return 0;
 		}
 	}
-end:
-	return 0;
 }
 
 // update the list with a new entry
@@ -171,7 +141,7 @@ int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 	{
 top_of_loop:
 		// check if this has the new MAC address
-		if (!memcmp(&(*current)->mac, &new_addrss.mac, 6))
+		if (!memcmp((*current)->mac, new_addrss.mac, 6))
 		{
 			// update time and ip
 			(*current)->cap_time = new_addrss.cap_time;
@@ -187,12 +157,11 @@ top_of_loop:
 				move->next = *head;
 				*head = move;
 
-				// can't return here, stale entries won't be caught
-				if (*current != NULL) {
+				if (*current != NULL)
+				{
 					goto top_of_loop;
-				} else {
-					break;
 				}
+				else break;
 			}
 		}
 
@@ -201,26 +170,25 @@ top_of_loop:
 
 		if (usec_diff((*current)->cap_time, now) > TIMEOUT)
 		{
-			// remove if exceeded tries
-			if ((*current)->offset >= TRIES)
+			if ((*current)->tried > TRIES)
 			{
 				// remove the struct from the list
 				struct Addrss* discard = *current;
 				*current = (*current)->next;
 				free(discard);
 
-				if (*current != NULL) {
+				if (*current != NULL)
+				{
 					goto top_of_loop;
-				} else {
-					break;
 				}
+				else break;
 			}
 			else
 			{
 				query((*current));
 				// reset timeval to allow for response time
 				(*current)->cap_time = now;
-				(*current)->offset++;
+				(*current)->tried++;
 			}
 		}
 	}
@@ -233,8 +201,9 @@ top_of_loop:
 		new_head->next = *head;
 		*head = new_head;
 
-		// temporary
+		// temporary output
 		print_mac(&new_addrss);
+		print_ip(&new_addrss);
 	}
 	return 0;
 }
@@ -254,8 +223,27 @@ int print_mac(struct Addrss* addrss)
 
 int print_ip(struct Addrss* addrss)
 {
-	// TODO, check for mapped IPv4 and print IPv4 or IPv6?
-	// or just print the IPv6 with mapped IPv4 address?
+	// TODO, handle IPv4 separately?
+	// just print the IPv6 with mapped IPv4 address
+	for (int byte = 0; byte <= 12; byte += 2)
+	{
+		uint16_t group = ((uint16_t)(addrss->ip[byte]) << 8)
+				| (uint16_t)(addrss->ip[byte+1]);
+		if (group)
+		{
+			// shitty approximation of mapped IPv4 output
+			if (group == 0x101) printf("::");
+			else printf("%x:", group);
+		}
+		if (byte >= 12)
+		{
+			uint16_t group =
+				((uint16_t)(addrss->ip[byte+2]) << 8)
+				| (uint16_t)(addrss->ip[byte+3]);
+			if (group)
+			printf("%x\n", group);
+		}
+	}
 	return 0;
 }
 

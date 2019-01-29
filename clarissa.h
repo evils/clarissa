@@ -19,14 +19,15 @@
 #define ETH_SIZE 0x600
 
 // time to wait before querying a target (in microseconds (µs))
-#define TIMEOUT 10000000
+#define TIMEOUT 5000000
 // number of times to query a target before dropping them from the list
 #define TRIES 3
 
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header);
-int get_eth_protocol(const uint8_t* frame, struct Addrss* addrss);
-int dot1_extend(const uint8_t* frame, struct Addrss* addrss);
+int get_eth_ip(const uint8_t** frame, struct Addrss* addrss);
+int get_eth_protocol(const uint8_t** frame);
+int dot1_extend(const uint8_t** frame);
 int addrss_list_update(struct Addrss** head, struct Addrss new_addrss);
 int print_mac(struct Addrss* addrss);
 int print_ip(struct Addrss* addrss);
@@ -38,6 +39,6 @@ struct Addrss
 	struct timeval	cap_time;	// time this frame was captured
 	uint8_t 	ip[16];		// IPv6 and mapped IPv4
 	uint8_t 	mac[6];		// source MAC
-	uint16_t	offset;		// frame offset & tries counter
+	uint8_t		tried;		// number of packets sent to target
 	struct Addrss*	next;		// pointer to next element in list
 };

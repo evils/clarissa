@@ -1,9 +1,10 @@
 SHELL = /usr/bin/env sh
 CFLAGS = -Wall -g
 LDFLAGS= -lpcap
+all: clean clarissa
 clarissa: main.o clarissa.o time_tools.o
-	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: %.c
-	gcc $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 clean:
 	rm -rf clarissa main.o clarissa.o time_tools.o

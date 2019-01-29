@@ -9,14 +9,21 @@ int main (int argc, char *argv[])
 	struct pcap_pkthdr header;
 	const uint8_t* frame;
 	char* dev = pcap_lookupdev(errbuf);
-	//char* dev = "any";
 	struct Addrss* head = NULL;
 
+/*
+	if (filepath)
+	{
+		handle = pcap_open_offline(filepath, errbuf);
+	}
+	else
+*/
 	handle = pcap_open_live(dev, 54, 1, 1000, errbuf);
 	if (handle == NULL)
 	{
-		fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
-		return 2;
+		warn
+		("Couldn't open pcap source %s: %s\n", dev, errbuf);
+		return -1;
 	}
 
 	// TODO, start the list, make the first Addrss struct with host ID
@@ -26,6 +33,7 @@ int main (int argc, char *argv[])
 	for (;;)
 	{
 		frame = pcap_next(handle, &header);
+		if (frame == NULL) continue;
 
 		// extract addresses and update the internal list
 		addrss_list_update(&head, get_addrss(handle, frame, &header));
