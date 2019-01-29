@@ -1,6 +1,7 @@
 fix multiple outputs on flood
 implement query()
 accept a file input
+accept several user provided devices
 only check full list for timeouts every INTERVAL
 add LINKTYPE_LINUX_SLL support
 output on a socket
