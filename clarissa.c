@@ -131,7 +131,7 @@ int dot1_extend(const uint8_t** frame)
 int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
 {
 	struct Addrss** current;
-	struct timeval now;
+	//struct timeval now;
 	int found = 0;
 
 	// go through the list while keeping a pointer
@@ -166,9 +166,10 @@ top_of_loop:
 		}
 
 		// check if it's timed out
-		gettimeofday(&now, NULL);
+		//gettimeofday(&now, NULL);
 
-		if (usec_diff((*current)->cap_time, now) > TIMEOUT)
+		if (usec_diff((*current)->cap_time,
+			new_addrss.cap_time) > TIMEOUT)
 		{
 			if ((*current)->tried > TRIES)
 			{
@@ -187,7 +188,7 @@ top_of_loop:
 			{
 				query((*current));
 				// reset timeval to allow for response time
-				(*current)->cap_time = now;
+				(*current)->cap_time = new_addrss.cap_time;
 				(*current)->tried++;
 			}
 		}

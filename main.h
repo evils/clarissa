@@ -6,5 +6,6 @@
 #include <netinet/in.h>
 #include <err.h>
 #include <pcap.h>
+#include <unistd.h>
 
 #include "clarissa.h"
