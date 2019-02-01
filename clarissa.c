@@ -88,7 +88,7 @@ int get_eth_ip(const uint8_t** frame, struct Addrss* addrss)
 			("unsupported EtherType: 0x%04x\n",
 			eth_type);
 
-			exit(1);
+			return 0;
 	}
 }
 
