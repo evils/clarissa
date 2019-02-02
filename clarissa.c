@@ -262,3 +262,60 @@ int ip_check(uint8_t* ip)
 	// TODO
 	return 0;
 }
+
+// parse a CIDR notation string and save to a Netmask
+int parse_cidr(char* cidr, struct Netmask* dest)
+{
+	char* mask_ptr, *end;
+	int retval;
+
+	// parse provided mask
+	if ((mask_ptr = strchr(cidr, '/')) != NULL)
+	{
+		*mask_ptr++ = 0;
+		dest->mask = strtol(mask_ptr, &end, 10);
+
+		if ((mask_ptr == end) || *end)
+		{
+			retval = 0;
+			goto end;
+		}
+	}
+	else
+	{
+		dest->mask = 128;
+	}
+
+	// parse provided IP address
+	if (inet_pton(AF_INET6, cidr, dest->ip))
+	{
+		retval = 1;
+		goto end;
+	}
+	else if (inet_pton(AF_INET, cidr, dest->ip+12))
+	{
+		memset(dest->ip, 0, 10);
+		memset(dest->ip+10, 1, 2);
+		dest->mask += 96;
+		retval = 1;
+		goto end;
+	}
+	else
+	{
+		retval = 0;
+		goto end;
+	}
+
+end:
+	if (mask_ptr != NULL)
+	{
+		*--mask_ptr = '/';
+	}
+
+	// TODO, do this implicitly above?
+	if (dest->mask > 128)
+	{
+		dest->mask = 128;
+	}
+	return retval;
+}
