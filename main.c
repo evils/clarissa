@@ -5,14 +5,16 @@ int main (int argc, char *argv[])
 {
 	// pcap setup
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t* handle;
+	pcap_t* handle = NULL;
 	struct pcap_pkthdr header;
 	const uint8_t* frame;
 	char* dev = NULL;
 	struct Addrss* head = NULL;
 	int opt;
+	struct Netmask netmask;
+	memset(&netmask, 0, sizeof(struct Netmask));
 
-	while ((opt = getopt (argc, argv, "d:f:")) != -1)
+	while ((opt = getopt (argc, argv, "d:f:s:")) != -1)
 	{
 		switch (opt)
 		{
@@ -24,6 +26,15 @@ int main (int argc, char *argv[])
 				// file has priority over device
 				dev = NULL;
 				handle = pcap_open_offline(optarg, errbuf);
+				break;
+
+			case 's':
+				// parse provided CIDR notation
+				if (!parse_cidr(optarg, &netmask))
+				{
+					warn("Failed to parse CIDR");
+					exit(1);
+				}
 				break;
 		}
 	}
@@ -47,6 +58,19 @@ int main (int argc, char *argv[])
 
 	//printf("using device %s\n", dev);
 
+/*
+	printf("parsed CIDR netmask:\n");
+	for (int i = 0; i < 16; i++)
+	{
+		if (i && !(i % 2))
+		{
+			putchar(':');
+		}
+		printf("%02x", netmask.ip[i]);
+	}
+	printf("/%d\n", netmask.mask);
+*/
+
 	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
@@ -60,6 +84,8 @@ int main (int argc, char *argv[])
 		// TODO, once every INTERVAL, check the entire list?
 
 		// TODO, TEMPORARY, once a second output the list
+
+		// maybe only check the full list at output?
 	}
 
 
