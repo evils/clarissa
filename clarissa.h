@@ -29,10 +29,10 @@
 // extracted frame data
 struct Addrss
 {
-	struct timeval	cap_time;	// time this frame was captured
+	struct pcap_pkthdr	header;	// pcap metadata for this capture
 	uint8_t 	ip[16];		// IPv6 and mapped IPv4
 	uint8_t 	mac[6];		// source MAC
-	uint64_t	tags;		// 802.1Q and ad tags (up to 5)
+	uint64_t	tags;		// VLAN tags (up to 5)
 	uint8_t		tried;		// number of packets sent to target
 	struct Addrss*	next;		// pointer to next element in list
 };
@@ -46,9 +46,8 @@ struct Netmask
 
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header);
-int get_eth_ip(const uint8_t** frame, struct Addrss* addrss);
-int get_eth_protocol(const uint8_t** frame);
-int dot1_extend(const uint8_t** frame);
+int get_tag(const uint8_t* frame, struct Addrss* addrss);
+int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type);
 int addrss_list_update(struct Addrss** head, struct Addrss new_addrss);
 int print_mac(struct Addrss* addrss);
 int print_ip(struct Addrss* addrss);

@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
 
 	if (!handle)
 	{
-		handle = pcap_open_live(dev, 54, 1, 1000, errbuf);
+		handle = pcap_open_live(dev, 74, 1, 1000, errbuf);
 		if (!handle)
 		{
 			warn
