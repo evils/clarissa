@@ -313,9 +313,6 @@ end:
 	}
 
 	// TODO, do this implicitly above?
-	if (dest->mask > 128)
-	{
-		dest->mask = 128;
-	}
+	dest->mask > 128 ? (dest->mask = 128) : 0;
 	return retval;
 }

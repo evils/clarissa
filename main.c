@@ -5,7 +5,7 @@ int main (int argc, char *argv[])
 {
 	// pcap setup
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t* handle;
+	pcap_t* handle = NULL;
 	struct pcap_pkthdr header;
 	const uint8_t* frame;
 	char* dev = NULL;
@@ -58,6 +58,7 @@ int main (int argc, char *argv[])
 
 	//printf("using device %s\n", dev);
 
+/*
 	printf("parsed CIDR netmask:\n");
 	for (int i = 0; i < 16; i++)
 	{
@@ -68,13 +69,13 @@ int main (int argc, char *argv[])
 		printf("%02x", netmask.ip[i]);
 	}
 	printf("/%d\n", netmask.mask);
+*/
 
 	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
 	{
 		frame = pcap_next(handle, &header);
-		printf("shit don't get this far\n");
 		if (!frame) continue;
 
 		// extract addresses and update the internal list
