@@ -1,5 +1,17 @@
-implement query()
-only check full list for timeouts every INTERVAL
+implement nag()
+	fill in Host data
+implement subnet_check()
 add LINKTYPE_LINUX_SLL support
-accept several user provided devices
+accept multiple devices
+accept multiple subnets (at least IPv4 and IPv6 simultaneously)
+add long options and a usage message
 output on a socket
+
+IDEAS:
+add exponential delay to timeout per node
+	reduce nagging on less frequent devices
+
+ISSUES:
+because of separated functions, it nags right before culling
+	currently separated to not have 6 arguments to a function
+		interval can help with this

@@ -5,38 +5,69 @@ int main (int argc, char *argv[])
 {
 	// pcap setup
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t* handle = NULL;
 	struct pcap_pkthdr header;
 	const uint8_t* frame;
+	pcap_t* handle = NULL;
 	char* dev = NULL;
 	struct Addrss* head = NULL;
+	struct Subnet subnet;
+	memset(&subnet, 0, sizeof(struct Subnet));
 	int opt;
-	struct Netmask netmask;
-	memset(&netmask, 0, sizeof(struct Netmask));
+	int nags = 3;
+	int timeout = 2000000;
+	struct timeval now;
+	struct timeval checked;
+	int interval = 0;
 
-	while ((opt = getopt (argc, argv, "d:f:s:")) != -1)
+	while ((opt = getopt (argc, argv, "l:n:t:q:i:f:s:")) != -1)
 	{
 		switch (opt)
 		{
-			case 'd':
+			case 'l':
+				// get interval in ms
+				interval = (atoi(optarg) * 1000);
+				break;
+			case 'n':
+				// get number times to nag a MAC
+				nags = atoi(optarg);
+				break;
+
+			case 't':
+				// get timeout in ms
+				timeout = (atoi(optarg) * 1000);
+				break;
+
+			case 'q':
+				// quiet, may be redundant
+				nags = 0;
+				break;
+
+			case 'i':
+				// get the interface
 				dev = optarg;
 				break;
 
 			case 'f':
 				// file has priority over device
 				dev = NULL;
+				nags = 0;
 				handle = pcap_open_offline(optarg, errbuf);
 				break;
 
 			case 's':
 				// parse provided CIDR notation
-				if (!parse_cidr(optarg, &netmask))
+				if (!parse_cidr(optarg, &subnet))
 				{
 					warn("Failed to parse CIDR");
 					exit(1);
 				}
 				break;
 		}
+	}
+
+	if (!interval)
+	{
+		interval = timeout / 2;
 	}
 
 	// TODO, clean this up
@@ -56,20 +87,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	//printf("using device %s\n", dev);
+	struct Host host;
+	memset(&host, 0, sizeof(host));
+	// TODO, fill in host with host machine's MAC and IP (v4 and v6)
 
-/*
-	printf("parsed CIDR netmask:\n");
-	for (int i = 0; i < 16; i++)
-	{
-		if (i && !(i % 2))
-		{
-			putchar(':');
-		}
-		printf("%02x", netmask.ip[i]);
-	}
-	printf("/%d\n", netmask.mask);
-*/
+	gettimeofday(&checked, NULL);
 
 	// main loop
 	// capture, extract and update list of addresses
@@ -79,15 +101,30 @@ int main (int argc, char *argv[])
 		if (!frame) continue;
 
 		// extract addresses and update the internal list
-		addrss_list_update(&head, get_addrss(handle, frame, &header));
+		struct Addrss addrss = get_addrss(handle, frame, &header);
 
-		// TODO, once every INTERVAL, check the entire list?
+		subnet_check(addrss.ip, &subnet);
+
+		// if present, move addrss to front of list, otherwise append
+		addrss_list_add(&head, &addrss);
+
+		gettimeofday(&now, NULL);
+		if (usec_diff(&now, &checked) > interval)
+		{
+			gettimeofday(&checked, NULL);
+
+			// cull those that have been nagged enough
+			addrss_list_cull(&head, nags);
+
+			// and nag the survivors
+			addrss_list_nag
+				(&head, &addrss.header.ts, &host, timeout);
+		}
 
 		// TODO, TEMPORARY, once a second output the list
 
 		// maybe only check the full list at output?
 	}
-
 
 	pcap_close(handle);
 	return 0;

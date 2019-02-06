@@ -59,16 +59,21 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 	uint64_t frame_tag;
 	switch (type)
 	{
-		case DOTQ:
-		case DOTAD:
+		case DOT1Q:
+		case DOT1AD:
 		case DOUBLETAG:
 			frame_tag = ((uint64_t)frame[2] << 8)
 				   + (uint64_t)frame[3];
+
+			// pack the tag and increment the count
 			addrss->tags += (frame_tag << (addrss->tags >> 60))
 					+ ((uint64_t)1 << 60);
+
 			addrss->header.caplen -= 4;
+
 			// TODO, check if exceeded max tags?
 			get_tag(frame + 4, addrss);
+
 		default:
 			addrss->header.caplen -= 2;
 			return (get_eth_ip(frame + 2, addrss,
@@ -120,25 +125,27 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 }
 
 // update the list with a new entry
-int addrss_list_update(struct Addrss** head, struct Addrss new_addrss)
+int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss)
 {
-	struct Addrss** current;
-	//struct timeval now;
+	uint8_t zeros[16];
+	memset(&zeros, 0, 16);
 	int found = 0;
 
 	// go through the list while keeping a pointer
 	// to the previous pointer
-	for (current = head; *current != NULL;
+	for (struct Addrss** current = head;
+		*current != NULL;
 		current = &((*current)->next))
 	{
 top_of_loop:
 		// check if this has the new MAC address
-		if (!memcmp((*current)->mac, new_addrss.mac, 6))
+		if (!memcmp((*current)->mac, new_addrss->mac, 6))
 		{
 			// update time and ip
-			(*current)->header.ts = new_addrss.header.ts;
-			if (ip_check((*current)->ip))
-				memcpy((*current)->ip, new_addrss.ip, 16);
+			(*current)->header.ts = new_addrss->header.ts;
+			(*current)->tried = 0;
+			if (memcmp((*current)->ip, &zeros, 16))
+				memcpy((*current)->ip, new_addrss->ip, 16);
 
 			found = 1;
 
@@ -157,46 +164,64 @@ top_of_loop:
 			}
 		}
 
-		// check if it's timed out
-		//gettimeofday(&now, NULL);
-
-		if (usec_diff((*current)->header.ts,
-			new_addrss.header.ts) > TIMEOUT)
-		{
-			if ((*current)->tried > TRIES)
-			{
-				// remove the struct from the list
-				struct Addrss* discard = *current;
-				*current = (*current)->next;
-				free(discard);
-
-				if (*current != NULL)
-				{
-					goto top_of_loop;
-				}
-				else break;
-			}
-			else
-			{
-				query((*current));
-				// reset timeval to allow for response time
-				(*current)->header.ts = new_addrss.header.ts;
-				(*current)->tried++;
-			}
-		}
 	}
 
 	// insert at start of the list
 	if (!found)
 	{
 		struct Addrss *new_head = malloc(sizeof *new_head);
-		*new_head = new_addrss;
+		*new_head = *new_addrss;
 		new_head->next = *head;
 		*head = new_head;
 
 		// temporary output
-		print_mac(&new_addrss);
-		print_ip(&new_addrss);
+		print_mac(new_addrss);
+		print_ip(new_addrss);
+	}
+	return 0;
+}
+
+// remove timed out elements that exceeded nags
+int addrss_list_cull (struct Addrss** head, int nags)
+{
+	for (struct Addrss** current = head;
+		*current != NULL;
+		current = &((*current)->next))
+	{
+top_of_loop:
+		if ((*current)->tried > nags)
+		{
+			// remove the struct from the list
+			printf("discarded: ");
+			print_mac(*current);
+			struct Addrss* discard = *current;
+			*current = (*current)->next;
+			free(discard);
+
+			if (*current != NULL)
+			{
+				goto top_of_loop;
+			}
+			else break;
+		}
+	}
+	return 0;
+}
+
+int addrss_list_nag
+(struct Addrss** head, struct timeval* ts, struct Host* host, int timeout)
+{
+	for (struct Addrss** current = head;
+		*current != NULL;
+		current = &((*current)->next))
+	{
+		if (usec_diff(ts, &(*current)->header.ts) > timeout)
+		{
+			nag(*current, host);
+			// reset timeval to allow for response time
+			(*current)->header.ts = *ts;
+			(*current)->tried++;
+		}
 	}
 	return 0;
 }
@@ -208,9 +233,10 @@ int print_mac(struct Addrss* addrss)
 		printf("%02x:", addrss->mac[byte]);
 		if (byte >= 4)
 		{
-			printf("%02x\n", addrss->mac[byte+1]);
+			printf("%02x", addrss->mac[byte+1]);
 		}
 	}
+	printf("\n");
 	return 0;
 }
 
@@ -234,29 +260,51 @@ int print_ip(struct Addrss* addrss)
 				((uint16_t)(addrss->ip[byte+2]) << 8)
 				| (uint16_t)(addrss->ip[byte+3]);
 			if (group)
-			printf("%x\n", group);
+			printf("%x", group);
+		}
+	}
+	printf("\n");
+	return 0;
+}
+
+// send something to the target MAC to see if it's online
+int nag(struct Addrss* addrss, struct Host* host)
+{
+	uint8_t zeros[16], mapped[16];
+	memset(zeros, 0, 16);
+
+	memset(mapped, 0, 10);
+	memset(mapped+10, 1, 2);
+
+	// assume non-subset addresses have been removed already
+	if (memcmp(addrss->ip, zeros, 16))
+	{
+		if (!memcmp(addrss->ip, mapped, 12))
+		{
+			// send an ARP packet?
+			warn ("%d tries, need a way to nag with IPv4",
+				addrss->tried);
+		}
+		else
+		{
+			// send an NDP packet?
+			warn ("%d tries, need a way to nag with IPv6",
+				addrss->tried);
 		}
 	}
 	return 0;
 }
 
-// send something to the target MAC to see if it's online
-int query(struct Addrss* addrss)
-{
-	// TODO, attempt to find an IP if none is set for the target?
-	// send an ARP packet?
-	return 0;
-}
-
 // check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
-int ip_check(uint8_t* ip)
+// TODO, accept multiple subnets
+int subnet_check(uint8_t* ip, struct Subnet* mask)
 {
 	// TODO
 	return 0;
 }
 
-// parse a CIDR notation string and save to a Netmask
-int parse_cidr(char* cidr, struct Netmask* dest)
+// parse a CIDR notation string and save to a Subnet struct
+int parse_cidr(char* cidr, struct Subnet* dest)
 {
 	char* mask_ptr, *end;
 	int retval;
