@@ -52,9 +52,10 @@ struct Addrss get_addrss
 int get_tag(const uint8_t* frame, struct Addrss* addrss);
 int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type);
 int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss);
-int addrss_list_cull (struct Addrss** head, int nags);
+int addrss_list_cull
+(struct Addrss** head, struct timeval* ts, int timeout, int nags);
 int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, struct Host* host, int timeout);
+(struct Addrss** head, struct timeval* ts, int timeout, struct Host* host);
 int print_mac(struct Addrss* addrss);
 int print_ip(struct Addrss* addrss);
 int nag(struct Addrss* addrss, struct Host* host);

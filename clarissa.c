@@ -182,14 +182,16 @@ top_of_loop:
 }
 
 // remove timed out elements that exceeded nags
-int addrss_list_cull (struct Addrss** head, int nags)
+int addrss_list_cull
+(struct Addrss** head, struct timeval* ts, int timeout, int nags)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
 		current = &((*current)->next))
 	{
 top_of_loop:
-		if ((*current)->tried > nags)
+		if (((*current)->tried >= nags)
+			&& (usec_diff(ts, &(*current)->header.ts) > timeout))
 		{
 			// remove the struct from the list
 			printf("discarded: ");
@@ -209,7 +211,7 @@ top_of_loop:
 }
 
 int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, struct Host* host, int timeout)
+(struct Addrss** head, struct timeval* ts, int timeout, struct Host* host)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -282,14 +284,14 @@ int nag(struct Addrss* addrss, struct Host* host)
 		if (!memcmp(addrss->ip, mapped, 12))
 		{
 			// send an ARP packet?
-			warn ("%d tries, need a way to nag with IPv4",
-				addrss->tried);
+			warn ("try %d, need a way to nag with IPv4",
+				(addrss->tried) + 1);
 		}
 		else
 		{
 			// send an NDP packet?
-			warn ("%d tries, need a way to nag with IPv6",
-				addrss->tried);
+			warn ("try %d, need a way to nag with IPv6",
+				(addrss->tried) + 1);
 		}
 	}
 	return 0;

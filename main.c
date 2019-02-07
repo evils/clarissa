@@ -19,7 +19,7 @@ int main (int argc, char *argv[])
 	struct timeval checked;
 	int interval = 0;
 
-	while ((opt = getopt (argc, argv, "l:n:t:q:i:f:s:")) != -1)
+	while ((opt = getopt (argc, argv, "l:n:t:q::i:f:s:")) != -1)
 	{
 		switch (opt)
 		{
@@ -67,7 +67,7 @@ int main (int argc, char *argv[])
 
 	if (!interval)
 	{
-		interval = timeout / 2;
+		interval = timeout / (nags ? nags : 1);
 	}
 
 	// TODO, clean this up
@@ -105,7 +105,7 @@ int main (int argc, char *argv[])
 
 		subnet_check(addrss.ip, &subnet);
 
-		// if present, move addrss to front of list, otherwise append
+		// move addrss to front of list or prepend
 		addrss_list_add(&head, &addrss);
 
 		gettimeofday(&now, NULL);
@@ -114,11 +114,12 @@ int main (int argc, char *argv[])
 			gettimeofday(&checked, NULL);
 
 			// cull those that have been nagged enough
-			addrss_list_cull(&head, nags);
+			addrss_list_cull
+				(&head, &addrss.header.ts, timeout, nags);
 
 			// and nag the survivors
 			addrss_list_nag
-				(&head, &addrss.header.ts, &host, timeout);
+				(&head, &addrss.header.ts, timeout, &host);
 		}
 
 		// TODO, TEMPORARY, once a second output the list

@@ -15,3 +15,4 @@ ISSUES:
 because of separated functions, it nags right before culling
 	currently separated to not have 6 arguments to a function
 		interval can help with this
+	solved: check for timeout before culling
