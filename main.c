@@ -9,16 +9,20 @@ int main (int argc, char *argv[])
 	const uint8_t* frame;
 	pcap_t* handle = NULL;
 	char* dev = NULL;
+
+	// clarissa setup
 	struct Addrss* head = NULL;
 	struct Subnet subnet;
 	memset(&subnet, 0, sizeof(struct Subnet));
-	int opt;
-	int nags = 3;
-	int timeout = 2000000;
 	struct timeval now;
 	struct timeval checked;
+	gettimeofday(&checked, NULL);
+	int timeout = 2000000;
 	int interval = 0;
+	int nags = 3;
 
+	// process options
+	int opt;
 	while ((opt = getopt (argc, argv, "l:n:t:q::i:f:s:")) != -1)
 	{
 		switch (opt)
@@ -82,30 +86,33 @@ int main (int argc, char *argv[])
 		if (!handle)
 		{
 			warn
-			("Couldn't open pcap source %s: %s\n", dev, errbuf);
+			("Couldn't open pcap source %s: %s\n",
+				dev, errbuf);
 			return -1;
 		}
 	}
 
+	// set up host ID
 	struct Host host;
 	memset(&host, 0, sizeof(host));
 	// TODO, fill in host with host machine's MAC and IP (v4 and v6)
-
-	gettimeofday(&checked, NULL);
 
 	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
 	{
+		// get a frame
 		frame = pcap_next(handle, &header);
 		if (!frame) continue;
 
 		// extract addresses and update the internal list
-		struct Addrss addrss = get_addrss(handle, frame, &header);
+		struct Addrss addrss =
+			get_addrss(handle, frame, &header);
 
+		// zero IP if it's not in the provided subnet
 		subnet_check(addrss.ip, &subnet);
 
-		// move addrss to front of list or prepend
+		// move addrss to front of list
 		addrss_list_add(&head, &addrss);
 
 		gettimeofday(&now, NULL);
@@ -115,11 +122,11 @@ int main (int argc, char *argv[])
 
 			// cull those that have been nagged enough
 			addrss_list_cull
-				(&head, &addrss.header.ts, timeout, nags);
+			(&head, &addrss.header.ts, timeout, nags);
 
 			// and nag the survivors
 			addrss_list_nag
-				(&head, &addrss.header.ts, timeout, &host);
+			(&head, &addrss.header.ts, timeout, &host);
 		}
 
 		// TODO, TEMPORARY, once a second output the list
