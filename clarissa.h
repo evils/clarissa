@@ -1,16 +1,16 @@
 #pragma once
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <err.h>
-#include <pcap.h>
-#include <sys/time.h>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <string.h>
+#include <stdlib.h>	// exit(), free(), strtol()
+#include <string.h>	// mem*(), strn*()
+#include <err.h>	// warn()
+#include <pcap.h>	// pcap everything duh
+#include <arpa/inet.h>	// inet_pton(), struct sockaddr_in
+#include <sys/ioctl.h>	// ioctl(), SIOCGIFADDR
+#include <net/if.h>	// struct ifreq, IFNAMSIZ
+#include <unistd.h>	// close()
+#include <net/if_arp.h>	// ARPHRD_ETHER
 
-#include "time_tools.h"
+#include "time_tools.h"	// usec_diff()
 
 // ethernet types
 #define IPv4 0x0800
@@ -56,8 +56,11 @@ int addrss_list_cull
 (struct Addrss** head, struct timeval* ts, int timeout, int nags);
 int addrss_list_nag
 (struct Addrss** head, struct timeval* ts, int timeout, struct Host* host);
-int print_mac(struct Addrss* addrss);
-int print_ip(struct Addrss* addrss);
+int print_mac(uint8_t* mac);
+int print_ip(uint8_t* ip);
 int nag(struct Addrss* addrss, struct Host* host);
 int subnet_check(uint8_t* ip, struct Subnet* mask);
 int parse_cidr(char* cidr, struct Subnet* dest);
+int get_mac(uint8_t* dest, char* dev);
+int get_ipv4(uint8_t* dest, char* dev);
+int get_ipv6(uint8_t* dest, char* dev);

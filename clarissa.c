@@ -174,9 +174,9 @@ top_of_loop:
 		new_head->next = *head;
 		*head = new_head;
 
-		// temporary output
-		print_mac(new_addrss);
-		print_ip(new_addrss);
+		// TEMPORARY output
+		print_mac(new_addrss->mac);
+		print_ip(new_addrss->ip);
 	}
 	return 0;
 }
@@ -195,7 +195,7 @@ top_of_loop:
 		{
 			// remove the struct from the list
 			printf("discarded: ");
-			print_mac(*current);
+			print_mac((*current)->mac);
 			struct Addrss* discard = *current;
 			*current = (*current)->next;
 			free(discard);
@@ -228,28 +228,28 @@ int addrss_list_nag
 	return 0;
 }
 
-int print_mac(struct Addrss* addrss)
+int print_mac(uint8_t* mac)
 {
 	for(int byte = 0; byte <= 4; byte++)
 	{
-		printf("%02x:", addrss->mac[byte]);
+		printf("%02x:", mac[byte]);
 		if (byte >= 4)
 		{
-			printf("%02x", addrss->mac[byte+1]);
+			printf("%02x", mac[byte+1]);
 		}
 	}
 	printf("\n");
 	return 0;
 }
 
-int print_ip(struct Addrss* addrss)
+int print_ip(uint8_t* ip)
 {
 	// TODO, handle IPv4 separately?
 	// just print the IPv6 with mapped IPv4 address
 	for (int byte = 0; byte <= 12; byte += 2)
 	{
-		uint16_t group = ((uint16_t)(addrss->ip[byte]) << 8)
-				| (uint16_t)(addrss->ip[byte+1]);
+		uint16_t group = ((uint16_t)(ip[byte]) << 8)
+				| (uint16_t)(ip[byte+1]);
 		if (group)
 		{
 			// shitty approximation of mapped IPv4 output
@@ -259,8 +259,8 @@ int print_ip(struct Addrss* addrss)
 		if (byte >= 12)
 		{
 			uint16_t group =
-				((uint16_t)(addrss->ip[byte+2]) << 8)
-				| (uint16_t)(addrss->ip[byte+3]);
+				((uint16_t)(ip[byte+2]) << 8)
+				| (uint16_t)(ip[byte+3]);
 			if (group)
 			printf("%x", group);
 		}
@@ -357,4 +357,80 @@ end:
 	// TODO, do this implicitly above?
 	dest->mask > 128 ? (dest->mask = 128) : 0;
 	return retval;
+}
+
+// fill in the destination with device's MAC address
+int get_mac(uint8_t* dest, char* dev)
+{
+	int fd, rc;
+	struct ifreq ifr;
+
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+
+	// get the MAC address of the interface
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	rc = ioctl(fd, SIOCGIFHWADDR, &ifr);
+	close(fd);
+
+	if (!rc)
+	{
+		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
+		{
+			warn("Failed to get host MAC address, not ethernet");
+			return -1;
+		}
+
+		memcpy(dest, (uint8_t*)ifr.ifr_hwaddr.sa_data, 6);
+
+		// TEMPORARY
+		printf("Host MAC address:\t");
+		print_mac((uint8_t*)ifr.ifr_hwaddr.sa_data);
+
+		return 0;
+	}
+	else
+	{
+		warn("Failed to get host MAC address");
+		return -1;
+	}
+}
+
+// fill in the destination with device's IPv4 address
+int get_ipv4(uint8_t* dest, char* dev)
+{
+	int fd, rc;
+	struct ifreq ifr;
+
+	// fill in the struct
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+
+	// get the address of the interface
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	rc = ioctl(fd, SIOCGIFADDR, &ifr);
+	close(fd);
+
+	if(!rc)
+	{	// save the IP address
+		memcpy(dest, &((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr,
+		sizeof(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+
+		// TEMPORARY
+		printf("Host IPv4 address:\t%s\n",
+		inet_ntoa(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+
+		return 0;
+	}
+	else
+	{
+		warn("Failed to get host IP address");
+		return -1;
+	}
+}
+
+// fill in the destination with device's IPv6 address
+int get_ipv6(uint8_t* dest, char* dev)
+{
+	// TODO
+	return 0;
 }

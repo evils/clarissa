@@ -95,7 +95,9 @@ int main (int argc, char *argv[])
 	// set up host ID
 	struct Host host;
 	memset(&host, 0, sizeof(host));
-	// TODO, fill in host with host machine's MAC and IP (v4 and v6)
+	get_mac(host.mac, dev);
+	get_ipv4(host.ipv4, dev);
+	// TODO, get_ipv6(host.ipv6, dev);
 
 	// main loop
 	// capture, extract and update list of addresses
