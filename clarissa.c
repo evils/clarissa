@@ -272,13 +272,13 @@ int print_ip(uint8_t* ip)
 // send something to the target MAC to see if it's online
 int nag(struct Addrss* addrss, struct Host* host)
 {
-	uint8_t zeros[16], mapped[16];
+	uint8_t zeros[16], mapped[12];
 	memset(zeros, 0, 16);
 
 	memset(mapped, 0, 10);
 	memset(mapped+10, 1, 2);
 
-	// assume non-subset addresses have been removed already
+	// assumes non-subnet addresses have been zero'd (subnet_check)
 	if (memcmp(addrss->ip, zeros, 16))
 	{
 		if (!memcmp(addrss->ip, mapped, 12))
@@ -301,7 +301,25 @@ int nag(struct Addrss* addrss, struct Host* host)
 // TODO, accept multiple subnets
 int subnet_check(uint8_t* ip, struct Subnet* mask)
 {
-	// TODO
+	uint8_t zeros[16], mapped[12];
+	memset(zeros, 0, 16);
+
+	memset(mapped, 0, 10);
+	memset(mapped+10, 1, 2);
+
+	// zero out all non-subnet IPs that aren't already zero
+	if (memcmp(ip, zeros, 16))
+	{
+		// check for mapped IPv4 and IPv4 mask
+		if (!memcmp(ip, mapped, 12) && (mask->mask >= 96))
+		{
+			// TODO, check for IPv4 subnet
+		}
+		else
+		{
+			// TODO, check for IPv6 subnet
+		}
+	}
 	return 0;
 }
 
