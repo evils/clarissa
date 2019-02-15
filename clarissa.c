@@ -115,10 +115,16 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			warn ("ETH_SIZE");
 			return 0;
 
+		case ARUBA_AP_BC:
+
+			//warn ("Aruba Instant AP broadcast packet found");
+			return 0;
+
 		default:
 			warn
-			("unsupported EtherType: 0x%04x\n",
+			("unsupported EtherType: 0x%04x, from: v",
 			type);
+			print_mac(addrss->mac);
 	}
 
 	return 0;
@@ -176,7 +182,7 @@ top_of_loop:
 
 		// TEMPORARY output
 		print_mac(new_addrss->mac);
-		print_ip(new_addrss->ip);
+		//print_ip(new_addrss->ip);
 	}
 	return 0;
 }

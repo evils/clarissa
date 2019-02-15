@@ -20,6 +20,7 @@
 #define DOT1AD 0X88A8
 #define DOUBLETAG 0x9100
 #define ETH_SIZE 0x600
+#define ARUBA_AP_BC 0x8ffd
 
 // extracted frame data
 struct Addrss
