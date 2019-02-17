@@ -5,7 +5,7 @@ implement get_ipv6()
 add LINKTYPE_LINUX_SLL support
 accept multiple devices
 accept multiple subnets (at least IPv4 and IPv6 simultaneously)
-add long options and a usage message
+add long options
 multithreading
 	generate a count based on a known MAC addresses reference?
 		output count to mqtt?

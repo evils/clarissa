@@ -9,7 +9,7 @@ struct Addrss get_addrss
 
 	addrss.header = *header;
 
-	// assume a packet is correct (discard len < caplen (54) ?)
+	// assume a packet is correct (discard len < caplen (74) ?)
         // an invalid MAC will be unreachable and get purged
         // check if the IP is in the right range later?
 
@@ -22,6 +22,7 @@ struct Addrss get_addrss
 
 			// skip to source MAC address and store it
 			memcpy(addrss.mac, frame += 6, 6);
+			if (verbosity > 3) print_mac(addrss.mac);
 
 			// skip to metadata and get IP address
 			if (!get_tag(frame+6, &addrss))
@@ -91,7 +92,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 1, 2);
 			memcpy(addrss->ip+12, frame+12, 4);
-			return 0;
+			break;
 
 		case ARP:
 
@@ -99,13 +100,13 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 1, 2);
 			memcpy(addrss->ip+12, frame+14, 4);
-			return 0;
+			break;
 
 		case IPv6:
 
 			// copy IPv6 address to addrss
 			memcpy(addrss->ip, frame+8, 16);
-			return 0;
+			break;
 
 		case ETH_SIZE:
 			// TODO, determine payload type
@@ -113,12 +114,12 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 
 			// continue without IP
 			warn ("ETH_SIZE");
-			return 0;
+			break;
 
 		case ARUBA_AP_BC:
 
 			//warn ("Aruba Instant AP broadcast packet found");
-			return 0;
+			break;
 
 		default:
 			warn
@@ -127,6 +128,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			print_mac(addrss->mac);
 	}
 
+	if (verbosity > 3) print_ip(addrss->ip);
 	return 0;
 }
 
@@ -181,8 +183,8 @@ top_of_loop:
 		*head = new_head;
 
 		// TEMPORARY output
-		print_mac(new_addrss->mac);
-		//print_ip(new_addrss->ip);
+		if (verbosity) print_mac(new_addrss->mac);
+		if (verbosity > 1) print_ip(new_addrss->ip);
 	}
 	return 0;
 }
@@ -200,8 +202,11 @@ top_of_loop:
 			&& (usec_diff(ts, &(*current)->header.ts) > timeout))
 		{
 			// remove the struct from the list
-			printf("discarded: ");
-			print_mac((*current)->mac);
+			if (verbosity > 3)
+			{
+				printf("discarded: ");
+				print_mac((*current)->mac);
+			}
 			struct Addrss* discard = *current;
 			*current = (*current)->next;
 			free(discard);
@@ -290,14 +295,16 @@ int nag(struct Addrss* addrss, struct Host* host)
 		if (!memcmp(addrss->ip, mapped, 12))
 		{
 			// send an ARP packet?
-			warn ("try %d, need a way to nag with IPv4",
-				(addrss->tried) + 1);
+			if (verbosity > 2)
+				printf("try %d, need a way to nag with IPv4\n"
+				, (addrss->tried) + 1);
 		}
 		else
 		{
 			// send an NDP packet?
-			warn ("try %d, need a way to nag with IPv6",
-				(addrss->tried) + 1);
+			if (verbosity > 2)
+				printf("try %d, need a way to nag with IPv6\n"
+				, (addrss->tried) + 1);
 		}
 	}
 	return 0;
@@ -319,11 +326,39 @@ int subnet_check(uint8_t* ip, struct Subnet* mask)
 		// check for mapped IPv4 and IPv4 mask
 		if (!memcmp(ip, mapped, 12) && (mask->mask >= 96))
 		{
-			// TODO, check for IPv4 subnet
+			// mask bytes
+			int mb = (mask->mask - 96) / 8;
+			// mask remnants
+			int mr = (mask->mask - 96) % 8;
+			// remnant mask
+			uint8_t remn = (1 << mr) - 1;
+
+			if (!memcmp(ip + 12, mask->ip + 12, mb)
+				&& !memcmp(ip + (12 + mb), &remn, 1))
+			{
+				if (verbosity > 4)
+				printf("Zero'd a non-subnet IPv4 address\n");
+
+				memset(ip, 0, 16);
+			}
 		}
 		else
 		{
-			// TODO, check for IPv6 subnet
+			// mask bytes
+			int mb = mask->mask / 8;
+			// mask remnants
+			int mr = mask->mask % 8;
+			// remnant mask
+			uint8_t remn = (1 << mr) - 1;
+
+			if(!memcmp(ip, mask->ip, mb)
+				&& !memcmp(ip + mb, &remn, 1))
+			{
+				if (verbosity > 4)
+				printf("Zero'd a non-subnet IPv6 address\n");
+
+				memset(ip, 0, 16);
+			}
 		}
 	}
 	return 0;
@@ -406,10 +441,6 @@ int get_mac(uint8_t* dest, char* dev)
 
 		memcpy(dest, (uint8_t*)ifr.ifr_hwaddr.sa_data, 6);
 
-		// TEMPORARY
-		printf("Host MAC address:\t");
-		print_mac((uint8_t*)ifr.ifr_hwaddr.sa_data);
-
 		return 0;
 	}
 	else
@@ -440,8 +471,12 @@ int get_ipv4(uint8_t* dest, char* dev)
 		sizeof(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
 
 		// TEMPORARY
-		printf("Host IPv4 address:\t%s\n",
-		inet_ntoa(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+		if (verbosity)
+		{
+			printf("Host IPv4 address:\t%s\n",
+			inet_ntoa
+			(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+		}
 
 		return 0;
 	}

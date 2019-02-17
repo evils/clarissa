@@ -12,6 +12,8 @@
 
 #include "time_tools.h"	// usec_diff()
 
+int verbosity;
+
 // ethernet types
 #define IPv4 0x0800
 #define IPv6 0x86DD
