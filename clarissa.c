@@ -22,7 +22,6 @@ struct Addrss get_addrss
 
 			// skip to source MAC address and store it
 			memcpy(addrss.mac, frame += 6, 6);
-			if (verbosity > 3) print_mac(addrss.mac);
 
 			// skip to metadata and get IP address
 			if (!get_tag(frame+6, &addrss))
@@ -128,7 +127,6 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			print_mac(addrss->mac);
 	}
 
-	if (verbosity > 3) print_ip(addrss->ip);
 	return 0;
 }
 
@@ -202,7 +200,7 @@ top_of_loop:
 			&& (usec_diff(ts, &(*current)->header.ts) > timeout))
 		{
 			// remove the struct from the list
-			if (verbosity > 3)
+			if (verbosity > 2)
 			{
 				printf("discarded: ");
 				print_mac((*current)->mac);
@@ -234,6 +232,36 @@ int addrss_list_nag
 			// reset timeval to allow for response time
 			(*current)->header.ts = *ts;
 			(*current)->tried++;
+		}
+	}
+	return 0;
+}
+
+// send something to the target MAC to see if it's online
+int nag(struct Addrss* addrss, struct Host* host)
+{
+	uint8_t zeros[16], mapped[12];
+	memset(zeros, 0, 16);
+
+	memset(mapped, 0, 10);
+	memset(mapped+10, 1, 2);
+
+	// assumes non-subnet addresses have been zero'd (subnet check)
+	if (memcmp(addrss->ip, zeros, 16))
+	{
+		if (!memcmp(addrss->ip, mapped, 12))
+		{
+			// send an ARP packet?
+			if (verbosity > 2)
+				printf("try %d, need a way to nag with IPv4\n"
+				, (addrss->tried) + 1);
+		}
+		else
+		{
+			// send an NDP packet?
+			if (verbosity > 2)
+				printf("try %d, need a way to nag with IPv6\n"
+				, (addrss->tried) + 1);
 		}
 	}
 	return 0;
@@ -273,38 +301,7 @@ int print_ip(uint8_t* ip)
 				((uint16_t)(ip[byte+2]) << 8)
 				| (uint16_t)(ip[byte+3]);
 			if (group)
-			printf("%x", group);
-		}
-	}
-	printf("\n");
-	return 0;
-}
-
-// send something to the target MAC to see if it's online
-int nag(struct Addrss* addrss, struct Host* host)
-{
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
-	// assumes non-subnet addresses have been zero'd (subnet_check)
-	if (memcmp(addrss->ip, zeros, 16))
-	{
-		if (!memcmp(addrss->ip, mapped, 12))
-		{
-			// send an ARP packet?
-			if (verbosity > 2)
-				printf("try %d, need a way to nag with IPv4\n"
-				, (addrss->tried) + 1);
-		}
-		else
-		{
-			// send an NDP packet?
-			if (verbosity > 2)
-				printf("try %d, need a way to nag with IPv6\n"
-				, (addrss->tried) + 1);
+			printf("%x\n", group);
 		}
 	}
 	return 0;
@@ -312,7 +309,7 @@ int nag(struct Addrss* addrss, struct Host* host)
 
 // check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
 // TODO, accept multiple subnets
-int subnet_check(uint8_t* ip, struct Subnet* mask)
+int subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
 	uint8_t zeros[16], mapped[12];
 	memset(zeros, 0, 16);
@@ -324,19 +321,29 @@ int subnet_check(uint8_t* ip, struct Subnet* mask)
 	if (memcmp(ip, zeros, 16))
 	{
 		// check for mapped IPv4 and IPv4 mask
-		if (!memcmp(ip, mapped, 12) && (mask->mask >= 96))
+		if (!memcmp(ip, mapped, 12))
 		{
-			// mask bytes
-			int mb = (mask->mask - 96) / 8;
-			// mask remnants
-			int mr = (mask->mask - 96) % 8;
-			// remnant mask
-			uint8_t remn = (1 << mr) - 1;
+			// note, correctly getting non-zero IPv4 addresses
 
-			if (!memcmp(ip + 12, mask->ip + 12, mb)
-				&& !memcmp(ip + (12 + mb), &remn, 1))
+			// mask bytes
+			int mb = (subnet->mask - 96) / 8;
+			// remnant bits mask
+			int mr = (subnet->mask - 96) % 8;
+			uint8_t remn =
+				(-1) << (8 - mr);
+
+			//note, correct mask
+
+			// last byte
+			uint8_t lb = ip[12 + mb];
+
+			//printf("IPv4, mb: %d, lb: %d\n", mb, lb);
+
+			// check full bytes and remnant bits
+			if (memcmp(ip + 12, subnet->ip + 12, mb)
+				&& lb < remn)
 			{
-				if (verbosity > 4)
+				if (verbosity > 3)
 				printf("Zero'd a non-subnet IPv4 address\n");
 
 				memset(ip, 0, 16);
@@ -344,17 +351,25 @@ int subnet_check(uint8_t* ip, struct Subnet* mask)
 		}
 		else
 		{
-			// mask bytes
-			int mb = mask->mask / 8;
-			// mask remnants
-			int mr = mask->mask % 8;
-			// remnant mask
-			uint8_t remn = (1 << mr) - 1;
+			// note, correctly getting non-zero IPv6 addresses
 
-			if(!memcmp(ip, mask->ip, mb)
-				&& !memcmp(ip + mb, &remn, 1))
+			// mask bytes
+			int mb = subnet->mask / 8;
+			// mask remnants
+			int mr = subnet->mask % 8;
+			// remnant mask
+			uint8_t remn = (-1) << mr;
+
+			//note, correct mask
+
+			uint8_t lb = ip[mb];
+
+			//printf("IPv6, mb: %d, lb: %x\n", mb, lb);
+
+			if(memcmp(ip, subnet->ip, mb)
+				&& lb < remn)
 			{
-				if (verbosity > 4)
+				if (verbosity > 3)
 				printf("Zero'd a non-subnet IPv6 address\n");
 
 				memset(ip, 0, 16);

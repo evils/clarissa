@@ -13,7 +13,7 @@ int main (int argc, char *argv[])
 	// clarissa setup
 	struct Addrss* head = NULL;
 	struct Subnet subnet;
-	memset(&subnet, 0, sizeof(struct Subnet));
+	memset(&subnet, 0, sizeof(subnet));
 	struct timeval now;
 	struct timeval checked;
 	gettimeofday(&checked, NULL);
@@ -77,7 +77,17 @@ int main (int argc, char *argv[])
 					warn("Failed to parse CIDR");
 					exit(1);
 				}
-				else parsed = 1;
+				else
+				{
+					if (verbosity > 1)
+					{
+						printf("subset ip: ");
+						print_ip(subnet.ip);
+						printf("subset mask: %d\n",
+							subnet.mask);
+					}
+					parsed = 1;
+				}
 				break;
 			case 'h':
 				help();
@@ -87,11 +97,6 @@ int main (int argc, char *argv[])
 				print_opts();
 				return -1;
 		}
-	}
-
-	if (!parsed)
-	{
-		subnet.mask = 128;
 	}
 
 	if (!interval)
@@ -132,7 +137,7 @@ int main (int argc, char *argv[])
 		print_mac(host.mac);
 		if (promiscuous) printf("Promiscuous\n");
 		if (nags == 0) printf("Quiet\n");
-		if (verbosity > 3)
+		if (verbosity > 2)
 		{
 			printf("Timeout:\t\t%dms\n", timeout / 1000);
 			if (nags) printf("Nags:\t\t\t%d\n", nags);
@@ -155,6 +160,12 @@ int main (int argc, char *argv[])
 
 		// zero IP if it's not in the provided subnet
 		subnet_check(addrss.ip, &subnet);
+
+		if (verbosity > 4)
+		{
+			print_mac(addrss.mac);
+			print_ip(addrss.ip);
+		}
 
 		// move addrss to front of list
 		addrss_list_add(&head, &addrss);
@@ -207,7 +218,7 @@ int print_opts()
 	printf(" -q     Quiet, send out no packets\n");
 	printf(" -s  *  get a Subnet in CIDR notation (currently not used)\n");
 	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
-	printf(" -v     set or increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < debug < vomit)\n");
+	printf(" -v     set or increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
 	printf("\n");
 
 	return 0;
