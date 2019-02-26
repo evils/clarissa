@@ -199,11 +199,11 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			case 'h':
 				help();
-				return 0;
+				exit(0);
 			default:
 				// usage
 				print_opts();
-				return -1;
+				exit(-1);
 		}
 	}
 
