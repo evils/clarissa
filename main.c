@@ -4,129 +4,31 @@
 int main (int argc, char *argv[])
 {
 	// pcap setup
-	char errbuf[PCAP_ERRBUF_SIZE];
+	// errbuff, handle and dev are in the opts struct
 	struct pcap_pkthdr header;
 	const uint8_t* frame;
-	pcap_t* handle = NULL;
-	char* dev = NULL;
 
 	// clarissa setup
+	// more in the opts struct
 	struct Addrss* head = NULL;
-	struct Subnet subnet;
-	memset(&subnet, 0, sizeof(subnet));
 	struct timeval now;
 	struct timeval checked;
+
 	gettimeofday(&checked, NULL);
-	int timeout = 2000000;
-	int interval = 0;
-	int nags = 3;
-	int promiscuous = 0;
-	verbosity = 0;
-	int parsed = 0;
 
-	// process options
-	int opt;
-	while ((opt = getopt (argc, argv, "v::p::l:n:t:q::i:f:s:h::")) != -1)
-	{
-		switch (opt)
-		{
-			case 'v':
-				if (optarg) verbosity = atoi(optarg);
-				else verbosity++;
-				break;
-			case 'p':
-				// get promiscuous mode
-				promiscuous = 1;
-				break;
-			case 'l':
-				// get interval in ms
-				interval = (atoi(optarg) * 1000);
-				break;
-			case 'n':
-				// get number times to nag a MAC
-				nags = atoi(optarg);
-				break;
-			case 't':
-				// get timeout in ms
-				timeout = (atoi(optarg) * 1000);
-				break;
-			case 'q':
-				// quiet, may be redundant
-				nags = 0;
-				break;
-			case 'i':
-				// get the interface
-				dev = optarg;
-				break;
-			case 'f':
-				// file has priority over device
-				dev = NULL;
-				nags = 0;
-				handle = pcap_open_offline(optarg, errbuf);
-				break;
-			case 's':
-				if (parsed)
-				{
-					warn
-				("Multiple subnets currently not supported");
-					exit(1);
-				}
-				// parse provided CIDR notation
-				if (!parse_cidr(optarg, &subnet))
-				{
-					warn("Failed to parse CIDR");
-					exit(1);
-				}
-				else
-				{
-					if (verbosity > 1)
-					{
-						printf("subset ip: ");
-						print_ip(subnet.ip);
-						printf("subset mask: %d\n",
-							subnet.mask);
-					}
-					parsed = 1;
-				}
-				break;
-			case 'h':
-				help();
-				return 0;
-			default:
-				// usage
-				print_opts();
-				return -1;
-		}
-	}
+	// options setup
+	struct Opts opts;
+	memset(&opts, 0, sizeof(opts));
 
-	if (!interval)
-	{
-		interval = timeout / (nags ? nags : 1);
-	}
+	handle_opts(argc, argv, &opts);
 
-	// TODO, clean this up
-	if (!dev && !handle)
-	{
-		dev = pcap_lookupdev(errbuf);
-	}
 
-	if (!handle)
-	{
-		handle = pcap_open_live(dev, 74, promiscuous, 1000, errbuf);
-		if (!handle)
-		{
-			warn
-			("Couldn't open pcap source %s: %s\n",
-				dev, errbuf);
-			return -1;
-		}
-	}
-
-	// set up host ID
+	// get the host ID
 	struct Host host;
 	memset(&host, 0, sizeof(host));
-	get_mac(host.mac, dev);
-	get_ipv4(host.ipv4, dev);
+
+	get_mac(host.mac, opts.dev);
+	get_ipv4(host.ipv4, opts.dev);
 	// TODO, get_ipv6(host.ipv6, dev);
 
 	// startup header
@@ -135,13 +37,13 @@ int main (int argc, char *argv[])
 	{
 		printf("Host MAC address:\t");
 		print_mac(host.mac);
-		if (promiscuous) printf("Promiscuous\n");
-		if (nags == 0) printf("Quiet\n");
+		if (opts.promiscuous) printf("Promiscuous\n");
+		if (opts.nags == 0) printf("Quiet\n");
 		if (verbosity > 2)
 		{
-			printf("Timeout:\t\t%dms\n", timeout / 1000);
-			if (nags) printf("Nags:\t\t\t%d\n", nags);
-			printf("Interval:\t\t%dms\n", interval / 1000);
+			printf("Timeout:\t\t%dms\n", opts.timeout / 1000);
+			if (opts.nags) printf("Nags:\t\t\t%d\n", opts.nags);
+			printf("Interval:\t\t%dms\n", opts.interval / 1000);
 		}
 	}
 	printf("\n");
@@ -151,15 +53,15 @@ int main (int argc, char *argv[])
 	for (;;)
 	{
 		// get a frame
-		frame = pcap_next(handle, &header);
+		frame = pcap_next(opts.handle, &header);
 		if (!frame) continue;
 
 		// extract addresses and update the internal list
 		struct Addrss addrss =
-			get_addrss(handle, frame, &header);
+			get_addrss(opts.handle, frame, &header);
 
 		// zero IP if it's not in the provided subnet
-		subnet_check(addrss.ip, &subnet);
+		subnet_check(addrss.ip, &opts.subnet);
 
 		if (verbosity > 4)
 		{
@@ -171,17 +73,17 @@ int main (int argc, char *argv[])
 		addrss_list_add(&head, &addrss);
 
 		gettimeofday(&now, NULL);
-		if (usec_diff(&now, &checked) > interval)
+		if (usec_diff(&now, &checked) > opts.interval)
 		{
 			gettimeofday(&checked, NULL);
 
 			// cull those that have been nagged enough
 			addrss_list_cull
-			(&head, &addrss.header.ts, timeout, nags);
+				(&head, &addrss.header.ts, opts.timeout, opts.nags);
 
 			// and nag the survivors
 			addrss_list_nag
-			(&head, &addrss.header.ts, timeout, &host);
+				(&head, &addrss.header.ts, opts.timeout, &host);
 		}
 
 		// TODO, TEMPORARY, once a second output the list
@@ -189,7 +91,7 @@ int main (int argc, char *argv[])
 		// maybe only check the full list at output?
 	}
 
-	pcap_close(handle);
+	pcap_close(opts.handle);
 	return 0;
 
 }
@@ -218,8 +120,118 @@ int print_opts()
 	printf(" -q     Quiet, send out no packets\n");
 	printf(" -s  *  get a Subnet in CIDR notation (currently not used)\n");
 	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
-	printf(" -v     set or increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
 	printf("\n");
+
+	return 0;
+}
+
+int handle_opts(int argc, char* argv[], struct Opts* opts)
+{
+	// clarissa stuff
+	opts->timeout = 2000000;
+	opts->nags = 3;
+	verbosity = 0;
+
+	int opt;
+	while ((opt = getopt (argc, argv, "vpl:n:t:qf:i:s:h::")) != -1)
+	{
+		switch (opt)
+		{
+			case 'v':
+				verbosity++;
+				break;
+			case 'p':
+				// get promiscuous mode
+				opts->promiscuous = 1;
+				break;
+			case 'l':
+				// get interval in ms
+				opts->interval = (atoi(optarg) * 1000);
+				break;
+			case 'n':
+				// get number times to nag a MAC
+				opts->nags = atoi(optarg);
+				break;
+			case 't':
+				// get timeout in ms
+				opts->timeout = (atoi(optarg) * 1000);
+				break;
+			case 'q':
+				// quiet, may be redundant
+				opts->nags = 0;
+				break;
+			case 'f':
+				// file has priority over device
+				opts->dev = NULL;
+				opts->nags = 0;
+				opts->handle = pcap_open_offline
+						(optarg, opts->errbuf);
+				break;
+			case 'i':
+				// get the interface
+				opts->dev = optarg;
+				break;
+			case 's':
+				if (opts->parsed)
+				{
+					warn
+				("Multiple subnets currently not supported");
+					exit(1);
+				}
+				// parse provided CIDR notation
+				if (!parse_cidr(optarg, &opts->subnet))
+				{
+					warn("Failed to parse CIDR");
+					exit(1);
+				}
+				else
+				{
+					if (verbosity > 1)
+					{
+						printf("subset ip: ");
+						print_ip(opts->subnet.ip);
+						printf("subset mask: %d\n",
+							opts->subnet.mask);
+					}
+					opts->parsed = 1;
+				}
+				break;
+			case 'h':
+				help();
+				return 0;
+			default:
+				// usage
+				print_opts();
+				return -1;
+		}
+	}
+
+	if (!opts->interval)
+	{
+		opts->interval =
+			opts->timeout / (opts->nags ? opts->nags : 1);
+	}
+
+	// TODO, clean this up?
+	if (!opts->dev && !opts->handle)
+	{
+		opts->dev = pcap_lookupdev(opts->errbuf);
+	}
+
+	if (!opts->handle)
+	{
+		opts->handle = pcap_open_live
+				(opts->dev, 74, opts->promiscuous, 1000,
+					opts->errbuf);
+		if (!opts->handle)
+		{
+			warn
+			("Couldn't open pcap source %s: %s\n",
+				opts->dev, opts->errbuf);
+			return -1;
+		}
+	}
 
 	return 0;
 }
