@@ -56,22 +56,33 @@ struct Addrss get_addrss
 int get_tag(const uint8_t* frame, struct Addrss* addrss)
 {
 	uint16_t type = ((uint16_t)(frame[0]) << 8) | (uint16_t)(frame[1]);
-	uint64_t frame_tag;
 	switch (type)
 	{
 		case DOT1Q:
 		case DOT1AD:
-		case DOUBLETAG:
-			frame_tag = ((uint64_t)frame[2] << 8)
-				   + (uint64_t)frame[3];
+		case DOT1QINQ:
 
-			// pack the tag and increment the count
-			addrss->tags += (frame_tag << (addrss->tags >> 60))
-					+ ((uint64_t)1 << 60);
+			if ((addrss->tags >> 60) >= 5)
+			{
+				warn("Exceeded VLAN tag depth!");
+				exit(1);
+			}
+
+			// get the full TCI
+			uint64_t VID =
+			     (((uint64_t)frame[2] << 8) + (uint64_t)frame[3]);
+
+			// drop the PPC and DEI
+			VID &= (uint64_t)(1 << 12) - 1;
+
+			// pack the VLAN ID and increment the count
+			/* | count |     5x VLAN IDentifiers     |
+			   |  4b   | 12b | 12b | 12b | 12b | 12b | */
+			addrss->tags += (VID << (addrss->tags >> 60) * 12)
+					+ ((uint64_t) 1 << 60);
 
 			addrss->header.caplen -= 4;
 
-			// TODO, check if exceeded max tags?
 			get_tag(frame + 4, addrss);
 
 		default:
@@ -150,7 +161,7 @@ top_of_loop:
 			// update time and ip
 			(*current)->header.ts = new_addrss->header.ts;
 			(*current)->tried = 0;
-			if (memcmp((*current)->ip, &zeros, 16))
+			if (memcmp((*current)->ip, zeros, 16))
 				memcpy((*current)->ip, new_addrss->ip, 16);
 
 			found = 1;
@@ -220,7 +231,7 @@ top_of_loop:
 }
 
 int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, int timeout, struct Host* host)
+(struct Addrss** head, struct timeval* ts, int timeout, struct Opts* opts)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -228,7 +239,7 @@ int addrss_list_nag
 	{
 		if (usec_diff(ts, &(*current)->header.ts) > timeout)
 		{
-			nag(*current, host);
+			nag(*current, opts);
 			// reset timeval to allow for response time
 			(*current)->header.ts = *ts;
 			(*current)->tried++;
@@ -238,7 +249,7 @@ int addrss_list_nag
 }
 
 // send something to the target MAC to see if it's online
-int nag(struct Addrss* addrss, struct Host* host)
+int nag(struct Addrss* addrss, struct Opts* opts)
 {
 	uint8_t zeros[16], mapped[12];
 	memset(zeros, 0, 16);
@@ -251,10 +262,111 @@ int nag(struct Addrss* addrss, struct Host* host)
 	{
 		if (!memcmp(addrss->ip, mapped, 12))
 		{
-			// send an ARP packet?
-			if (verbosity > 2)
-				printf("try %d, need a way to nag with IPv4\n"
-				, (addrss->tried) + 1);
+			// IPv4, send ethernet frame with ARP packet
+
+			// count size of the frame
+
+			// no preamble / SFD
+			// MAC addresses
+			int count = 12;
+			// tag count
+			count += (addrss->tags >> 60) * 4;
+			//ethertype
+			count += 2;
+			//arp payload
+			count += 28;
+			// frame check sequence (CRC32) done by network card?
+			uint8_t frame[count];
+			int ptr = 0;
+
+			// start of ethernet header
+
+			// fill in destination & source MAC addresses
+			memcpy(&frame[ptr], addrss->mac, 6);
+			ptr += 6;
+			memcpy(&frame[ptr], opts->host.mac, 6);
+			ptr += 6;
+
+			// reassemble VLAN tags in the right order
+			for (int i = addrss->tags >> 60; i; i--)
+			{
+				// tag protocol identifier
+				// TODO figure out QinQ or drop at capture
+				if (i == 1) net_puts(&frame[ptr], DOT1Q);
+				else net_puts(&frame[ptr], DOT1AD);
+				ptr += 2;
+
+				// Priority Code Point = 1 (background)
+				uint16_t tag = 16384;
+
+				// drop eligible
+				tag += 8192;
+
+				// unpack VLAN identifier
+				tag += (addrss->tags >> (i * 12))
+					& (uint64_t)((1 << i) -1);
+
+				// add the tag control info
+				net_puts(&frame[ptr], tag);
+				ptr += 2;
+			}
+
+
+			// set ARP ethertype
+			net_puts(&frame[ptr], ARP);
+			ptr += 2;
+
+			// end of ethernet header, start of ARP packet
+
+			// hardware type: ethernet
+			net_puts(&frame[ptr], 1);
+			ptr += 2;
+
+			// protocol type: IPv4
+			net_puts(&frame[ptr], IPv4);
+			ptr += 2;
+
+			// hardware address length (one byte, no endianness)
+			frame[ptr] = 6;
+			ptr += 1;
+
+			// protocol address length (one byte, no endianness)
+			frame[ptr] = 4;
+			ptr += 1;
+
+			// operation type: request
+			net_puts(&frame[ptr], 1);
+			ptr += 2;
+
+			// sender hardware address
+			memcpy(&frame[ptr], opts->host.mac, 6);
+			ptr += 6;
+
+			// sender protocol address
+			memcpy(&frame[ptr], opts->host.ipv4, 4);
+			ptr += 4;
+
+			// target hardware address
+			memcpy(&frame[ptr], addrss->mac, 6);
+			ptr += 6;
+
+			// target protocol address (mapped IPv4)
+			memcpy(&frame[ptr], addrss->ip + 12, 4);
+			ptr += 4;
+
+			// frame check sequence (CRC) done by network card?
+
+			// send the frame
+			if (pcap_inject(opts->handle, &frame, count) != count)
+			{
+				warn("Failed to inject the frame");
+			}
+			else if (verbosity > 2)
+			{
+				printf("ARP packet %d sent to ",
+					(addrss->tried) + 1);
+				print_ip(addrss->ip);
+			}
 		}
 		else
 		{
@@ -267,7 +379,7 @@ int nag(struct Addrss* addrss, struct Host* host)
 	return 0;
 }
 
-int print_mac(uint8_t* mac)
+void print_mac(uint8_t* mac)
 {
 	for(int byte = 0; byte <= 4; byte++)
 	{
@@ -278,33 +390,36 @@ int print_mac(uint8_t* mac)
 		}
 	}
 	printf("\n");
-	return 0;
 }
 
-int print_ip(uint8_t* ip)
+void print_ip(uint8_t* ip)
 {
-	// TODO, handle IPv4 separately?
-	// just print the IPv6 with mapped IPv4 address
-	for (int byte = 0; byte <= 12; byte += 2)
+	uint8_t zeros[16], mapped[12];
+	memset(zeros, 0, 16);
+
+	memset(mapped, 0, 10);
+	memset(mapped+10, 1, 2);
+
+	if (memcmp(ip, zeros, 16))
 	{
-		uint16_t group = ((uint16_t)(ip[byte]) << 8)
-				| (uint16_t)(ip[byte+1]);
-		if (group)
+		if (memcmp(ip, mapped, 12))
 		{
-			// shitty approximation of mapped IPv4 output
-			if (group == 0x101) printf("::");
-			else printf("%x:", group);
+			for (int i = 0; i < 16; i++)
+			{
+				if (!ip[i])
+				{
+					if (!ip[i+1]) continue;
+					else printf(":");
+				}
+				if (i && !(i % 2)) printf(":");
+				if (ip[i]) printf("%x", ip[i]);
+			}
 		}
-		if (byte >= 12)
-		{
-			uint16_t group =
-				((uint16_t)(ip[byte+2]) << 8)
-				| (uint16_t)(ip[byte+3]);
-			if (group)
-			printf("%x\n", group);
-		}
+
+		else printf("%d.%d.%d.%d", ip[12], ip[13], ip[14], ip[15]);
+
+		printf("\n");
 	}
-	return 0;
 }
 
 // check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
@@ -317,42 +432,10 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 	memset(mapped, 0, 10);
 	memset(mapped+10, 1, 2);
 
-	// zero out all non-subnet IPs that aren't already zero
 	if (memcmp(ip, zeros, 16))
 	{
-		// check for mapped IPv4 and IPv4 mask
-		if (!memcmp(ip, mapped, 12))
+		if (memcmp(ip, mapped, 12))
 		{
-			// note, correctly getting non-zero IPv4 addresses
-
-			// mask bytes
-			int mb = (subnet->mask - 96) / 8;
-			// remnant bits mask
-			int mr = (subnet->mask - 96) % 8;
-			uint8_t remn =
-				(-1) << (8 - mr);
-
-			//note, correct mask
-
-			// last byte
-			uint8_t lb = ip[12 + mb];
-
-			//printf("IPv4, mb: %d, lb: %d\n", mb, lb);
-
-			// check full bytes and remnant bits
-			if (memcmp(ip + 12, subnet->ip + 12, mb)
-				&& lb < remn)
-			{
-				if (verbosity > 3)
-				printf("Zero'd a non-subnet IPv4 address\n");
-
-				memset(ip, 0, 16);
-			}
-		}
-		else
-		{
-			// note, correctly getting non-zero IPv6 addresses
-
 			// mask bytes
 			int mb = subnet->mask / 8;
 			// mask remnants
@@ -364,8 +447,6 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 
 			uint8_t lb = ip[mb];
 
-			//printf("IPv6, mb: %d, lb: %x\n", mb, lb);
-
 			if(memcmp(ip, subnet->ip, mb)
 				&& lb < remn)
 			{
@@ -375,7 +456,27 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 				memset(ip, 0, 16);
 			}
 		}
+
+		// mask bytes
+		int mb = (subnet->mask - 96) / 8;
+		// remnant bits mask
+		int mr = (subnet->mask - 96) % 8;
+		uint8_t remn = (-1) << (8 - mr);
+
+		// last byte
+		uint8_t lb = ip[12 + mb];
+
+		// check full bytes and remnant bits
+		if (memcmp(ip + 12, subnet->ip + 12, mb)
+			&& lb < remn)
+		{
+			if (verbosity > 3)
+			printf("Zero'd a non-subnet IPv4 address\n");
+
+			memset(ip, 0, 16);
+		}
 	}
+
 	return 0;
 }
 
@@ -507,4 +608,11 @@ int get_ipv6(uint8_t* dest, char* dev)
 {
 	// TODO
 	return 0;
+}
+
+// put the source's upper and lower 8 bits in in net endianness into target
+inline void net_puts(uint8_t* target, uint16_t source)
+{
+	target[0] = (source >> 8) & 0xFF;
+	target[1] = (source) & 0xFF;
 }

@@ -24,19 +24,16 @@ int main (int argc, char *argv[])
 
 
 	// get the host ID
-	struct Host host;
-	memset(&host, 0, sizeof(host));
-
-	get_mac(host.mac, opts.dev);
-	get_ipv4(host.ipv4, opts.dev);
-	// TODO, get_ipv6(host.ipv6, dev);
+	get_mac(opts.host.mac, opts.dev);
+	get_ipv4(opts.host.ipv4, opts.dev);
+	// TODO, get_ipv6(opts.host.ipv6, dev);
 
 	// startup header
 	if (!verbosity) printf("Verbosity: %d\n", verbosity);
 	else
 	{
 		printf("Host MAC address:\t");
-		print_mac(host.mac);
+		print_mac(opts.host.mac);
 		if (opts.promiscuous) printf("Promiscuous\n");
 		if (opts.nags == 0) printf("Quiet\n");
 		if (verbosity > 2)
@@ -79,11 +76,13 @@ int main (int argc, char *argv[])
 
 			// cull those that have been nagged enough
 			addrss_list_cull
-				(&head, &addrss.header.ts, opts.timeout, opts.nags);
+				(&head, &addrss.header.ts, opts.timeout,
+					opts.nags);
 
 			// and nag the survivors
 			addrss_list_nag
-				(&head, &addrss.header.ts, opts.timeout, &host);
+				(&head, &addrss.header.ts, opts.timeout,
+					&opts);
 		}
 
 		// TODO, TEMPORARY, once a second output the list
@@ -189,9 +188,9 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 				{
 					if (verbosity > 1)
 					{
-						printf("subset ip: ");
+						printf("subset ip:\t\t");
 						print_ip(opts->subnet.ip);
-						printf("subset mask: %d\n",
+						printf("subset mask:\t\t%d\n",
 							opts->subnet.mask);
 					}
 					opts->parsed = 1;
@@ -203,7 +202,7 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 			default:
 				// usage
 				print_opts();
-				exit(-1);
+				exit(1);
 		}
 	}
 
