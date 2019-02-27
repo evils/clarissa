@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <libtq/macros.h>
 
 /**
    @section Testing utilities
@@ -8,9 +9,6 @@
    This provides a simple mechanism to register tests and run them.
 */
 
-
-#define TQ_PASTE_(a,b) a##b
-#define TQ_PASTE(a,b) TQ_PASTE_(a,b)
 
 /**
    The type of a test function.
