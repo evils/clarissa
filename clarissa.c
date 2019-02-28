@@ -437,11 +437,11 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 		// mask bytes
 		int mb = subnet->mask / 8;
 		// remnant mask
-		uint8_t remn = (~0) << (8 - (subnet->mask % 8));
+		uint8_t remn = (~(uint16_t)0) << (8 - (subnet->mask % 8));
 		uint8_t sub_remn = subnet->ip[mb] & remn;
 
 		if(memcmp(ip, subnet->ip, mb)
-			&& ((ip[mb] & remn) == sub_remn))
+			|| ((ip[mb] & remn) != sub_remn))
 		{
 			if (verbosity > 3)
 			printf("Zero'd a non-subnet IP address\n");
