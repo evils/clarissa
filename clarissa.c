@@ -434,44 +434,17 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 
 	if (memcmp(ip, zeros, 16))
 	{
-		if (memcmp(ip, mapped, 12))
-		{
-			// mask bytes
-			int mb = subnet->mask / 8;
-			// mask remnants
-			int mr = subnet->mask % 8;
-			// remnant mask
-			uint8_t remn = (-1) << mr;
-
-			//note, correct mask
-
-			uint8_t lb = ip[mb];
-
-			if(memcmp(ip, subnet->ip, mb)
-				&& lb < remn)
-			{
-				if (verbosity > 3)
-				printf("Zero'd a non-subnet IPv6 address\n");
-
-				memset(ip, 0, 16);
-			}
-		}
-
 		// mask bytes
-		int mb = (subnet->mask - 96) / 8;
-		// remnant bits mask
-		int mr = (subnet->mask - 96) % 8;
-		uint8_t remn = (-1) << (8 - mr);
+		int mb = subnet->mask / 8;
+		// remnant mask
+		uint8_t remn = (~0) << (8 - (subnet->mask % 8));
+		uint8_t sub_remn = subnet->ip[mb] & remn;
 
-		// last byte
-		uint8_t lb = ip[12 + mb];
-
-		// check full bytes and remnant bits
-		if (memcmp(ip + 12, subnet->ip + 12, mb)
-			&& lb < remn)
+		if(memcmp(ip, subnet->ip, mb)
+			&& ((ip[mb] & remn) == sub_remn))
 		{
 			if (verbosity > 3)
-			printf("Zero'd a non-subnet IPv4 address\n");
+			printf("Zero'd a non-subnet IP address\n");
 
 			memset(ip, 0, 16);
 		}
