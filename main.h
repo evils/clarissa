@@ -9,3 +9,9 @@
 #include <unistd.h>
 
 #include "clarissa.h"
+
+extern int verbosity;
+
+int help();
+int print_opts();
+int handle_opts(int argc, char* argv[], struct Opts* opts);

@@ -1,18 +1,31 @@
-implement nag()
-	fill in Host data
-implement subnet_check()
-add LINKTYPE_LINUX_SLL support
+confirm ARP packets' frames leave with a CRC
+
+output (see multithreading)
+
+in the absence of a subnet, use host struct?
+	would prefer not to send ARP/NDP to non-subnet IPs
+		router reponds to non-subnet IPs
+
+implement get_ipv6()
+implement nag()'s IPv6 support?
+
+add "preload" initial scan?
+
 accept multiple devices
+	add LINKTYPE_LINUX_SLL support
+	requires nag() support for non-ethernet frames?
+
 accept multiple subnets (at least IPv4 and IPv6 simultaneously)
-add long options and a usage message
-output on a socket
+	not necessary if ARP and NDP don't pass the router?
+
+add long options
+
+multithreading?
+	generate a count based on a known MAC addresses reference?
+		output count to mqtt?
+	output MAC addresses on a socket?
 
 IDEAS:
 add exponential delay to timeout per node
 	reduce nagging on less frequent devices
-
-ISSUES:
-because of separated functions, it nags right before culling
-	currently separated to not have 6 arguments to a function
-		interval can help with this
-	solved: check for timeout before culling
+		longer dropout time
