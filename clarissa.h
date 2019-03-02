@@ -84,5 +84,5 @@ int subnet_check(uint8_t* ip, struct Subnet* mask);
 int parse_cidr(char* cidr, struct Subnet* dest);
 int get_mac(uint8_t* dest, char* dev);
 int get_ipv4(uint8_t* dest, char* dev);
-int get_ipv6(uint8_t* dest, char* dev);
+//int get_ipv6(uint8_t* dest, char* dev);
 void net_puts(uint8_t* target, uint16_t source);

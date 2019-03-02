@@ -83,12 +83,12 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 
 			addrss->header.caplen -= 4;
 
-			get_tag(frame + 4, addrss);
+			return get_tag(frame + 4, addrss);
 
 		default:
 			addrss->header.caplen -= 2;
-			return (get_eth_ip(frame + 2, addrss,
-				type <= 1500 ? ETH_SIZE : type));
+			return get_eth_ip(frame + 2, addrss,
+				type <= 1500 ? ETH_SIZE : type);
 	}
 }
 
@@ -158,13 +158,13 @@ top_of_loop:
 		// check if this has the new MAC address
 		if (!memcmp((*current)->mac, new_addrss->mac, 6))
 		{
+			found = 1;
+
 			// update time and ip
 			(*current)->header.ts = new_addrss->header.ts;
 			(*current)->tried = 0;
-			if (memcmp((*current)->ip, zeros, 16))
+			if (memcmp(new_addrss->ip, zeros, 16))
 				memcpy((*current)->ip, new_addrss->ip, 16);
-
-			found = 1;
 
 			// move it to the start of the list
 			if (current != head) {
@@ -426,18 +426,16 @@ void print_ip(uint8_t* ip)
 // TODO, accept multiple subnets
 int subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
-	uint8_t zeros[16], mapped[12];
+	uint8_t zeros[16];
 	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
 
 	if (memcmp(ip, zeros, 16))
 	{
 		// mask bytes
 		int mb = subnet->mask / 8;
 		// remnant mask
-		uint8_t remn = (~(uint16_t)0) << (8 - (subnet->mask % 8));
+		uint8_t remn = (uint8_t)(~(uint16_t)0)
+				<< (8 - (subnet->mask % 8));
 		uint8_t sub_remn = subnet->ip[mb] & remn;
 
 		if(memcmp(ip, subnet->ip, mb)
@@ -577,11 +575,13 @@ int get_ipv4(uint8_t* dest, char* dev)
 }
 
 // fill in the destination with device's IPv6 address
+/*
 int get_ipv6(uint8_t* dest, char* dev)
 {
 	// TODO
 	return 0;
 }
+*/
 
 // put the source's upper and lower 8 bits in in net endianness into target
 inline void net_puts(uint8_t* target, uint16_t source)

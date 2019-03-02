@@ -1,5 +1,5 @@
 SHELL = /usr/bin/env sh
-CFLAGS = -Wall -g
+CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS= -lpcap
 clarissa: main.o clarissa.o time_tools.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
