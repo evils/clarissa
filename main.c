@@ -96,18 +96,16 @@ int main (int argc, char *argv[])
 }
 
 // print help header and options
-int help()
+void help()
 {
 	printf("Clarissa keeps a list of MAC and IP addresses of packets seen on the network.\n");
 	printf("It attempts to be as complete and up to date as possible.\n\n");
 	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout/Nags, Promiscuous = 0, Verbosity = 0\n");
 
 	print_opts();
-
-	return 0;
 }
 
-int print_opts()
+void print_opts()
 {
 	printf("\nOptions: (those with * require an argument)\n\n");
 	printf(" -f  *  File input (pcap file (tcpdump/wireshark), works with - (stdin))\n");
@@ -121,11 +119,9 @@ int print_opts()
 	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
 	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
 	printf("\n");
-
-	return 0;
 }
 
-int handle_opts(int argc, char* argv[], struct Opts* opts)
+void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
 	// clarissa stuff
 	opts->timeout = 2000000;
@@ -228,9 +224,7 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 			warn
 			("Couldn't open pcap source %s: %s\n",
 				opts->dev, opts->errbuf);
-			return -1;
+			exit(1);
 		}
 	}
-
-	return 0;
 }

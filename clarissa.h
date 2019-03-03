@@ -71,20 +71,21 @@ struct Opts
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header);
 int get_tag(const uint8_t* frame, struct Addrss* addrss);
-int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type);
-int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss);
-int addrss_list_cull
-(struct Addrss** head, struct timeval* ts, int timeout, int nags);
-int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, int timeout, struct Opts* opts);
-void print_mac(uint8_t* mac);
-void print_ip(uint8_t* ip);
-int nag(struct Addrss* addrss, struct Opts* opts);
-int subnet_check(uint8_t* ip, struct Subnet* mask);
-int parse_cidr(char* cidr, struct Subnet* dest);
-int get_mac(uint8_t* dest, char* dev);
-int get_ipv4(uint8_t* dest, char* dev);
-//int get_ipv6(uint8_t* dest, char* dev);
+int get_eth_ip(const uint8_t* frame, struct Addrss* addrss,
+		const uint16_t type);
+void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss);
+void addrss_list_cull(struct Addrss** head, const struct timeval* ts,
+			const int timeout, const int nags);
+void addrss_list_nag (struct Addrss** head, const struct timeval* ts,
+			const int timeout, const struct Opts* opts);
+void print_mac(const uint8_t* mac);
+void print_ip(const uint8_t* ip);
+void nag(const struct Addrss* addrss, const struct Opts* opts);
+void subnet_check(uint8_t* ip, struct Subnet* mask);
+int parse_cidr(const char* cidr, struct Subnet* dest);
+void get_mac(uint8_t* dest, char* dev);
+void get_ipv4(uint8_t* dest, char* dev);
+//void get_ipv6(uint8_t* dest, char* dev);
 void net_puts(uint8_t* target, uint16_t source);
 int is_zeros(const uint8_t* target, int count);
 int is_mapped(const uint8_t* ip);

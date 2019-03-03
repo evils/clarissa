@@ -95,7 +95,6 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 	switch (type)
 	{
 		case IPv4:
-
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
@@ -103,7 +102,6 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			break;
 
 		case ARP:
-
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
@@ -111,7 +109,6 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			break;
 
 		case IPv6:
-
 			// copy IPv6 address to addrss
 			memcpy(addrss->ip, frame+8, 16);
 			break;
@@ -121,26 +118,29 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			// and extract IP
 
 			// continue without IP
-			warn ("ETH_SIZE");
+			if (verbosity > 3) warn ("ETH_SIZE");
 			break;
 
 		case ARUBA_AP_BC:
 
-			//warn ("Aruba Instant AP broadcast packet found");
+			if (verbosity > 3)
+			warn ("Aruba Instant AP broadcast packet found");
+
 			break;
 
 		default:
 			warn
-			("unsupported EtherType: 0x%04x, from: v",
-			type);
+			("unsupported EtherType: 0x%04x, from: ", type);
 			print_mac(addrss->mac);
+
+			return 1;
 	}
 
 	return 0;
 }
 
 // update the list with a new entry
-int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss)
+void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss)
 {
 	int found = 0;
 
@@ -191,12 +191,12 @@ top_of_loop:
 		if (verbosity) print_mac(new_addrss->mac);
 		if (verbosity > 1) print_ip(new_addrss->ip);
 	}
-	return 0;
 }
 
 // remove timed out elements that exceeded nags
-int addrss_list_cull
-(struct Addrss** head, struct timeval* ts, int timeout, int nags)
+void addrss_list_cull
+(struct Addrss** head, const struct timeval* ts,
+	const int timeout, const int nags)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -223,11 +223,11 @@ top_of_loop:
 			else break;
 		}
 	}
-	return 0;
 }
 
-int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, int timeout, struct Opts* opts)
+void addrss_list_nag
+(struct Addrss** head, const struct timeval* ts,
+	const int timeout, const struct Opts* opts)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -241,15 +241,16 @@ int addrss_list_nag
 			(*current)->tried++;
 		}
 	}
-	return 0;
 }
 
 // send something to the target MAC to see if it's online
-int nag(struct Addrss* addrss, struct Opts* opts)
+void nag(const struct Addrss* addrss, const struct Opts* opts)
 {
 	// assumes non-subnet addresses have been zero'd (subnet check)
 	if (!is_zeros(addrss->ip, 16))
 	{
+		// TODO, put the common ethernet stuff here?
+
 		if (is_mapped(addrss->ip))
 		{
 			// IPv4, send ethernet frame with ARP packet
@@ -366,10 +367,9 @@ int nag(struct Addrss* addrss, struct Opts* opts)
 				, (addrss->tried) + 1);
 		}
 	}
-	return 0;
 }
 
-void print_mac(uint8_t* mac)
+void print_mac(const uint8_t* mac)
 {
 	for(int byte = 0; byte <= 4; byte++)
 	{
@@ -382,7 +382,7 @@ void print_mac(uint8_t* mac)
 	printf("\n");
 }
 
-void print_ip(uint8_t* ip)
+void print_ip(const uint8_t* ip)
 {
 	if (!is_zeros(ip, 16))
 	{
@@ -411,7 +411,7 @@ void print_ip(uint8_t* ip)
 
 // check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
 // TODO, accept multiple subnets
-int subnet_check(uint8_t* ip, struct Subnet* subnet)
+void subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
 	if (!is_zeros(ip, 16))
 	{
@@ -431,12 +431,10 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 			memset(ip, 0, 16);
 		}
 	}
-
-	return 0;
 }
 
 // parse a CIDR notation string and save to a Subnet struct
-int parse_cidr(char* cidr, struct Subnet* dest)
+int parse_cidr(const char* cidr, struct Subnet* dest)
 {
 	char* mask_ptr, *end;
 	int retval;
@@ -490,7 +488,7 @@ end:
 }
 
 // fill in the destination with device's MAC address
-int get_mac(uint8_t* dest, char* dev)
+void get_mac(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -507,22 +505,20 @@ int get_mac(uint8_t* dest, char* dev)
 		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
 		{
 			warn("Failed to get host MAC address, not ethernet");
-			return -1;
+			return;
 		}
 
+		// copy the MAC address over
 		memcpy(dest, (uint8_t*)ifr.ifr_hwaddr.sa_data, 6);
-
-		return 0;
 	}
 	else
 	{
 		warn("Failed to get host MAC address");
-		return -1;
 	}
 }
 
 // fill in the destination with device's IPv4 address
-int get_ipv4(uint8_t* dest, char* dev)
+void get_ipv4(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -548,22 +544,18 @@ int get_ipv4(uint8_t* dest, char* dev)
 			inet_ntoa
 			(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
 		}
-
-		return 0;
 	}
 	else
 	{
 		warn("Failed to get host IP address");
-		return -1;
 	}
 }
 
 // fill in the destination with device's IPv6 address
 /*
-int get_ipv6(uint8_t* dest, char* dev)
+void get_ipv6(uint8_t* dest, char* dev)
 {
 	// TODO
-	return 0;
 }
 */
 

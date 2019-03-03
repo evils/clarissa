@@ -12,6 +12,6 @@
 
 extern int verbosity;
 
-int help();
-int print_opts();
-int handle_opts(int argc, char* argv[], struct Opts* opts);
+void help();
+void print_opts();
+void handle_opts(int argc, char* argv[], struct Opts* opts);

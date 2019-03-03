@@ -31,6 +31,7 @@ in the absence of a given subnet, use host struct's IP's subnet?
 			still an issue if clarissa runs on a router
 
 add "preload" initial scan?
+	if outputting to a "file", keep it persistent and reload instead?
 
 add exponential delay to timeout per node
 	reduce nagging on less frequent devices
