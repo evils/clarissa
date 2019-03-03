@@ -1,31 +1,39 @@
 confirm ARP packets' frames leave with a CRC
 
-output (see multithreading)
+output (see IDEAS)
 
-in the absence of a subnet, use host struct?
-	would prefer not to send ARP/NDP to non-subnet IPs
-		router reponds to non-subnet IPs
-
+implement nag()'s IPv6 support
 implement get_ipv6()
-implement nag()'s IPv6 support?
-
-add "preload" initial scan?
 
 accept multiple devices
 	add LINKTYPE_LINUX_SLL support
 	requires nag() support for non-ethernet frames?
 
 accept multiple subnets (at least IPv4 and IPv6 simultaneously)
-	not necessary if ARP and NDP don't pass the router?
+	see IDEAS
 
 add long options
 
-multithreading?
-	generate a count based on a known MAC addresses reference?
-		output count to mqtt?
-	output MAC addresses on a socket?
 
 IDEAS:
+
+output
+	raw list available on the machine?
+		domain socket?
+		separate program translates list and makes available on LAN?
+			translate to (names/vendors) and/or a tally per type?
+			output to mqtt?
+
+in the absence of a given subnet, use host struct's IP's subnet?
+	would prefer not to send ARP/NDP to non-subnet IPs
+		ARP packets don't pass the router (it responds for its MAC)
+			NDP?
+			still an issue if clarissa runs on a router
+
+add "preload" initial scan?
+
 add exponential delay to timeout per node
 	reduce nagging on less frequent devices
 		longer dropout time
+
+multithreading to increase capacity?
