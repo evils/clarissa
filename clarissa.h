@@ -86,3 +86,5 @@ int get_mac(uint8_t* dest, char* dev);
 int get_ipv4(uint8_t* dest, char* dev);
 //int get_ipv6(uint8_t* dest, char* dev);
 void net_puts(uint8_t* target, uint16_t source);
+int is_zeros(const uint8_t* target, int count);
+int is_mapped(const uint8_t* ip);

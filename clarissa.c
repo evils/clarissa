@@ -4,9 +4,7 @@
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
-        struct Addrss addrss;
-        memset(&addrss, 0, sizeof(struct Addrss));
-
+        struct Addrss addrss = {0};
 	addrss.header = *header;
 
 	// assume a packet is correct (discard len < caplen (74) ?)
@@ -100,7 +98,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 1, 2);
+			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+12, 4);
 			break;
 
@@ -108,7 +106,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 1, 2);
+			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+14, 4);
 			break;
 
@@ -144,8 +142,6 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 // update the list with a new entry
 int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss)
 {
-	uint8_t zeros[16];
-	memset(&zeros, 0, 16);
 	int found = 0;
 
 	// go through the list while keeping a pointer
@@ -163,7 +159,7 @@ top_of_loop:
 			// update time and ip
 			(*current)->header.ts = new_addrss->header.ts;
 			(*current)->tried = 0;
-			if (memcmp(new_addrss->ip, zeros, 16))
+			if (!is_zeros(new_addrss->ip, 16))
 				memcpy((*current)->ip, new_addrss->ip, 16);
 
 			// move it to the start of the list
@@ -251,16 +247,10 @@ int addrss_list_nag
 // send something to the target MAC to see if it's online
 int nag(struct Addrss* addrss, struct Opts* opts)
 {
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
 	// assumes non-subnet addresses have been zero'd (subnet check)
-	if (memcmp(addrss->ip, zeros, 16))
+	if (!is_zeros(addrss->ip, 16))
 	{
-		if (!memcmp(addrss->ip, mapped, 12))
+		if (is_mapped(addrss->ip))
 		{
 			// IPv4, send ethernet frame with ARP packet
 
@@ -394,15 +384,14 @@ void print_mac(uint8_t* mac)
 
 void print_ip(uint8_t* ip)
 {
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
-	if (memcmp(ip, zeros, 16))
+	if (!is_zeros(ip, 16))
 	{
-		if (memcmp(ip, mapped, 12))
+		if (is_mapped(ip))
+		{
+			printf("%d.%d.%d.%d",
+				ip[12], ip[13], ip[14], ip[15]);
+		}
+		else
 		{
 			for (int i = 0; i < 16; i++)
 			{
@@ -416,8 +405,6 @@ void print_ip(uint8_t* ip)
 			}
 		}
 
-		else printf("%d.%d.%d.%d", ip[12], ip[13], ip[14], ip[15]);
-
 		printf("\n");
 	}
 }
@@ -426,10 +413,7 @@ void print_ip(uint8_t* ip)
 // TODO, accept multiple subnets
 int subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
-	uint8_t zeros[16];
-	memset(zeros, 0, 16);
-
-	if (memcmp(ip, zeros, 16))
+	if (!is_zeros(ip, 16))
 	{
 		// mask bytes
 		int mb = subnet->mask / 8;
@@ -483,7 +467,7 @@ int parse_cidr(char* cidr, struct Subnet* dest)
 	else if (inet_pton(AF_INET, cidr, dest->ip+12))
 	{
 		memset(dest->ip, 0, 10);
-		memset(dest->ip+10, 1, 2);
+		memset(dest->ip+10, 0xFF, 2);
 		dest->mask += 96;
 		retval = 1;
 		goto end;
@@ -588,4 +572,22 @@ inline void net_puts(uint8_t* target, uint16_t source)
 {
 	target[0] = (source >> 8) & 0xFF;
 	target[1] = (source) & 0xFF;
+}
+
+// check if a run of count bytes at target are all zero
+int is_zeros(const uint8_t* target, int count)
+{
+	while (count--)
+	{
+		if (target[count]) return 0;
+	}
+	return 1;
+}
+
+// check if a given IP address is an IPv4-mapped IPv6 address
+int is_mapped(const uint8_t* ip)
+{
+        return ((uint64_t *) ip)[0] == 0
+                && ((uint16_t *) ip)[4] == 0
+                && ((uint16_t *) ip)[5] == 0xFFFF;
 }
