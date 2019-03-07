@@ -63,6 +63,8 @@ struct Opts
         struct Host host;
         int timeout;
         int interval;
+	int print_interval;
+	char* print_filename;
         int nags;
         int promiscuous;
         int parsed;
@@ -89,3 +91,4 @@ void get_ipv4(uint8_t* dest, char* dev);
 void net_puts(uint8_t* target, uint16_t source);
 int is_zeros(const uint8_t* target, int count);
 int is_mapped(const uint8_t* ip);
+void dump_state(char* filename, struct Addrss *head);
