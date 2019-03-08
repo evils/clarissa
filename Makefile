@@ -1,21 +1,36 @@
-OUTDIR = out
+variant=debug
 
-CFLAGS = -Iinclude -Wall -g
+ifeq ($(variant),debug)
+CFLAGS = -g -O0
+endif
+ifeq ($(variant),release)
+CFLAGS = -O3
+endif
+
+OUTDIR = out/$(variant)
+
+CFLAGS += -Iinclude -Wall
 
 ALL_SRCS := $(shell find src -type f -name "*.c")
 ALL_TEST := $(shell find test -type f -name "*.c")
 
-all: out/libtq.a
-check: out/test_libtq
-	prove out/test_libtq
+all: $(OUTDIR)/libtq.a
+	[ -h out/build ] && rm out/build || true
+	[ -e out/build ] || ln -s $(variant) out/build
 
-out/%.o: %.c
+check: $(OUTDIR)/test_libtq
+	prove $(OUTDIR)/test_libtq
+
+$(OUTDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-out/libtq.a: $(ALL_SRCS:%.c=out/%.o)
+$(OUTDIR)/libtq.a: $(ALL_SRCS:%.c=$(OUTDIR)/%.o)
 	if test -f $@; then rm $@; fi
 	ar crv $@ $^
 
-out/test_libtq: $(ALL_TEST:%.c=out/%.o) out/libtq.a
+$(OUTDIR)/test_libtq: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+
+clean:
+	rm -rf $(OUTDIR)
