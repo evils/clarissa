@@ -4,9 +4,7 @@
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
-        struct Addrss addrss;
-        memset(&addrss, 0, sizeof(struct Addrss));
-
+        struct Addrss addrss = {0};
 	addrss.header = *header;
 
 	// assume a packet is correct (discard len < caplen (74) ?)
@@ -83,12 +81,12 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 
 			addrss->header.caplen -= 4;
 
-			get_tag(frame + 4, addrss);
+			return get_tag(frame + 4, addrss);
 
 		default:
 			addrss->header.caplen -= 2;
-			return (get_eth_ip(frame + 2, addrss,
-				type <= 1500 ? ETH_SIZE : type));
+			return get_eth_ip(frame + 2, addrss,
+				type <= 1500 ? ETH_SIZE : type);
 	}
 }
 
@@ -97,23 +95,20 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 	switch (type)
 	{
 		case IPv4:
-
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 1, 2);
+			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+12, 4);
 			break;
 
 		case ARP:
-
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 1, 2);
+			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+14, 4);
 			break;
 
 		case IPv6:
-
 			// copy IPv6 address to addrss
 			memcpy(addrss->ip, frame+8, 16);
 			break;
@@ -123,29 +118,30 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			// and extract IP
 
 			// continue without IP
-			warn ("ETH_SIZE");
+			if (verbosity > 3) warn ("ETH_SIZE");
 			break;
 
 		case ARUBA_AP_BC:
 
-			//warn ("Aruba Instant AP broadcast packet found");
+			if (verbosity > 3)
+			warn ("Aruba Instant AP broadcast packet found");
+
 			break;
 
 		default:
 			warn
-			("unsupported EtherType: 0x%04x, from: v",
-			type);
+			("unsupported EtherType: 0x%04x, from: ", type);
 			print_mac(addrss->mac);
+
+			return 1;
 	}
 
 	return 0;
 }
 
 // update the list with a new entry
-int addrss_list_add(struct Addrss** head, struct Addrss* new_addrss)
+void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss)
 {
-	uint8_t zeros[16];
-	memset(&zeros, 0, 16);
 	int found = 0;
 
 	// go through the list while keeping a pointer
@@ -158,13 +154,13 @@ top_of_loop:
 		// check if this has the new MAC address
 		if (!memcmp((*current)->mac, new_addrss->mac, 6))
 		{
+			found = 1;
+
 			// update time and ip
 			(*current)->header.ts = new_addrss->header.ts;
 			(*current)->tried = 0;
-			if (memcmp((*current)->ip, zeros, 16))
+			if (!is_zeros(new_addrss->ip, 16))
 				memcpy((*current)->ip, new_addrss->ip, 16);
-
-			found = 1;
 
 			// move it to the start of the list
 			if (current != head) {
@@ -195,12 +191,12 @@ top_of_loop:
 		if (verbosity) print_mac(new_addrss->mac);
 		if (verbosity > 1) print_ip(new_addrss->ip);
 	}
-	return 0;
 }
 
 // remove timed out elements that exceeded nags
-int addrss_list_cull
-(struct Addrss** head, struct timeval* ts, int timeout, int nags)
+void addrss_list_cull
+(struct Addrss** head, const struct timeval* ts,
+	const int timeout, const int nags)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -227,11 +223,11 @@ top_of_loop:
 			else break;
 		}
 	}
-	return 0;
 }
 
-int addrss_list_nag
-(struct Addrss** head, struct timeval* ts, int timeout, struct Opts* opts)
+void addrss_list_nag
+(struct Addrss** head, const struct timeval* ts,
+	const int timeout, const struct Opts* opts)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -245,22 +241,17 @@ int addrss_list_nag
 			(*current)->tried++;
 		}
 	}
-	return 0;
 }
 
 // send something to the target MAC to see if it's online
-int nag(struct Addrss* addrss, struct Opts* opts)
+void nag(const struct Addrss* addrss, const struct Opts* opts)
 {
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
 	// assumes non-subnet addresses have been zero'd (subnet check)
-	if (memcmp(addrss->ip, zeros, 16))
+	if (!is_zeros(addrss->ip, 16))
 	{
-		if (!memcmp(addrss->ip, mapped, 12))
+		// TODO, put the common ethernet stuff here?
+
+		if (is_mapped(addrss->ip))
 		{
 			// IPv4, send ethernet frame with ARP packet
 
@@ -376,10 +367,9 @@ int nag(struct Addrss* addrss, struct Opts* opts)
 				, (addrss->tried) + 1);
 		}
 	}
-	return 0;
 }
 
-void print_mac(uint8_t* mac)
+void print_mac(const uint8_t* mac)
 {
 	for(int byte = 0; byte <= 4; byte++)
 	{
@@ -392,17 +382,16 @@ void print_mac(uint8_t* mac)
 	printf("\n");
 }
 
-void print_ip(uint8_t* ip)
+void print_ip(const uint8_t* ip)
 {
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
-	if (memcmp(ip, zeros, 16))
+	if (!is_zeros(ip, 16))
 	{
-		if (memcmp(ip, mapped, 12))
+		if (is_mapped(ip))
+		{
+			printf("%d.%d.%d.%d",
+				ip[12], ip[13], ip[14], ip[15]);
+		}
+		else
 		{
 			for (int i = 0; i < 16; i++)
 			{
@@ -416,28 +405,21 @@ void print_ip(uint8_t* ip)
 			}
 		}
 
-		else printf("%d.%d.%d.%d", ip[12], ip[13], ip[14], ip[15]);
-
 		printf("\n");
 	}
 }
 
 // check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
 // TODO, accept multiple subnets
-int subnet_check(uint8_t* ip, struct Subnet* subnet)
+void subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
-	uint8_t zeros[16], mapped[12];
-	memset(zeros, 0, 16);
-
-	memset(mapped, 0, 10);
-	memset(mapped+10, 1, 2);
-
-	if (memcmp(ip, zeros, 16))
+	if (!is_zeros(ip, 16))
 	{
 		// mask bytes
 		int mb = subnet->mask / 8;
 		// remnant mask
-		uint8_t remn = (~(uint16_t)0) << (8 - (subnet->mask % 8));
+		uint8_t remn = (uint8_t)(~(uint16_t)0)
+				<< (8 - (subnet->mask % 8));
 		uint8_t sub_remn = subnet->ip[mb] & remn;
 
 		if(memcmp(ip, subnet->ip, mb)
@@ -449,12 +431,10 @@ int subnet_check(uint8_t* ip, struct Subnet* subnet)
 			memset(ip, 0, 16);
 		}
 	}
-
-	return 0;
 }
 
 // parse a CIDR notation string and save to a Subnet struct
-int parse_cidr(char* cidr, struct Subnet* dest)
+int parse_cidr(const char* cidr, struct Subnet* dest)
 {
 	char* mask_ptr, *end;
 	int retval;
@@ -485,7 +465,7 @@ int parse_cidr(char* cidr, struct Subnet* dest)
 	else if (inet_pton(AF_INET, cidr, dest->ip+12))
 	{
 		memset(dest->ip, 0, 10);
-		memset(dest->ip+10, 1, 2);
+		memset(dest->ip+10, 0xFF, 2);
 		dest->mask += 96;
 		retval = 1;
 		goto end;
@@ -508,7 +488,7 @@ end:
 }
 
 // fill in the destination with device's MAC address
-int get_mac(uint8_t* dest, char* dev)
+void get_mac(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -525,22 +505,20 @@ int get_mac(uint8_t* dest, char* dev)
 		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
 		{
 			warn("Failed to get host MAC address, not ethernet");
-			return -1;
+			return;
 		}
 
+		// copy the MAC address over
 		memcpy(dest, (uint8_t*)ifr.ifr_hwaddr.sa_data, 6);
-
-		return 0;
 	}
 	else
 	{
 		warn("Failed to get host MAC address");
-		return -1;
 	}
 }
 
 // fill in the destination with device's IPv4 address
-int get_ipv4(uint8_t* dest, char* dev)
+void get_ipv4(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -566,26 +544,71 @@ int get_ipv4(uint8_t* dest, char* dev)
 			inet_ntoa
 			(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
 		}
-
-		return 0;
 	}
 	else
 	{
 		warn("Failed to get host IP address");
-		return -1;
 	}
 }
 
 // fill in the destination with device's IPv6 address
-int get_ipv6(uint8_t* dest, char* dev)
+/*
+void get_ipv6(uint8_t* dest, char* dev)
 {
 	// TODO
-	return 0;
 }
+*/
 
 // put the source's upper and lower 8 bits in in net endianness into target
 inline void net_puts(uint8_t* target, uint16_t source)
 {
 	target[0] = (source >> 8) & 0xFF;
 	target[1] = (source) & 0xFF;
+}
+
+// check if a run of count bytes at target are all zero
+int is_zeros(const uint8_t* target, int count)
+{
+	while (count--)
+	{
+		if (target[count]) return 0;
+	}
+	return 1;
+}
+
+// check if a given IP address is an IPv4-mapped IPv6 address
+int is_mapped(const uint8_t* ip)
+{
+        return ((uint64_t *) ip)[0] == 0
+                && ((uint16_t *) ip)[4] == 0
+                && ((uint16_t *) ip)[5] == 0xFFFF;
+}
+
+// write The list out to a file
+void dump_state(char* filename, struct Addrss *head) {
+        char* tmp_filename;
+        asprintf(&tmp_filename, "%s.XXXXXX", filename);
+        int tmp_fd = mkstemp(tmp_filename);
+        if (tmp_fd < 0) {
+                warn("Failed to create temp file");
+                return;
+        }
+        FILE* stats_file = fdopen(tmp_fd, "w");
+        if (stats_file == NULL) {
+                warn("Failed to open stats file");
+                return;
+        }
+        flockfile(stats_file);
+        for (struct Addrss *link = head; link != NULL; link = link->next) {
+                for (int i = 0; i < 6; i++) {
+                        fprintf(stats_file, "%02x%c",
+                                link->mac[i], (i==5)?'\n':':');
+                }
+        }
+        funlockfile(stats_file);
+        fclose(stats_file);
+
+        if (rename(tmp_filename, filename) < 0) {
+                warn("Failed to rename stats file");
+        }
 }

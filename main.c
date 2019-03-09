@@ -1,6 +1,6 @@
 #include "main.h"
 
-// keep track of all online MAC addresses (<=10s timout) on the LANs
+// keep track of all online MAC addresses (<=10s timeout) on the LANs
 int main (int argc, char *argv[])
 {
 	// pcap setup
@@ -12,9 +12,11 @@ int main (int argc, char *argv[])
 	// more in the opts struct
 	struct Addrss* head = NULL;
 	struct timeval now;
+	struct timeval last_print;
 	struct timeval checked;
 
 	gettimeofday(&checked, NULL);
+	last_print = checked;
 
 	// options setup
 	struct Opts opts;
@@ -85,8 +87,14 @@ int main (int argc, char *argv[])
 					&opts);
 		}
 
-		// TODO, TEMPORARY, once a second output the list
-
+		// TEMPORARY, update a file with the list
+		if (usec_diff(&now, &last_print) > opts.print_interval) {
+			last_print = now;
+			dump_state(	opts.print_filename
+					? opts.print_filename
+					: "/tmp/clarissa_list"
+					, head);
+		}
 		// maybe only check the full list at output?
 	}
 
@@ -96,18 +104,16 @@ int main (int argc, char *argv[])
 }
 
 // print help header and options
-int help()
+void help()
 {
 	printf("Clarissa keeps a list of MAC and IP addresses of packets seen on the network.\n");
 	printf("It attempts to be as complete and up to date as possible.\n\n");
-	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout/Nags, Promiscuous = 0, Verbosity = 0\n");
+	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /temp/clarissa_list, file output interval = timeout * \u03D5\n");
 
 	print_opts();
-
-	return 0;
 }
 
-int print_opts()
+void print_opts()
 {
 	printf("\nOptions: (those with * require an argument)\n\n");
 	printf(" -f  *  File input (pcap file (tcpdump/wireshark), works with - (stdin))\n");
@@ -120,12 +126,12 @@ int print_opts()
 	printf(" -s  *  get a Subnet in CIDR notation (currently not used)\n");
 	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
 	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf(" -o  *  set output filename\n");
+	printf(" -O  *  set file Output interval\n");
 	printf("\n");
-
-	return 0;
 }
 
-int handle_opts(int argc, char* argv[], struct Opts* opts)
+void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
 	// clarissa stuff
 	opts->timeout = 2000000;
@@ -133,7 +139,7 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 	verbosity = 0;
 
 	int opt;
-	while ((opt = getopt (argc, argv, "vpl:n:t:qf:i:s:h::")) != -1)
+	while ((opt = getopt (argc, argv, "vpl:n:t:qf:i:s:h::o:O:")) != -1)
 	{
 		switch (opt)
 		{
@@ -196,6 +202,15 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 					opts->parsed = 1;
 				}
 				break;
+			case 'o':
+				opts->print_filename = optarg;
+				break;
+			case 'O':
+				opts->print_interval = atoi(optarg) * 1000;
+				if (opts->print_interval < 0) {
+					warn("Failed to parse print interval");
+				}
+				break;
 			case 'h':
 				help();
 				exit(0);
@@ -210,6 +225,12 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		opts->interval =
 			opts->timeout / (opts->nags ? opts->nags : 1);
+	}
+
+	if (!opts->print_interval)
+	{
+		// TODO, find a coprime?
+		opts->print_interval = opts->timeout * 1.618;
 	}
 
 	// TODO, clean this up?
@@ -228,9 +249,7 @@ int handle_opts(int argc, char* argv[], struct Opts* opts)
 			warn
 			("Couldn't open pcap source %s: %s\n",
 				opts->dev, opts->errbuf);
-			return -1;
+			exit(1);
 		}
 	}
-
-	return 0;
 }
