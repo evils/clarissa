@@ -1,4 +1,5 @@
 #pragma once
+#define _GNU_SOURCE
 
 #include <stdlib.h>	// exit(), free(), strtol()
 #include <string.h>	// mem*(), strn*()
@@ -9,6 +10,7 @@
 #include <net/if.h>	// struct ifreq, IFNAMSIZ
 #include <unistd.h>	// close()
 #include <net/if_arp.h>	// ARPHRD_ETHER
+#include <stdio.h>	// asprintf()
 
 #include "time_tools.h"	// usec_diff()
 

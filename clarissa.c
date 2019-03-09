@@ -583,3 +583,32 @@ int is_mapped(const uint8_t* ip)
                 && ((uint16_t *) ip)[4] == 0
                 && ((uint16_t *) ip)[5] == 0xFFFF;
 }
+
+// write The list out to a file
+void dump_state(char* filename, struct Addrss *head) {
+        char* tmp_filename;
+        asprintf(&tmp_filename, "%s.XXXXXX", filename);
+        int tmp_fd = mkstemp(tmp_filename);
+        if (tmp_fd < 0) {
+                warn("Failed to create temp file");
+                return;
+        }
+        FILE* stats_file = fdopen(tmp_fd, "w");
+        if (stats_file == NULL) {
+                warn("Failed to open stats file");
+                return;
+        }
+        flockfile(stats_file);
+        for (struct Addrss *link = head; link != NULL; link = link->next) {
+                for (int i = 0; i < 6; i++) {
+                        fprintf(stats_file, "%02x%c",
+                                link->mac[i], (i==5)?'\n':':');
+                }
+        }
+        funlockfile(stats_file);
+        fclose(stats_file);
+
+        if (rename(tmp_filename, filename) < 0) {
+                warn("Failed to rename stats file");
+        }
+}

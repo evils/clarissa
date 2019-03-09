@@ -38,3 +38,5 @@ add exponential delay to timeout per node
 		longer dropout time
 
 multithreading to increase capacity?
+
+only accept stored capture input via stdin, free up -f or use it for output file setting?

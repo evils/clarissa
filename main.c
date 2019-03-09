@@ -1,8 +1,6 @@
-#define _GNU_SOURCE
 #include "main.h"
-#include <stdio.h>
 
-// keep track of all online MAC addresses (<=10s timout) on the LANs
+// keep track of all online MAC addresses (<=10s timeout) on the LANs
 int main (int argc, char *argv[])
 {
 	// pcap setup
@@ -89,10 +87,13 @@ int main (int argc, char *argv[])
 					&opts);
 		}
 
-		// TODO, TEMPORARY, once a second output the list
+		// TEMPORARY, update a file with the list
 		if (usec_diff(&now, &last_print) > opts.print_interval) {
 			last_print = now;
-			dump_state(opts.print_filename, head);
+			dump_state(	opts.print_filename
+					? opts.print_filename
+					: "/tmp/clarissa_list"
+					, head);
 		}
 		// maybe only check the full list at output?
 	}
@@ -102,39 +103,12 @@ int main (int argc, char *argv[])
 
 }
 
-void dump_state(char* filename, struct Addrss *head) {
-	char* tmp_filename;
-	asprintf(&tmp_filename, "%s.XXXXXX", filename);
-	int tmp_fd = mkstemp(tmp_filename);
-	if (tmp_fd < 0) {
-		warn("Failed to create temp file");
-		return;
-	}
-	FILE* stats_file = fdopen(tmp_fd, "w");
-	if (stats_file == NULL) {
-		warn("Failed to open stats file");
-		return;
-	}
-	flockfile(stats_file);
-	for (struct Addrss *link = head; link != NULL; link = link->next) {
-		for (int i = 0; i < 6; i++) {
-			fprintf(stats_file, "%x%c", link->mac[i], (i==5)?'\n':':');
-		}
-	}
-	funlockfile(stats_file);
-	fclose(stats_file);
-
-	if (rename(tmp_filename, filename) < 0) {
-		warn("Failed to rename stats file");
-	}
-}
-
 // print help header and options
 void help()
 {
 	printf("Clarissa keeps a list of MAC and IP addresses of packets seen on the network.\n");
 	printf("It attempts to be as complete and up to date as possible.\n\n");
-	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout/Nags, Promiscuous = 0, Verbosity = 0\n");
+	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /temp/clarissa_list, file output interval = timeout * \u03D5\n");
 
 	print_opts();
 }
@@ -152,8 +126,8 @@ void print_opts()
 	printf(" -s  *  get a Subnet in CIDR notation (currently not used)\n");
 	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
 	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
-	printf(" -o  *  Status output filename\n");
-	printf(" -O  *  Status output frequency\n");
+	printf(" -o  *  set output filename\n");
+	printf(" -O  *  set file Output interval\n");
 	printf("\n");
 }
 
@@ -251,6 +225,12 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		opts->interval =
 			opts->timeout / (opts->nags ? opts->nags : 1);
+	}
+
+	if (!opts->print_interval)
+	{
+		// TODO, find a coprime?
+		opts->print_interval = opts->timeout * 1.618;
 	}
 
 	// TODO, clean this up?
