@@ -608,7 +608,7 @@ void dump_state(char* filename, struct Addrss *head) {
         funlockfile(stats_file);
         fclose(stats_file);
 
-        if (rename(tmp_filename, filename) < 0) {
+        if ((rename(tmp_filename, filename) < 0) || chmod(filename, 0755)) {
                 warn("Failed to rename stats file");
         }
 }

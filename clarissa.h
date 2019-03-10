@@ -11,6 +11,7 @@
 #include <unistd.h>	// close()
 #include <net/if_arp.h>	// ARPHRD_ETHER
 #include <stdio.h>	// asprintf()
+#include <sys/stat.h>	// chmod
 
 #include "time_tools.h"	// usec_diff()
 

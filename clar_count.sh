@@ -10,7 +10,7 @@
 # measurement name
 NAME="clarissa"
 
-ALIASES=$( (cat macs.csv ; echo "---"; sudo cat /tmp/clarissa_list) | \
+ALIASES=$( (cat macs.csv ; echo "---"; cat /tmp/clarissa_list) | \
 awk -F, 'BEGIN { mode="collect" } /---/ { mode = "xref" } \
 (mode == "collect") { reg[$1] = $2 } (mode == "xref") { print $1, reg[$1] }' \
 | tr -d '"[]-' | awk 'NF > 0 {print $NF}' | sort | uniq)
