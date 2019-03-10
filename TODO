@@ -12,6 +12,10 @@ accept multiple subnets (at least IPv4 and IPv6 simultaneously)
 
 add long options
 
+find a place for macs.csv
+
+daemonize
+
 packaging
 
 
