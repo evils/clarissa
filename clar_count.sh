@@ -59,7 +59,7 @@ echo "{\"name\":\"""$NAME""\", \"members\":"$MEMBERS"\
 }
 
 influx() {
-echo "$NAME"" members="$MEMBERS",unknown="$UNKNOWN",infra="$INFRA""
+echo $NAME" members="$MEMBERS",unknown="$UNKNOWN",infra="$INFRA
 }
 
 
