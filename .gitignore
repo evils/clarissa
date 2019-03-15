@@ -4,3 +4,6 @@ clarissa
 *test*
 *.swp
 macs.csv
+*.dot
+*.svg
+*.png
