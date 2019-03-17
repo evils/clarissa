@@ -11,6 +11,6 @@ graph:
 	cat *.c > test_sum.c
 	cflow2dot -i test_sum.c -f svg
 
-all: clean clarissa graph
+all: clean clarissa
 clean:
 	rm -rf clarissa main.o clarissa.o time_tools.o cflow* test_sum.c
