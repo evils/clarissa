@@ -35,7 +35,7 @@ while read -r; do
 	fi
 done < "$2"
 
-COUNT=$(printf '%s\n' "${NAMES[@]}" | grep -v "(nc)" | sort | uniq | wc -l)
+COUNT=$(printf '%s\n' "${NAMES[@]}" | grep -v "(nc)" | sort | uniq | sed '/^\s*$/d' | wc -l)
 
 
 # formatted counts as:
