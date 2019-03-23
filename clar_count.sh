@@ -1,86 +1,84 @@
 #!/usr/bin/env bash
-# counts the number of members and the number of unknown and infrastructure devices detected by clarissa
-# currently expects a file in the execution path containing
-# MAC address,alias
 
-# intended to be used for telegraf, which interprets all numbers as floats by default
-# somehow the csv output gets interpreted as integers
-# to force integer type, add the letter i after the integer e.g.: 7i
+# get the count of MAC addresses' named in the macs.csv ($1) for all the found MAC addresses ($2)
+# and output a count of the unique names (minus those with "(nc)") and tally of the remaining addresses
+# in a variety of formats (specified by $3)
 
-# measurement name
+# the format options are:
+# -c or --csv, CSV with header (accepted by telegraf (for influxdb))
+# -t or --title, short CSV showing the count of known entities and everything else
+# -j or --json, json format (accepted by telegraf (for influxdb))
+# -i or --influx, influx line protocol (accepted by telegraf (for influxdb))
+# -n or --names, show all names minus "hidden"
+
+
+# maybe set this to measurement's location? (useful for influxdb)
 NAME="clarissa"
 
-ALIASES=$( (cat macs.csv ; echo "---"; cat /tmp/clarissa_list) | \
-awk -F, 'BEGIN { mode="collect" } /---/ { mode = "xref" } \
-(mode == "collect") { reg[$1] = $2 } (mode == "xref") { print $1, reg[$1] }' \
-| tr -d '"[]-' | awk 'NF > 0 {print $NF}' | sort | uniq)
-
-USAGE="-c, -j, -i or -a; (f)or --csv, --json, --influx formatting or --all. "
-
-if [ -z "$ALIASES" ]; then
-	(>&2 echo "No source data found")
-	exit 1
+# show correct usage if used incorrectly
+if [ -z "$3" ]; then
+echo "Please use the following format:"
+echo "clar_count.sh [path to macs.csv] [path to clarissa's output] [option (-a for all)]"
 fi
 
-if [ -z "$1" ]; then
-	(>&2 echo "No output format specified,"; echo "$USAGE")
-	exit 1
-fi
+# do the actual counting
 
-if [ -n "$2" ]; then
-	(>&2 echo "Multiple options not supported, try --all?"; echo "$USAGE")
-	exit 1
-fi
+NAMES=()
+TALLY=0
 
+while read -r; do
+	LINE=$(grep "$REPLY" "$1")
+	if [ "$LINE" ]; then
+		NAMES+=("$(echo "$LINE" | awk -F "," '{print $2}')" )
+	else
+		let "TALLY++"
+	fi
+done < "$2"
 
-# count members, infrastructure devices and unknown devices
-MEMBERS=$(echo "$ALIASES" | sort | uniq | grep -Evc '\(.*\)|([a-f0-9]{2}:){5}[a-f0-9]{2}$')
-INFRA=$(echo "$ALIASES" | grep -Ec '\(.*\)|\).*\(')
-UNKNOWN=$(($(echo "$ALIASES" | grep -Evc '\(.*\)|\).*\(') - $MEMBERS))
+COUNT=$(printf '%s\n' "${NAMES[@]}" | grep -v "(nc)" | sort | uniq | sed '/^\s*$/d' | wc -l)
 
-# ISSUE, indenting the functions adds spaces to output?
-# ISSUE, can't indent functions, the tabs 
 
 # formatted counts as:
 
 csv() {
-	echo "name,members,unknown,infra"
-	echo "$NAME","$MEMBERS","$UNKNOWN","$INFRA"
-}
-
-csv_raw() {
-	echo "$MEMBERS","$UNKNOWN","$INFRA"
+        echo "name,counted,balance"
+	echo "$NAME"",""$COUNT"",""$TALLY"
 }
 
 title() {
-	echo "$MEMBERS","$UNKNOWN"
+	echo "$COUNT"",""$TALLY"
 }
 
 json() {
-echo "{\"name\":\"""$NAME""\", \"members\":"$MEMBERS"\
-, \"unknown\":"$UNKNOWN", \"infra\":"$INFRA"}"
+echo "{\"name\":\"""$NAME""\", \"counted\":""$COUNT"", \"balance\":""$TALLY""}"
 }
 
 influx() {
-echo "$NAME"" members="$MEMBERS", unknown="$UNKNOWN", infra="$INFRA""
+echo "$NAME"" counted=""$COUNT"",balance=""$TALLY"
+}
+
+names() {
+printf '%s\n' "${NAMES[@]}" | grep -v "hidden" | sed -e 's/(nc)//' | sort | uniq
 }
 
 
-case "$1" in
+# handle the options
 
-	-c|--csv) csv ;;
+case "$3" in
 
-	-r|--csv_raw) csv_raw ;;
+        -c|--csv) csv ;;
 
-	-t|--title) title ;;
+        -t|--title) title ;;
 
-	-j|--json) json ;;
+        -j|--json) json ;;
 
-	-i|--influx) influx ;;
+        -i|--influx) influx ;;
 
-	# for testing
-	# ISSUE, some newlines aren't working?
-	-a|--all) csv; printf "\n"; csv_raw printf "\n"; title printf "\n";  json; printf "\n"; influx ;;
+	-n|--names) names ;;
 
-	*) exit 1 ;;
+        # for testing
+        -a|--all) csv; printf "\n"; title; printf "\n";  json; printf "\n"; influx; printf "\n"; names ;;
+
+        *) exit 1 ;;
 esac
+
