@@ -82,3 +82,15 @@ case "$3" in
         *) exit 1 ;;
 esac
 
+
+# the format of macs.csv should be:
+# MAC address,name
+# MAC address,hidden
+# MAC address,name(nc)
+# MAC address,hidden(nc)
+
+# any lines without a MAC address won't get used and any fields after the name will be ignored
+# additionally, any address named "hidden" will not be shown by names()
+# and any name containing "(nc)" will not be counted in $COUNT
+
+# NOTE, while having an empty field for the "name" column currently has the same effect as "hidden(nc)", this could be subject to change
