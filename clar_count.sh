@@ -57,6 +57,10 @@ influx() {
 echo "$NAME"" counted=""$COUNT"",balance=""$TALLY"
 }
 
+names_json() {
+names | jq -csR '[ split ("\n") | .[] | select(length > 0)]'
+}
+
 names() {
 printf '%s\n' "${NAMES[@]}" | grep -v "hidden" | sed -e 's/(nc)//' | sort | uniq
 }
@@ -76,8 +80,10 @@ case "$3" in
 
 	-n|--names) names ;;
 
+	-nj|-jn|--names_json) names_json ;;
+
         # for testing
-        -a|--all) csv; printf "\n"; title; printf "\n";  json; printf "\n"; influx; printf "\n"; names ;;
+        -a|--all) csv; printf "\n"; title; printf "\n";  json; printf "\n"; influx; printf "\n"; names_json; printf "\n"; names ;;
 
         *) exit 1 ;;
 esac
