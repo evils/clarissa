@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # get the count of MAC addresses' named in the macs.csv ($1) for all the found MAC addresses ($2)
-# and output a count of the unique names (minus those with "(nc)") and tally of the remaining addresses
+# and output a count of the unique names (minus those with "?") and tally of the remaining addresses
+# and provide a list of those names (minus those with "!")
 # in a variety of formats (specified by $3)
 
 # the format options are:
@@ -9,7 +10,8 @@
 # -t or --title, short CSV showing the count of known entities and everything else
 # -j or --json, json format (accepted by telegraf (for influxdb))
 # -i or --influx, influx line protocol (accepted by telegraf (for influxdb))
-# -n or --names, show all names minus "hidden"
+# -n or --names, show all names minus those with an exclamation mark "!"
+# -nj or --names_json, same as --names but in a json array
 
 
 # maybe set this to measurement's location? (useful for influxdb)
@@ -35,7 +37,7 @@ while read -r; do
 	fi
 done < "$2"
 
-COUNT=$(printf '%s\n' "${NAMES[@]}" | grep -v "(nc)" | sort | uniq | sed '/^\s*$/d' | wc -l)
+COUNT=$(printf '%s\n' "${NAMES[@]}" | grep -v "?" | grep -v "‽" | sort | uniq | sed '/^\s*$/d' | wc -l)
 
 
 # formatted counts as:
@@ -62,7 +64,7 @@ names | jq -csR '[ split ("\n") | .[] | select(length > 0)]'
 }
 
 names() {
-printf '%s\n' "${NAMES[@]}" | grep -v "hidden" | sed -e 's/(nc)//' | sort | uniq
+printf '%s\n' "${NAMES[@]}" | grep -v "!" | grep -v "‽" | sed -e 's/\?//g' | sort | uniq
 }
 
 
@@ -91,12 +93,12 @@ esac
 
 # the format of macs.csv should be:
 # MAC address,name
-# MAC address,hidden
-# MAC address,name(nc)
-# MAC address,hidden(nc)
+# MAC address,!name
+# MAC address,name?
+# MAC address,!name?
 
 # any lines without a MAC address won't get used and any fields after the name will be ignored
-# additionally, any address named "hidden" will not be shown by names()
-# and any name containing "(nc)" will not be counted in $COUNT
+# additionally, any name with an exclamation mark ("!") will not be shown by names()
+# and any name containing a question mark ("?") will not be counted in $COUNT
 
-# NOTE, while having an empty field for the "name" column currently has the same effect as "hidden(nc)", this could be subject to change
+# NOTE, while having an empty field for the "name" column currently has the same effect as "!name(nc)", this could be subject to change
