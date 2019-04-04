@@ -5,6 +5,7 @@ struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
         struct Addrss addrss = {0};
+        struct Addrss zero = {0};
 	addrss.header = *header;
 
 	// assume a packet is correct (discard len < caplen (74) ?)
@@ -29,25 +30,25 @@ struct Addrss get_addrss
 			else
 			{
 				warn ("failed to extract ethernet frame");
-				exit(1);
+				return zero;
 			}
 
 		case DLT_LINUX_SLL:
 
 			warn ("\"any\" device not yet supported\n");
-			exit(1);
+			return zero;
 
 		case DLT_IEEE802_11:
 
 			warn ("WLAN is not yet supported\n");
-			exit(1);
+			return zero;
 
                 default:
                         warn ("unsupported link type: %i\n",
 				pcap_datalink(handle));
         }
 
-        exit(1);
+	return zero;
 }
 
 // get a VLAN tag from the frame and continue handling the frame
@@ -63,7 +64,7 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 			if ((addrss->tags >> 60) >= 5)
 			{
 				warn("Exceeded VLAN tag depth!");
-				exit(1);
+				return -1;
 			}
 
 			// get the full TCI
@@ -133,7 +134,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			("unsupported EtherType: 0x%04x, from: ", type);
 			print_mac(addrss->mac);
 
-			return 1;
+			return -1;
 	}
 
 	return 0;
