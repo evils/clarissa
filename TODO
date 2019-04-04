@@ -6,9 +6,11 @@ implement get_ipv6()
 accept multiple devices
 	add LINKTYPE_LINUX_SLL support
 	requires nag() support for non-ethernet frames?
+	use multiple instances instead?
 
 accept multiple subnets (at least IPv4 and IPv6 simultaneously)
 	see IDEAS
+	use multiple instances instead?
 
 add long options
 
@@ -17,6 +19,10 @@ find a place for macs.csv
 daemonize
 
 packaging
+
+CLAR_COUNT.SH:
+
+	make sure log() doesn't lose data
 
 
 IDEAS:
@@ -29,9 +35,13 @@ output
 				socat's not guaranteed to be available
 					clarissa is
 						por que no los dos?
+			since the default storage is in /tmp, it shouldn't be kept
 		separate program translates list and makes available on LAN?
-			translate to (names/vendors) and/or a tally per type?
+			clar_count.sh makes translation available on the machine
 			output to mqtt?
+				can't be integrated because of topic?
+				separate script or just crontab oneliner with mosquitto_pub
+					does run clar_count.sh twice...
 
 in the absence of (a) given subnet(s), use host struct's IP(s)'s subnet?
 	would prefer not to send ARP/NDP to non-subnet IPs
