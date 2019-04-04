@@ -64,7 +64,7 @@ names | jq -csR '[ split ("\n") | .[] | select(length > 0)]'
 }
 
 names() {
-printf '%s\n' "${NAMES[@]}" | sed -e 's/\?//g' -e '/[!‽]/d' | sort | uniq
+printf '%s\n' "${NAMES[@]}" | sed -e 's/?//g' -e '/[!‽]/d' | sort | uniq
 }
 
 # log the number of unique devices seen during a running instance of this function
@@ -137,4 +137,4 @@ esac
 # additionally, any name with an exclamation mark ("!") will not be shown by names()
 # and any name containing a question mark ("?") will not be counted in $COUNT
 
-# NOTE, while having an empty field for the "name" column currently has the same effect as "!name(nc)", this could be subject to change
+# NOTE, while having an empty field for the display name column currently hase the same effect as having both "!" and "?", this could be subject to change
