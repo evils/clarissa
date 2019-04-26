@@ -24,30 +24,33 @@ struct Addrss get_addrss
 			// skip to metadata and get IP address
 			if (!get_tag(frame+6, &addrss))
 			{
-                        return addrss;
+				return addrss;
 			}
 			else
 			{
-				warn ("failed to extract ethernet frame");
-				exit(1);
+				if (verbosity)
+				warn("failed to extract ethernet frame");
+				goto fail;
 			}
 
 		case DLT_LINUX_SLL:
 
-			warn ("\"any\" device not yet supported\n");
-			exit(1);
+			warn("\"any\" device not yet supported\n");
+			goto fail;
 
 		case DLT_IEEE802_11:
 
-			warn ("WLAN is not yet supported\n");
-			exit(1);
+			warn("WLAN is not yet supported\n");
+			goto fail;
 
                 default:
-                        warn ("unsupported link type: %i\n",
+                        warn("unsupported link type: %i\n",
 				pcap_datalink(handle));
+			goto fail;
         }
 
-        exit(1);
+fail:
+		return (struct Addrss){0};
 }
 
 // get a VLAN tag from the frame and continue handling the frame
@@ -63,7 +66,7 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 			if ((addrss->tags >> 60) >= 5)
 			{
 				warn("Exceeded VLAN tag depth!");
-				exit(1);
+				return -1;
 			}
 
 			// get the full TCI
@@ -99,49 +102,64 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+12, 4);
-			break;
+			return 0;
 
 		case ARP:
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+14, 4);
-			break;
+			return 0;
 
 		case IPv6:
 			// copy IPv6 address to addrss
 			memcpy(addrss->ip, frame+8, 16);
-			break;
+			return 0;
 
 		case ETH_SIZE:
 			// TODO, determine payload type
 			// and extract IP
 
 			// continue without IP
-			if (verbosity > 3) warn ("ETH_SIZE");
-			break;
+			if (verbosity)
+			warn("ETH_SIZE frame found");
+			return -1;
 
 		case ARUBA_AP_BC:
 
-			if (verbosity > 3)
-			warn ("Aruba Instant AP broadcast packet found");
+			if (verbosity)
+			warn("Aruba Instant AP broadcast packet found");
+			return -1;
 
-			break;
+		case EAPOL:
+
+			if (verbosity)
+			warn("EAP over LAN packet found");
+			return -1;
+
+		case DOT11R:
+
+			if (verbosity)
+			warn("Fast BSS Transition (802.11r) packet found");
+			return -1;
 
 		default:
-			warn
-			("unsupported EtherType: 0x%04x, from: ", type);
-			print_mac(addrss->mac);
+			if (verbosity)
+			{
+				warn("unsupported EtherType: 0x%04x", type);
+				printf("From: ");
+				print_mac(addrss->mac);
+			}
 
-			return 1;
+			return -1;
 	}
-
-	return 0;
 }
 
 // update the list with a new entry
 void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss)
 {
+	if (is_zeros(new_addrss->mac, 6)) return;
+
 	int found = 0;
 
 	// go through the list while keeping a pointer

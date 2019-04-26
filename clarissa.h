@@ -26,6 +26,8 @@ int verbosity;
 #define DOT1QINQ 0x9100
 #define ETH_SIZE 0x0600
 #define ARUBA_AP_BC 0x8ffd
+#define EAPOL 0x888e
+#define DOT11R 0x890d
 
 // extracted frame data
 struct Addrss
