@@ -108,7 +108,7 @@ void help()
 {
 	printf("Clarissa keeps a list of MAC and IP addresses of packets seen on the network.\n");
 	printf("It attempts to be as complete and up to date as possible.\n\n");
-	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /temp/clarissa_list, file output interval = timeout * \u03D5\n");
+	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /tmp/clarissa_list, file output interval = timeout * \u03D5\n");
 
 	print_opts();
 }

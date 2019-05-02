@@ -1,0 +1,14 @@
+[Unit]
+Description=Network census daemon
+Documentation=man:clarissa(8)
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/clarissa -p
+Restart=always
+ExecStop=/bin/kill -s QUIT $MAINPID
+ExecStopPost=/bin/rm -f /tmp/clarissa_list
+
+[Install]
+WantedBy=multi-user.target

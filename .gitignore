@@ -8,3 +8,6 @@ macs.csv
 *.dot
 *.svg
 *.png
+debian/clarissa
+debian/tmp
+debian/debhelper-build-stamp

@@ -1,0 +1,82 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" (C) Copyright 2019 Evils <evils.devils@protonmail.com>,
+.\"
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH CLARISSA 8 "2019-05-01"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+Clarissa \- near real-time network census daemon
+.SH SYNOPSIS
+.B clarissa
+.RI [ options ]
+.br
+.SH DESCRIPTION
+.B Clarissa
+is a daemon which keeps track of all the connected MAC addresses on a network.
+.br
+It can report these with sub-second resolution and can monitor passively.
+.br
+It currently includes 
+.B clar_count
+a utility to report a count of known and unknown addresses.
+.PP
+.SH OPTIONS
+Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /tmp/clarissa_list, file output interval = timeout * ϕ
+.br
+
+(Those with * require an argument)
+.TP
+.B -f  *
+File input (pcap file (tcpdump/wireshark), works with - (stdin))
+.TP
+.B -h
+Help, show the help message
+.TP
+.B -i  *
+set Interface used (can currently only use 1 at a time)
+.TP
+.B -l  *
+set the intervaL (in milliseconds)
+.TP
+.B -n  *
+Number of times to "Nag" a target (-n 0 is equivalent to -q)
+.TP
+.B -p
+enable Promiscuous mode
+.TP
+.B -q
+Quiet, send out no packets
+.TP
+.B -s  *
+get a Subnet in CIDR notation (currently not used)
+.TP
+.B -t  *
+set the Timeout for an entry (wait time for nags) (in milliseconds)
+.TP
+.B -v
+increase Verbosity
+.br
+(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)
+.TP
+.B -o  *
+set output filename
+.TP
+.B -O  *
+set file Output interval
+.SH SEE ALSO
+.BR clar_count (1),
+.BR arp-scan (1).
+.br

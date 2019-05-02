@@ -1,0 +1,102 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" (C) Copyright 2019 Evils <evils.devils@protonmail.com>,
+.\"
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH CLAR_COUNT 1 "2019-05-01"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+Clar_count \-
+.B Clarissa
+utility count known and unknown MAC addresses.
+.SH SYNOPSIS
+.B clar_count
+.RI [path\ to\ macs.csv]\ [path\ to\ 
+.B Clarissa's
+\ list]\ [option]
+.br
+.SH DESCRIPTION
+.B Clar_count
+is a utility intended to count known and unknown MAC addresses from a macs.csv file, in
+.B Clarissa's
+output list.
+.br
+It can output in a variety of formats specified by the option used.
+.br
+.SH OPTIONS
+Clar_count only takes 1 option per instance.
+.br
+These control it's output.
+.br
+Several can be parsed by 
+.B Telegraf
+for use with 
+.B InfluxDB.
+
+.TP
+.B -c, --csv
+CSV with a header line ( works with 
+.B Telegraf
+)
+.TP
+.B -t, --title
+One-line CSV containing the count of known addresses and of everything else.
+.TP
+.B -j, --json
+JSON object ( works with 
+.B Telegraf
+)
+.TP
+.B -i, --influx
+influx line protocol ( works with 
+.B Telegraf 
+and presumably
+.B InfluxDB
+)
+.TP
+.B -n, --names
+list of names, one name per line
+.TP
+.B -nj, --names_json
+same content as -n but in a JSON array
+.TP
+.B -l, --log [salt]
+Keep a hashed and salted log of unique addresses seen in the user's home directory.
+.br
+Unless a salt is supplied, a random salt will be used per instance.
+.SH MAC.CSV FORMAT
+MAC address,name
+.br
+MAC address,!name
+.br
+MAC address,name?
+.br
+MAC address,!name?
+.br
+
+Any lines without a MAC address won't get used and any fields after the name will be ignored.
+.br
+Any name with an exclamation mark
+.B !
+will not be output,
+.br
+and any name containing a question mark
+.B ?
+will not be counted.
+.SH SEE ALSO
+.BR clarissa(8),
+.BR telegraf,
+.BR influxdb
+.br

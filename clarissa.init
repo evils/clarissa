@@ -11,7 +11,7 @@ USE_PROCD=1
 start_service()
 {
 	procd_open_instance
-	procd_set_param command /opt/clarissa/clarissa/clarissa_static
+	procd_set_param command clarissa
 	procd_append_param command -pi br-lan
 	procd_set_param respawn
 	procd_close_instance

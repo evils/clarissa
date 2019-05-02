@@ -1,5 +1,7 @@
 confirm ARP packets' frames leave with a CRC
 
+start testing with libtq
+
 implement nag()'s IPv6 support
 implement get_ipv6()
 
@@ -18,6 +20,7 @@ packaging
 		procd for openwrt
 			started
 		systemd for everything else?
+			first debian package attempt done (thanks TQ)
 
 CLAR_COUNT.SH:
 
@@ -49,6 +52,7 @@ in the absence of (a) given subnet(s), use host struct's IP(s)'s subnet?
 		ARP packets don't pass the router (it responds for its MAC)
 			NDP?
 			still an issue if clarissa runs on a router
+				but does anything upstream care?
 
 preload
 	if output is persistent and includes the IP address, load
