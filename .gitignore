@@ -2,7 +2,7 @@ clarissa
 clarissa_static
 *.o
 *.out
-*test*
+*.test
 *.swp
 macs.csv
 *.dot
@@ -11,3 +11,4 @@ macs.csv
 debian/clarissa
 debian/tmp
 debian/debhelper-build-stamp
+out/

@@ -26,9 +26,9 @@ int main (int argc, char *argv[])
 
 
 	// get the host ID
-	get_mac(opts.host.mac, opts.dev);
-	get_ipv4(opts.host.ipv4, opts.dev);
-	// TODO, get_ipv6(opts.host.ipv6, dev);
+	get_if_mac(opts.host.mac, opts.dev);
+	get_if_ipv4(opts.host.ipv4, opts.dev);
+	// TODO, get_if_ipv6(opts.host.ipv6, dev);
 
 	// startup header
 	if (!verbosity) printf("Verbosity: %d\n", verbosity);

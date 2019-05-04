@@ -1,7 +1,5 @@
 confirm ARP packets' frames leave with a CRC
 
-start testing with libtq
-
 implement nag()'s IPv6 support
 implement get_ipv6()
 

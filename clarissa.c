@@ -506,7 +506,7 @@ end:
 }
 
 // fill in the destination with device's MAC address
-void get_mac(uint8_t* dest, char* dev)
+void get_if_mac(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -536,7 +536,7 @@ void get_mac(uint8_t* dest, char* dev)
 }
 
 // fill in the destination with device's IPv4 address
-void get_ipv4(uint8_t* dest, char* dev)
+void get_if_ipv4(uint8_t* dest, char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -571,7 +571,7 @@ void get_ipv4(uint8_t* dest, char* dev)
 
 // fill in the destination with device's IPv6 address
 /*
-void get_ipv6(uint8_t* dest, char* dev)
+void get_if_ipv6(uint8_t* dest, char* dev)
 {
 	// TODO
 }
@@ -597,9 +597,9 @@ int is_zeros(const uint8_t* target, int count)
 // check if a given IP address is an IPv4-mapped IPv6 address
 int is_mapped(const uint8_t* ip)
 {
-        return ((uint64_t *) ip)[0] == 0
-                && ((uint16_t *) ip)[4] == 0
-                && ((uint16_t *) ip)[5] == 0xFFFF;
+        return ((uint64_t*) ip)[0] == 0
+                && ((uint16_t*) ip)[4] == 0
+                && ((uint16_t*) ip)[5] == 0xFFFF;
 }
 
 // write The list out to a file
