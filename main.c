@@ -36,6 +36,10 @@ int main (int argc, char *argv[])
 	{
 		printf("Host MAC address:\t");
 		print_mac(opts.host.mac);
+		printf("Host IPv4 base address:\t");
+		print_ip(opts.host.ipv4_subnet.ip);
+		printf("Host subnet mask:\t%d\n", opts.host.ipv4_subnet.mask);
+		printf("\n");
 		if (opts.promiscuous) printf("Promiscuous\n");
 		if (opts.nags == 0) printf("Quiet\n");
 		if (verbosity > 2)
@@ -60,7 +64,8 @@ int main (int argc, char *argv[])
 			get_addrss(opts.handle, frame, &header);
 
 		// zero IP if it's not in the provided subnet
-		subnet_check(addrss.ip, &opts.subnet);
+		if (opts.parsed) subnet_check(addrss.ip, &opts.subnet);
+		else subnet_check(addrss.ip, &opts.host.ipv4_subnet);
 
 		if (verbosity > 4)
 		{
@@ -251,5 +256,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->dev, opts->errbuf);
 			exit(1);
 		}
+	}
+
+	if (!opts->parsed)
+	{
+		// TODO figure out if this stops ipv6 addresses
+		get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
 	}
 }

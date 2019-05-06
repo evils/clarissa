@@ -4,17 +4,17 @@
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
-        struct Addrss addrss = {0};
+	struct Addrss addrss = {0};
 	addrss.header = *header;
 
 	// assume a packet is correct (discard len < caplen (74) ?)
-        // an invalid MAC will be unreachable and get purged
-        // check if the IP is in the right range later?
+	// an invalid MAC will be unreachable and get purged
+	// check if the IP is in the right range later?
 
-        // link type is separately stored metadata?
-        switch (pcap_datalink(handle))
-        {
-                case DLT_EN10MB:
+	// link type is separately stored metadata?
+	switch (pcap_datalink(handle))
+	{
+		case DLT_EN10MB:
 
 			// preamble and start of frame delimiter not included
 
@@ -43,11 +43,11 @@ struct Addrss get_addrss
 			warn("WLAN is not yet supported\n");
 			goto fail;
 
-                default:
-                        warn("unsupported link type: %i\n",
+		default:
+			warn("unsupported link type: %i\n",
 				pcap_datalink(handle));
 			goto fail;
-        }
+	}
 
 fail:
 		return (struct Addrss){0};
@@ -427,28 +427,38 @@ void print_ip(const uint8_t* ip)
 	}
 }
 
-// check if an IPv6 or mapped IPv4 address is in the provided subnet(s)
-// TODO, accept multiple subnets
+// check if an IPv6 or mapped IPv4 address is in the provided subnet
+// TODO, accept multiple subnets (or use multiple instances)
 void subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
-	if (!is_zeros(ip, 16))
+	if(!is_zeros(ip, 16))
 	{
-		// mask bytes
-		int mb = subnet->mask / 8;
-		// remnant mask
-		uint8_t remn = (uint8_t)(~(uint16_t)0)
-				<< (8 - (subnet->mask % 8));
-		uint8_t sub_remn = subnet->ip[mb] & remn;
-
-		if(memcmp(ip, subnet->ip, mb)
-			|| ((ip[mb] & remn) != sub_remn))
+		if (bitcmp(ip, subnet->ip, subnet->mask))
 		{
 			if (verbosity > 3)
-			printf("Zero'd a non-subnet IP address\n");
+			{
+				printf("zerod ip:");
+				print_ip(ip);
+			}
 
 			memset(ip, 0, 16);
 		}
 	}
+}
+
+// bitwise compare a to b to n bits
+int bitcmp(uint8_t* a, uint8_t* b, int n)
+{
+	n = n >= 0 ? n : 0;
+	int bytes = n / 8;
+	int remn = n % 8;
+	int cmp = bytes > 0 ? memcmp(a, b, bytes) : 0;
+
+	if (cmp || !remn) return cmp;
+
+	uint8_t mask = ((1 << n) -1) << (8 - remn);
+
+	return (a[bytes] & mask) - (b[bytes] & mask);
 }
 
 // parse a CIDR notation string and save to a Subnet struct
@@ -597,36 +607,58 @@ int is_zeros(const uint8_t* target, int count)
 // check if a given IP address is an IPv4-mapped IPv6 address
 int is_mapped(const uint8_t* ip)
 {
-        return ((uint64_t*) ip)[0] == 0
-                && ((uint16_t*) ip)[4] == 0
-                && ((uint16_t*) ip)[5] == 0xFFFF;
+	return ((uint64_t*) ip)[0] == 0
+		&& ((uint16_t*) ip)[4] == 0
+		&& ((uint16_t*) ip)[5] == 0xFFFF;
 }
 
 // write The list out to a file
 void dump_state(char* filename, struct Addrss *head) {
-        char* tmp_filename;
-        asprintf(&tmp_filename, "%s.XXXXXX", filename);
-        int tmp_fd = mkstemp(tmp_filename);
-        if (tmp_fd < 0) {
-                warn("Failed to create temp file");
-                return;
-        }
-        FILE* stats_file = fdopen(tmp_fd, "w");
-        if (stats_file == NULL) {
-                warn("Failed to open stats file");
-                return;
-        }
-        flockfile(stats_file);
-        for (struct Addrss *link = head; link != NULL; link = link->next) {
-                for (int i = 0; i < 6; i++) {
-                        fprintf(stats_file, "%02x%c",
-                                link->mac[i], (i==5)?'\n':':');
-                }
-        }
-        funlockfile(stats_file);
-        fclose(stats_file);
+	char* tmp_filename;
+	asprintf(&tmp_filename, "%s.XXXXXX", filename);
+	int tmp_fd = mkstemp(tmp_filename);
+	if (tmp_fd < 0) {
+		warn("Failed to create temp file");
+		return;
+	}
+	FILE* stats_file = fdopen(tmp_fd, "w");
+	if (stats_file == NULL) {
+		warn("Failed to open stats file");
+		return;
+	}
+	flockfile(stats_file);
+	for (struct Addrss *link = head; link != NULL; link = link->next) {
+		for (int i = 0; i < 6; i++) {
+			fprintf(stats_file, "%02x%c",
+				link->mac[i], (i==5)?'\n':':');
+		}
+	}
+	funlockfile(stats_file);
+	fclose(stats_file);
 
-        if ((rename(tmp_filename, filename) < 0) || chmod(filename, 0755)) {
-                warn("Failed to rename stats file");
-        }
+	if ((rename(tmp_filename, filename) < 0) || chmod(filename, 0444)) {
+		warn("Failed to rename stats file");
+	}
+}
+
+void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts)
+{
+	// get IPv4 subnet base address and actual mask
+	uint32_t netp, maskp;
+	pcap_lookupnet(opts->dev, &netp, &maskp, opts->errbuf);
+
+	// save base address mapped to IPv6
+	memset(subnet->ip, 0, 16);
+	memset(subnet->ip+10, 0xFF, 2);
+	memcpy(&subnet->ip[12], &netp, 4);
+
+	// save the number of set bits in the mask
+	subnet->mask = 0;
+	while (maskp)
+	{
+		subnet->mask += maskp & 1;
+		maskp >>= 1;
+	}
+	// adjust for mapping
+	subnet->mask += 96;
 }

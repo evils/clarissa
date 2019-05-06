@@ -40,19 +40,22 @@ struct Addrss
 	struct Addrss*		next;	// pointer to next element in list
 };
 
-// host addresses
-struct Host
-{
-	uint8_t mac[6];		// MAC for ethernet frames
-	uint8_t ipv6[16];	// IPv6 for NDP packets
-	uint8_t ipv4[4];	// IPv4 for ARP packets
-};
-
 // values extracted from provided CIDR notation
 struct Subnet
 {
+	// this doesn't use the mask directly because IPv6 masks are big
 	int	mask;		// number of masked bits
 	uint8_t ip[16];		// base address for this subnet
+};
+
+// host addresses
+struct Host
+{
+	struct	Subnet ipv4_subnet;	// subnet base address and mask
+	//struct 	Subnet ipv6_subnet;
+	uint8_t mac[6];			// MAC for ethernet frames
+	uint8_t ipv6[16];		// IPv6 for NDP packets
+	uint8_t ipv4[4];		// IPv4 for ARP packets
 };
 
 // a bunch of variables used in handle_opts() and elsewhere
@@ -89,6 +92,7 @@ void print_mac(const uint8_t* mac);
 void print_ip(const uint8_t* ip);
 void nag(const struct Addrss* addrss, const struct Opts* opts);
 void subnet_check(uint8_t* ip, struct Subnet* mask);
+int bitcmp(uint8_t* a, uint8_t* b, int n);
 int parse_cidr(const char* cidr, struct Subnet* dest);
 void get_if_mac(uint8_t* dest, char* dev);
 void get_if_ipv4(uint8_t* dest, char* dev);
@@ -97,3 +101,4 @@ void net_puts(uint8_t* target, uint16_t source);
 int is_zeros(const uint8_t* target, int count);
 int is_mapped(const uint8_t* ip);
 void dump_state(char* filename, struct Addrss *head);
+void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts);
