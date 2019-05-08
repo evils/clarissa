@@ -14,9 +14,10 @@ static: main.o clarissa.o time_tools.o
 
 # uses pycflow2dot (from pip)
 graph:
-	rm test_sum.c
-	cat *.c > test_sum.c
-	cflow2dot -i test_sum.c -f svg
+	rm -f cflow_sum.c
+	cat *.c > cflow_sum.c
+	cflow2dot -i cflow_sum.c -f svg
+	rm -f cflow_sum.c
 
 # tests
 OUTDIR = out
@@ -43,4 +44,4 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -rf clarissa clarissa_static *.o cflow* test_sum.c $(OUTDIR)
+	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR)

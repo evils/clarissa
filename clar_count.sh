@@ -43,7 +43,7 @@ COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort |
 # formatted counts as:
 
 csv() {
-        echo "name,counted,balance"
+	echo "name,counted,balance"
 	echo "$NAME"",""$COUNT"",""$TALLY"
 }
 
@@ -86,16 +86,16 @@ echo "Session unique hashes stored in $log"
 
 while true; do
 
-        while read -r; do
+	while read -r; do
 
-                echo "$REPLY" "$salt" | sha256sum >> "$log"
+		echo "$REPLY" "$salt" | sha256sum >> "$log"
 
-        done < "$1"
+	done < "$1"
 
-        sort "$log" | uniq > "$log.tmp"
-        mv "$log.tmp" "$log"
+	sort "$log" | uniq > "$log.tmp"
+	mv "$log.tmp" "$log"
 
-        sleep 60
+	sleep 60
 
 done
 
@@ -106,13 +106,13 @@ done
 
 case "$3" in
 
-        -c|--csv) csv ;;
+	-c|--csv) csv ;;
 
-        -t|--title) title ;;
+	-t|--title) title ;;
 
-        -j|--json) json ;;
+	-j|--json) json ;;
 
-        -i|--influx) influx ;;
+	-i|--influx) influx ;;
 
 	-n|--names) names ;;
 
@@ -120,10 +120,10 @@ case "$3" in
 
 	-l|--log) log "$2" "$4" ;;
 
-        # for testing
-        -a|--all) csv; echo; title; echo;  json; echo; influx; echo; names_json; echo; names ;;
+	# for testing
+	-a|--all) csv; echo; title; echo;  json; echo; influx; echo; names_json; echo; names ;;
 
-        *) exit 1 ;;
+	*) exit 1 ;;
 esac
 
 

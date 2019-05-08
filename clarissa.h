@@ -55,27 +55,27 @@ struct Host
 	//struct 	Subnet ipv6_subnet;
 	uint8_t mac[6];			// MAC for ethernet frames
 	uint8_t ipv6[16];		// IPv6 for NDP packets
-	uint8_t ipv4[4];		// IPv4 for ARP packets
+	uint8_t ipv4[16];		// IPv4 for ARP packets
 };
 
 // a bunch of variables used in handle_opts() and elsewhere
 struct Opts
 {
-        //pcap stuff
-        char errbuf[PCAP_ERRBUF_SIZE];
-        pcap_t* handle;
-        char* dev;
+	//pcap stuff
+	char errbuf[PCAP_ERRBUF_SIZE];
+	pcap_t* handle;
+	char* dev;
 
-        // clarissa stuff
-        struct Subnet subnet;
-        struct Host host;
-        int timeout;
-        int interval;
+	// clarissa stuff
+	struct Subnet subnet;
+	struct Host host;
+	int timeout;
+	int interval;
 	int print_interval;
 	char* print_filename;
-        int nags;
-        int promiscuous;
-        int parsed;
+	int nags;
+	int promiscuous;
+	int parsed;
 };
 
 struct Addrss get_addrss
@@ -86,7 +86,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss,
 void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss);
 void addrss_list_cull(struct Addrss** head, const struct timeval* ts,
 			const int timeout, const int nags);
-void addrss_list_nag (struct Addrss** head, const struct timeval* ts,
+void addrss_list_nag(struct Addrss** head, const struct timeval* ts,
 			const int timeout, const struct Opts* opts);
 void print_mac(const uint8_t* mac);
 void print_ip(const uint8_t* ip);
@@ -94,9 +94,8 @@ void nag(const struct Addrss* addrss, const struct Opts* opts);
 void subnet_check(uint8_t* ip, struct Subnet* mask);
 int bitcmp(uint8_t* a, uint8_t* b, int n);
 int parse_cidr(const char* cidr, struct Subnet* dest);
-void get_if_mac(uint8_t* dest, char* dev);
-void get_if_ipv4(uint8_t* dest, char* dev);
-//void get_if_ipv6(uint8_t* dest, char* dev);
+void get_if_mac(uint8_t* dest, const char* dev);
+void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf);
 void net_puts(uint8_t* target, uint16_t source);
 int is_zeros(const uint8_t* target, int count);
 int is_mapped(const uint8_t* ip);

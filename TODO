@@ -1,16 +1,11 @@
 confirm ARP packets' frames leave with a CRC
 
 implement nag()'s IPv6 support
-implement get_ipv6()
-	libpcap's pcap_findalldevs() may help with this...
+	NDP ICMPv6 Neighbor Solicitation (type 135) packet?
 
 default output name to device+subnet
 	to work with multiple instances
 	use domain socket?
-
-add long options
-
-find a place for macs.csv
 
 packaging
 	daemonizing
@@ -20,50 +15,15 @@ packaging
 			started
 		systemd for everything else?
 			first debian package attempt done (thanks TQ)
+	find a place for macs.csv
+
+add long options
+
+get_if_ip()
+	allot of addresses
+		selecting fe80/16
+			save all, nag with one with the same prefix?
 
 CLAR_COUNT.SH:
 
 	make sure log() doesn't lose data
-
-
-IDEAS:
-
-output
-	raw list available on the machine as a file
-		include IPs to allow resumption?
-		switch to a domain socket?
-			requires either socat or "clarissa state"
-				socat's not guaranteed to be available
-					clarissa is
-						por que no los dos?
-			since the default file storage is in /tmp, it shouldn't be kept (no privacy issue)
-			a domain socket could easily be exposed over the network?
-			would lose the potential to allow resumption (unless the file output is kept)
-		separate program translates list and makes available on LAN?
-			clar_count.sh makes translation available on the machine
-			output to mqtt?
-				can't be integrated because of topic?
-				separate script or just crontab oneliner with mosquitto_pub
-					does run clar_count.sh twice...
-
-in the absence of (a) given subnet(s), use host struct's IP(s)'s subnet?
-	would prefer not to send ARP/NDP to non-subnet IPs
-		ARP packets don't pass the router (it responds for its MAC)
-			NDP?
-			still an issue if clarissa runs on a router
-				but does anything upstream care?
-
-	done with get_if_ipv4_subnet() at handle_opts>!opts->parsed
-
-preload
-	if output is persistent and includes the IP address, load
-	else scan the subnet?
-
-add exponential delay to timeout per node
-	reduce nagging on less frequent devices
-		longer dropout time
-
-multithreading to increase capacity?
-
-only accept stored capture input via stdin?
-	free up -f or use it for output file setting

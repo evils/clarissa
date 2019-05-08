@@ -15,3 +15,4 @@ extern int verbosity;
 void help();
 void print_opts();
 void handle_opts(int argc, char* argv[], struct Opts* opts);
+void print_header(struct Opts* opts);

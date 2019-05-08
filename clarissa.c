@@ -71,7 +71,8 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 
 			// get the full TCI
 			uint64_t VID =
-			     (((uint64_t)frame[2] << 8) + (uint64_t)frame[3]);
+				(((uint64_t)frame[2] << 8)
+				+ (uint64_t)frame[3]);
 
 			// drop the PPC and DEI
 			VID &= (uint64_t)(1 << 12) - 1;
@@ -205,7 +206,6 @@ top_of_loop:
 		new_head->next = *head;
 		*head = new_head;
 
-		// TEMPORARY output
 		if (verbosity) print_mac(new_addrss->mac);
 		if (verbosity > 1) print_ip(new_addrss->ip);
 	}
@@ -351,8 +351,8 @@ void nag(const struct Addrss* addrss, const struct Opts* opts)
 			memcpy(&frame[ptr], opts->host.mac, 6);
 			ptr += 6;
 
-			// sender protocol address
-			memcpy(&frame[ptr], opts->host.ipv4, 4);
+			// sender protocol address (mapped IPv4)
+			memcpy(&frame[ptr], opts->host.ipv4+12, 4);
 			ptr += 4;
 
 			// target hardware address
@@ -360,7 +360,7 @@ void nag(const struct Addrss* addrss, const struct Opts* opts)
 			ptr += 6;
 
 			// target protocol address (mapped IPv4)
-			memcpy(&frame[ptr], addrss->ip + 12, 4);
+			memcpy(&frame[ptr], addrss->ip+12, 4);
 			ptr += 4;
 
 			// frame check sequence (CRC) done by network card?
@@ -437,7 +437,7 @@ void subnet_check(uint8_t* ip, struct Subnet* subnet)
 		{
 			if (verbosity > 3)
 			{
-				printf("zerod ip:");
+				printf("zerod ip: ");
 				print_ip(ip);
 			}
 
@@ -516,7 +516,7 @@ end:
 }
 
 // fill in the destination with device's MAC address
-void get_if_mac(uint8_t* dest, char* dev)
+void get_if_mac(uint8_t* dest, const char* dev)
 {
 	int fd, rc;
 	struct ifreq ifr;
@@ -545,47 +545,68 @@ void get_if_mac(uint8_t* dest, char* dev)
 	}
 }
 
-// fill in the destination with device's IPv4 address
-void get_if_ipv4(uint8_t* dest, char* dev)
+// fill in the destination with device's IP Address of Family [4|6]
+void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 {
-	int fd, rc;
-	struct ifreq ifr;
+	pcap_if_t* devs;
 
-	// fill in the struct
-	ifr.ifr_addr.sa_family = AF_INET;
-	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+	// TODO, save all IPv6 addresses for a device
+	// and nag with the one with the same prefix
+	// can't use uint16_t because of endianness
+	uint8_t v6_mask[2] = { 0xfe, 0x80 };
 
-	// get the address of the interface
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	rc = ioctl(fd, SIOCGIFADDR, &ifr);
-	close(fd);
+	if (pcap_findalldevs(&devs, errbuf))
+	{
+		warn("%s\n", errbuf);
+		return;
+	}
 
-	if(!rc)
-	{	// save the IP address
-		memcpy(dest, &((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr,
-		sizeof(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
-
-		// TEMPORARY
-		if (verbosity)
+	for (pcap_if_t* d = devs; d != NULL; d = d->next)
+	{
+		if(!strcmp(d->name, dev))
 		{
-			printf("Host IPv4 address:\t%s\n",
-			inet_ntoa
-			(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+			for(pcap_addr_t* a = d->addresses;
+				a != NULL; a = a->next)
+			{
+				// TODO, make the logic neater?
+				if(a->addr->sa_family == AF_INET
+					&& AF == AF_INET)
+				{
+					// map the IPv4 address
+					memset(dest, 0, 10);
+					memset(dest+10, 0xFF, 2);
+					memcpy(dest+12,
+					&((struct sockaddr_in*)
+					a->addr)->sin_addr.s_addr, 4);
+
+					// stop at 1 address
+					goto end;
+				}
+
+				if(a->addr->sa_family == AF_INET6
+					&& AF == AF_INET6
+					&& !bitcmp((uint8_t*)
+						&((struct sockaddr_in6*)
+						a->addr)->sin6_addr.s6_addr,
+						v6_mask, 16)
+					)
+				{
+					memcpy(dest, &((struct sockaddr_in6*)
+					a->addr)->sin6_addr.s6_addr, 16);
+
+					// stop at 1 address
+					goto end;
+				}
+			}
+			// stop at the device we're looking for
+			goto end;
 		}
 	}
-	else
-	{
-		warn("Failed to get host IP address");
-	}
-}
 
-// fill in the destination with device's IPv6 address
-/*
-void get_if_ipv6(uint8_t* dest, char* dev)
-{
-	// TODO
+end:
+	pcap_freealldevs(devs);
+
 }
-*/
 
 // put the source's upper and lower 8 bits in in net endianness into target
 inline void net_puts(uint8_t* target, uint16_t source)

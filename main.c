@@ -11,45 +11,24 @@ int main (int argc, char *argv[])
 	// clarissa setup
 	// more in the opts struct
 	struct Addrss* head = NULL;
-	struct timeval now;
-	struct timeval last_print;
-	struct timeval checked;
+	struct timeval now, last_print, checked;
 
 	gettimeofday(&checked, NULL);
 	last_print = checked;
 
 	// options setup
 	struct Opts opts;
+
 	memset(&opts, 0, sizeof(opts));
-
 	handle_opts(argc, argv, &opts);
-
 
 	// get the host ID
 	get_if_mac(opts.host.mac, opts.dev);
-	get_if_ipv4(opts.host.ipv4, opts.dev);
-	// TODO, get_if_ipv6(opts.host.ipv6, dev);
+	get_if_ip(opts.host.ipv4, opts.dev, AF_INET, opts.errbuf);
+	get_if_ip(opts.host.ipv6, opts.dev, AF_INET6, opts.errbuf);
 
 	// startup header
-	if (!verbosity) printf("Verbosity: %d\n", verbosity);
-	else
-	{
-		printf("Host MAC address:\t");
-		print_mac(opts.host.mac);
-		printf("Host IPv4 base address:\t");
-		print_ip(opts.host.ipv4_subnet.ip);
-		printf("Host subnet mask:\t%d\n", opts.host.ipv4_subnet.mask);
-		printf("\n");
-		if (opts.promiscuous) printf("Promiscuous\n");
-		if (opts.nags == 0) printf("Quiet\n");
-		if (verbosity > 2)
-		{
-			printf("Timeout:\t\t%dms\n", opts.timeout / 1000);
-			if (opts.nags) printf("Nags:\t\t\t%d\n", opts.nags);
-			printf("Interval:\t\t%dms\n", opts.interval / 1000);
-		}
-	}
-	printf("\n");
+	print_header(&opts);
 
 	// main loop
 	// capture, extract and update list of addresses
@@ -95,10 +74,7 @@ int main (int argc, char *argv[])
 		// TEMPORARY, update a file with the list
 		if (usec_diff(&now, &last_print) > opts.print_interval) {
 			last_print = now;
-			dump_state(	opts.print_filename
-					? opts.print_filename
-					: "/tmp/clarissa_list"
-					, head);
+			dump_state(opts.print_filename, head);
 		}
 		// maybe only check the full list at output?
 	}
@@ -260,7 +236,56 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->parsed)
 	{
-		// TODO figure out if this stops ipv6 addresses
 		get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
+	}
+
+	if (!opts->print_filename)
+	{
+		opts->print_filename = "/tmp/clarissa_list";
+	}
+}
+
+void print_header(struct Opts* opts)
+{
+	if (!verbosity) printf("Verbosity:\t%d\n\n", verbosity);
+	else
+	{
+		// host block
+		printf("Host interface:\t\t%s\n", opts->dev);
+		printf("Host MAC address:\t");
+		print_mac(opts->host.mac);
+		printf("Host IPv4 address:\t");
+		print_ip(opts->host.ipv4);
+		printf("Host IPv6 address:\t");
+		print_ip(opts->host.ipv6);
+		printf("\n");
+
+		// mode block
+		if (opts->promiscuous) printf("Promiscuous\n");
+		if (!opts->nags) printf("Quiet\n");
+		if (opts->promiscuous || !opts-> nags) printf("\n");
+
+		// further details
+		if (verbosity > 2)
+		{
+			// subnet block
+			printf("Host IPv4 subnet:\t");
+			print_ip(opts->host.ipv4_subnet.ip);
+			printf("Host IPv4 mask:\t\t%d\n",
+			// minus 96 as long as this is IPv4
+			opts->host.ipv4_subnet.mask - 96);
+			printf("\n");
+
+			// options block
+			printf("Timeout:\t\t%dms\n", opts->timeout / 1000);
+			if (opts->nags) printf("Nags:\t\t\t%d\n", opts->nags);
+			printf("Interval:\t\t%dms\n", opts->interval / 1000);
+			printf("\n");
+			printf("Output filename:\t%s\n",
+						opts->print_filename);
+			printf("Output interval:\t%dms\n",
+						opts->print_interval / 1000);
+			printf("\n");
+		}
 	}
 }
