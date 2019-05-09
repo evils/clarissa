@@ -12,3 +12,6 @@ debian/clarissa
 debian/tmp
 debian/debhelper-build-stamp
 out/
+debian/*.debhelper
+debian/files
+debian/clarissa.substvars

@@ -27,9 +27,9 @@ ALL_SRCS += libtq/test/test_main.c
 ALL_SRCS += $(wildcard *.c)
 ALL_TEST := $(shell find test -type f -name "*.c")
 
-test: $(OUTDIR)/clar_test check
 
-check:
+.PHONY: check test
+test check: $(OUTDIR)/clar_test
 	prove -v $(OUTDIR)/clar_test
 
 $(OUTDIR)/%.o: %.c
