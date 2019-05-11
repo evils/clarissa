@@ -52,7 +52,6 @@ struct Subnet
 struct Host
 {
 	struct	Subnet ipv4_subnet;	// subnet base address and mask
-	//struct 	Subnet ipv6_subnet;
 	uint8_t mac[6];			// MAC for ethernet frames
 	uint8_t ipv6[16];		// IPv6 for NDP packets
 	uint8_t ipv4[16];		// IPv4 for ARP packets
@@ -96,8 +95,15 @@ int bitcmp(uint8_t* a, uint8_t* b, int n);
 int parse_cidr(const char* cidr, struct Subnet* dest);
 void get_if_mac(uint8_t* dest, const char* dev);
 void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf);
-void net_puts(uint8_t* target, uint16_t source);
+void net_put_u16(uint8_t* target, uint16_t source);
+void net_put_u32(uint8_t* target, uint32_t source);
 int is_zeros(const uint8_t* target, int count);
 int is_mapped(const uint8_t* ip);
 void dump_state(char* filename, struct Addrss *head);
 void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts);
+void send_arp(const struct Addrss* addrss, const struct Opts* opts);
+void send_ndp(const struct Addrss* addrss, const struct Opts* opts);
+void fill_eth_hdr
+(uint8_t* frame, int* ptr,
+	const struct Addrss* addrss, const struct Opts* opts);
+uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start);

@@ -1,7 +1,7 @@
 #include <libtq/test.h>
 #include "../clarissa.h"
 
-TQ_TEST("net_puts")
+TQ_TEST("net_put_u16")
 {
 	// 0b1000000000000001
 	uint16_t source = 32769;
@@ -9,7 +9,20 @@ TQ_TEST("net_puts")
 	uint16_t intent = 384;
 	uint8_t target[2];
 
-	net_puts((uint8_t*) &target, source);
+	net_put_u16((uint8_t*) &target, source);
+
+	return !memcmp(&target, &intent, sizeof(target));
+}
+
+TQ_TEST("net_put_u32")
+{
+	// 0b10000000000000011000000000000001
+	uint32_t source = 2147581953;
+	// 0b00000001100000000000000110000000
+	uint32_t intent = 25166208;
+	uint8_t target[4];
+
+	net_put_u32((uint8_t*) &target, source);
 
 	return !memcmp(&target, &intent, sizeof(target));
 }

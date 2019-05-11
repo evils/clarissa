@@ -24,6 +24,10 @@ in the absence of (a) given subnet(s), use host struct's IP(s)'s subnet?
 				but does anything upstream care?
 
 	done with get_if_ipv4_subnet() at handle_opts>!opts->parsed
+		filters IPv6 addresses too, interferes with NDP...
+			just allow IPv6 through once NDP nagging works?
+				filter out multicast addresses? (prefix ff000::/8)
+					done
 
 preload
 	if output is persistent and includes the IP address, load

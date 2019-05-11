@@ -39,20 +39,13 @@ Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Ve
 
 (Those with * require an argument)
 .TP
-.B -f  *
-File input (pcap file (tcpdump/wireshark), works with - (stdin))
+.B -v
+increase Verbosity
+.br
+(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)
 .TP
 .B -h
-Help, show the help message
-.TP
-.B -i  *
-set Interface used (can currently only use 1 at a time)
-.TP
-.B -l  *
-set the intervaL (in milliseconds)
-.TP
-.B -n  *
-Number of times to "Nag" a target (-n 0 is equivalent to -q)
+show the Help message
 .TP
 .B -p
 enable Promiscuous mode
@@ -60,16 +53,23 @@ enable Promiscuous mode
 .B -q
 Quiet, send out no packets
 .TP
-.B -s  *
-get a Subnet in CIDR notation (currently not used)
+.B -I  *
+set the Interface used (can currently only use 1 at a time)
+.TP
+.B -i  *
+set the interval (in milliseconds)
+.TP
+.B -n  *
+Number of times to "Nag" a target (-n 0 is equivalent to -q)
 .TP
 .B -t  *
 set the Timeout for an entry (wait time for nags) (in milliseconds)
 .TP
-.B -v
-increase Verbosity
-.br
-(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)
+.B -s  *
+get a Subnet to filter by, in CIDR notation
+.TP
+.B -f  *
+File input (pcap file (tcpdump/wireshark), works with - (stdin))
 .TP
 .B -o  *
 set output filename
@@ -78,5 +78,4 @@ set output filename
 set file Output interval
 .SH SEE ALSO
 .BR clar_count (1),
-.BR arp-scan (1).
 .br

@@ -28,7 +28,7 @@ struct Addrss get_addrss
 			}
 			else
 			{
-				if (verbosity)
+				if (verbosity > 3)
 				warn("failed to extract ethernet frame");
 				goto fail;
 			}
@@ -122,7 +122,7 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			// and extract IP
 
 			// continue without IP
-			if (verbosity)
+			if (verbosity > 3)
 			warn("ETH_SIZE frame found");
 			return -1;
 
@@ -267,122 +267,14 @@ void nag(const struct Addrss* addrss, const struct Opts* opts)
 	// assumes non-subnet addresses have been zero'd (subnet check)
 	if (!is_zeros(addrss->ip, 16))
 	{
-		// TODO, put the common ethernet stuff here?
 
 		if (is_mapped(addrss->ip))
 		{
-			// IPv4, send ethernet frame with ARP packet
-
-			// count size of the frame
-
-			// no preamble / SFD
-			// MAC addresses
-			int count = 12;
-			// tag count
-			count += (addrss->tags >> 60) * 4;
-			//ethertype
-			count += 2;
-			//arp payload
-			count += 28;
-			// frame check sequence (CRC32) done by network card?
-			uint8_t frame[count];
-			int ptr = 0;
-
-			// start of ethernet header
-
-			// fill in destination & source MAC addresses
-			memcpy(&frame[ptr], addrss->mac, 6);
-			ptr += 6;
-			memcpy(&frame[ptr], opts->host.mac, 6);
-			ptr += 6;
-
-			// reassemble VLAN tags in the right order
-			for (int i = addrss->tags >> 60; i; i--)
-			{
-				// tag protocol identifier
-				// TODO figure out QinQ or drop at capture
-				if (i == 1) net_puts(&frame[ptr], DOT1Q);
-				else net_puts(&frame[ptr], DOT1AD);
-				ptr += 2;
-
-				// Priority Code Point = 1 (background)
-				uint16_t tag = 16384;
-
-				// drop eligible
-				tag += 8192;
-
-				// unpack VLAN identifier
-				tag += (addrss->tags >> (i * 12))
-					& (uint64_t)((1 << i) -1);
-
-				// add the tag control info
-				net_puts(&frame[ptr], tag);
-				ptr += 2;
-			}
-
-
-			// set ARP ethertype
-			net_puts(&frame[ptr], ARP);
-			ptr += 2;
-
-			// end of ethernet header, start of ARP packet
-
-			// hardware type: ethernet
-			net_puts(&frame[ptr], 1);
-			ptr += 2;
-
-			// protocol type: IPv4
-			net_puts(&frame[ptr], IPv4);
-			ptr += 2;
-
-			// hardware address length (one byte, no endianness)
-			frame[ptr] = 6;
-			ptr += 1;
-
-			// protocol address length (one byte, no endianness)
-			frame[ptr] = 4;
-			ptr += 1;
-
-			// operation type: request
-			net_puts(&frame[ptr], 1);
-			ptr += 2;
-
-			// sender hardware address
-			memcpy(&frame[ptr], opts->host.mac, 6);
-			ptr += 6;
-
-			// sender protocol address (mapped IPv4)
-			memcpy(&frame[ptr], opts->host.ipv4+12, 4);
-			ptr += 4;
-
-			// target hardware address
-			memcpy(&frame[ptr], addrss->mac, 6);
-			ptr += 6;
-
-			// target protocol address (mapped IPv4)
-			memcpy(&frame[ptr], addrss->ip+12, 4);
-			ptr += 4;
-
-			// frame check sequence (CRC) done by network card?
-
-			// send the frame
-			if (pcap_inject(opts->handle, &frame, count) != count)
-			{
-				warn("Failed to inject the frame");
-			}
-			else if (verbosity > 2)
-			{
-				printf("ARP packet %d sent to ",
-					(addrss->tried) + 1);
-				print_ip(addrss->ip);
-			}
+			send_arp(addrss, opts);
 		}
 		else
 		{
-			// send an NDP packet?
-			if (verbosity > 2)
-				printf("try %d, need a way to nag with IPv6\n"
-				, (addrss->tried) + 1);
+			send_ndp(addrss, opts);
 		}
 	}
 }
@@ -427,13 +319,15 @@ void print_ip(const uint8_t* ip)
 	}
 }
 
-// check if an IPv6 or mapped IPv4 address is in the provided subnet
-// TODO, accept multiple subnets (or use multiple instances)
+// zero IPv4 non-subnet addresses and IPv6 multicast addresses
 void subnet_check(uint8_t* ip, struct Subnet* subnet)
 {
 	if(!is_zeros(ip, 16))
 	{
-		if (bitcmp(ip, subnet->ip, subnet->mask))
+		uint8_t multicast = 0xFF;
+		if (	!memcmp(ip, &multicast, 1)
+			|| (is_mapped(ip)
+			&& bitcmp(ip, subnet->ip, subnet->mask)))
 		{
 			if (verbosity > 3)
 			{
@@ -521,7 +415,8 @@ void get_if_mac(uint8_t* dest, const char* dev)
 	int fd, rc;
 	struct ifreq ifr;
 
-	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+	if (!dev || !strncpy(ifr.ifr_name, dev, IFNAMSIZ-1))
+		return;
 
 	// get the MAC address of the interface
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -555,9 +450,8 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 	// can't use uint16_t because of endianness
 	uint8_t v6_mask[2] = { 0xfe, 0x80 };
 
-	if (pcap_findalldevs(&devs, errbuf))
+	if (!dev || pcap_findalldevs(&devs, errbuf))
 	{
-		warn("%s\n", errbuf);
 		return;
 	}
 
@@ -608,11 +502,20 @@ end:
 
 }
 
-// put the source's upper and lower 8 bits in in net endianness into target
-inline void net_puts(uint8_t* target, uint16_t source)
+// put the source's uint16 into target in network byte order
+inline void net_put_u16(uint8_t* target, uint16_t source)
 {
 	target[0] = (source >> 8) & 0xFF;
 	target[1] = (source) & 0xFF;
+}
+
+// copy from host to network byte order
+inline void net_put_u32(uint8_t* target, uint32_t source)
+{
+	target[0] = (source >> 24) & 0xFF;
+	target[1] = (source >> 16) & 0xFF;
+	target[2] = (source >> 8) & 0xFF;
+	target[3] = (source) & 0xFF;
 }
 
 // check if a run of count bytes at target are all zero
@@ -682,4 +585,288 @@ void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts)
 	}
 	// adjust for mapping
 	subnet->mask += 96;
+}
+
+// IPv4, send ethernet frame with ARP packet
+void send_arp(const struct Addrss* addrss, const struct Opts* opts)
+{
+	// count size of the frame
+
+	// no preamble / SFD
+	// MAC addresses
+	int count = 12;
+	// tag count
+	count += (addrss->tags >> 60) * 4;
+	//ethertype
+	count += 2;
+	//arp payload
+	count += 28;
+	// frame check sequence (CRC32) done by network card?
+	uint8_t frame[count];
+	int ptr = 0;
+
+	// start of ethernet header
+
+	fill_eth_hdr(frame, &ptr, addrss, opts);
+
+	// set the ethertype
+	net_put_u16(&frame[ptr], ARP);
+	ptr += 2;
+
+	// end of ethernet header, start of ARP packet
+
+	// hardware type: ethernet
+	net_put_u16(&frame[ptr], 1);
+	ptr += 2;
+
+	// protocol type: IPv4
+	net_put_u16(&frame[ptr], IPv4);
+	ptr += 2;
+
+	// hardware address length (one byte, no endianness)
+	frame[ptr] = 6;
+	ptr += 1;
+
+	// protocol address length (one byte, no endianness)
+	frame[ptr] = 4;
+	ptr += 1;
+
+	// operation type: request
+	net_put_u16(&frame[ptr], 1);
+	ptr += 2;
+
+	// sender hardware address
+	memcpy(&frame[ptr], opts->host.mac, 6);
+	ptr += 6;
+
+	// sender protocol address (mapped IPv4)
+	memcpy(&frame[ptr], opts->host.ipv4+12, 4);
+	ptr += 4;
+
+	// target hardware address
+	memcpy(&frame[ptr], addrss->mac, 6);
+	ptr += 6;
+
+	// target protocol address (mapped IPv4)
+	memcpy(&frame[ptr], addrss->ip+12, 4);
+	ptr += 4;
+
+	// frame check sequence (CRC) done by network card?
+
+	// send the frame
+	if (pcap_inject(opts->handle, &frame, count) != count)
+	{
+		warn("Failed to inject ARP frame");
+	}
+	else if (verbosity > 2)
+	{
+		printf("ARP packet %d sent to ",
+			(addrss->tried) + 1);
+		print_ip(addrss->ip);
+	}
+}
+
+// send an ICMPv6 NDP Neighbor Solicitation packet
+void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
+{
+	// count size of the frame
+
+	uint16_t NDP_NS_size = 30; // includes 6 byte MAC address option
+
+	// no preamble / SFD
+	// MAC addresses
+	uint8_t count = 12;
+	// tag count
+	count += (addrss->tags >> 60) * 4;
+	//ethertype
+	count += 2;
+	// IPv6 header
+	count += 40;
+	// ICMPv6 neighbor solicitation
+	count += NDP_NS_size;
+
+	// end of count
+
+	uint8_t frame[count];
+	int ptr = 0;
+
+	// start of ethernet header
+
+	fill_eth_hdr(frame, &ptr, addrss, opts);
+
+	// set the ethertype
+	net_put_u16(&frame[ptr], IPv6);
+	ptr += 2;
+
+	// end of ethernet header, start of IPv6 packet header
+
+	/* DS field + ECN, previously called traffic class?
+	   DSCP 0 == default behaviour, ECN 0 == not using ECN
+	| version | DS field | ECN |       flow label           |
+	|  0110   |  000000  | 00  | 0000 | 00000000 | 00000000 |
+	|-------------------------------------------------------|
+	|  0110   0000 | 00    00    0000 | 00000000 | 00000000 |
+	|    byte 0    |      byte 1      |  byte 2  |  byte 3  |
+	*/
+
+	uint8_t version = 6;
+	memset(&frame[ptr], version << 4, 1);
+	ptr += 1;
+	memset(&frame[ptr], 0, 3);
+	ptr += 3;
+
+	// payload length
+	net_put_u16(&frame[ptr], NDP_NS_size);
+	ptr += 2;
+
+	// next header = ICMPv6
+	uint8_t ICMPv6_next = 58;
+	memset(&frame[ptr], ICMPv6_next, 1);
+	ptr += 1;
+
+	// hop limit, RFC4861 says it should be 255?
+	memset(&frame[ptr], 255, 1);
+	ptr += 1;
+
+	// source IPv6 address
+	memcpy(&frame[ptr], opts->host.ipv6, 16);
+	ptr += 16;
+
+	// destination IPv6 address
+	memcpy(&frame[ptr], addrss->ip, 16);
+	ptr += 16;
+
+	// next header is ICMPv6, no extension headers used
+
+	// end of IPv6 header start of ICMPv6 payload
+
+	// start of ICMPv6 checksum
+	int csum_start = ptr;
+
+	// type = neighbor solicitation
+	memset(&frame[ptr], 135, 1);
+	ptr += 1;
+
+	// code = 0, no sub-function for this type
+	memset(&frame[ptr], 0, 1);
+	ptr += 1;
+
+	// checksum placeholder
+	int csum_ptr = ptr;
+	memset(&frame[ptr], 0, 2);
+	ptr += 2;
+
+	// pseudo header
+		uint8_t pseudo_hdr[40];
+		int pseudo_ptr = 0;
+		// source IPv6 address
+		memcpy(&pseudo_hdr[pseudo_ptr], opts->host.ipv6, 16);
+		pseudo_ptr += 16;
+
+		// destination IPv6 address
+		memcpy(&pseudo_hdr[pseudo_ptr], addrss->ip, 16);
+		pseudo_ptr += 16;
+
+		// "upper-layer packet length", 4 bytes, right endianness?
+		net_put_u32(&pseudo_hdr[pseudo_ptr], (uint32_t) NDP_NS_size);
+		pseudo_ptr += 4;
+
+		// "zero", as per RFC8200
+		memset(&pseudo_hdr[pseudo_ptr], 0, 3);
+		pseudo_ptr += 3;
+
+		memcpy(&pseudo_hdr[pseudo_ptr], &ICMPv6_next, 1);
+		pseudo_ptr += 1;
+
+		uint16_t pseudo_csum = inet_csum_16(pseudo_hdr, 40, 0);
+
+	// 4 bytes reserved, must be zeros
+	memset(&frame[ptr], 0, 4);
+	ptr += 4;
+
+	// target address
+	memcpy(&frame[ptr], addrss->ip, 16);
+	ptr += 16;
+
+	// source link-layer address option
+	memcpy(&frame[ptr], opts->host.mac, 6);
+	ptr += 6;
+
+	// overwrite placeholder checksum with the real? deal
+	uint16_t csum =
+		inet_csum_16(pseudo_hdr, ptr - csum_start, pseudo_csum);
+	memcpy(&frame[csum_ptr], &csum, 2);
+
+	// frame check sequence (CRC) done automatically elsewhere?
+
+	// send the frame
+	if (pcap_inject(opts->handle, &frame, count) != count)
+	{
+		warn("Failed to inject NDP frame");
+	}
+	else if (verbosity > 2)
+	{
+		printf("NDP packet %d sent to ",
+			(addrss->tried) + 1);
+		print_ip(addrss->ip);
+	}
+}
+
+// TODO, confirm this handles endianness correctly and portably
+// fill in an ethernet header minus the ethertype
+void fill_eth_hdr
+(uint8_t* frame, int* ptr,
+	const struct Addrss* addrss, const struct Opts* opts)
+{
+        // fill in destination & source MAC addresses
+        memcpy(&frame[*ptr], addrss->mac, 6);
+        *ptr += 6;
+        memcpy(&frame[*ptr], opts->host.mac, 6);
+        *ptr += 6;
+
+        // reassemble VLAN tags in the right order
+        for (int i = addrss->tags >> 60; i; i--)
+        {
+                // tag protocol identifier
+                // TODO figure out QinQ or drop at capture
+                if (i == 1) net_put_u16(&frame[*ptr], DOT1Q);
+                else net_put_u16(&frame[*ptr], DOT1AD);
+                *ptr += 2;
+
+                // Priority Code Point = 1 (background)
+                uint16_t tag = 16384;
+
+                // drop eligible
+                tag += 8192;
+
+                // unpack VLAN identifier
+                tag += (addrss->tags >> (i * 12))
+                        & (uint64_t)((1 << i) -1);
+
+                // add the tag control info
+                net_put_u16(&frame[*ptr], tag);
+                *ptr += 2;
+        }
+}
+
+// 16 bit one's compliment checksum, per RFC1071
+uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start)
+{
+	register int32_t sum = start;
+
+	while (count > 1)
+	{
+		// inner loop
+		sum += *(uint16_t*)addr;
+		addr += 2;
+		count -= 2;
+	}
+
+	// add last byte if count was uneven
+	if (count > 0) sum += *(uint8_t*)addr;
+
+	// fold the 32 bit sum to 16 bits
+	while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+
+	return ~sum;
 }

@@ -97,16 +97,16 @@ void help()
 void print_opts()
 {
 	printf("\nOptions: (those with * require an argument)\n\n");
-	printf(" -f  *  File input (pcap file (tcpdump/wireshark), works with - (stdin))\n");
-	printf(" -h     Help, show the help message\n");
-	printf(" -i  *  set Interface used (can currently only use 1 at a time)\n");
-	printf(" -l  *  set the intervaL (in milliseconds)\n");
-	printf(" -n  *  Number of times to \"Nag\" a target (-n 0 is equivalent to -q)\n");
-	printf(" -p     enable Promiscuous mode\n");
-	printf(" -q     Quiet, send out no packets\n");
-	printf(" -s  *  get a Subnet in CIDR notation (currently not used)\n");
-	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
 	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf(" -h     show the Help message\n");
+	printf(" -p     use Promiscuous mode\n");
+	printf(" -q     Quiet, send out no packets\n");
+	printf(" -I  *  set the Interface used (only one per instance)\n");
+	printf(" -i  *  set the interval (in milliseconds)\n");
+	printf(" -n  *  set times to \"Nag\" a target (-n 0 is equivalent to -q)\n");
+	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
+	printf(" -s  *  get a Subnet to filter by, in CIDR notation\n");
+	printf(" -f  *  File input (pcap file (tcpdump/wireshark), works with - (stdin))\n");
 	printf(" -o  *  set output filename\n");
 	printf(" -O  *  set file Output interval\n");
 	printf("\n");
@@ -115,29 +115,31 @@ void print_opts()
 void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
 	// clarissa stuff
-	opts->timeout = 2000000;
-	opts->nags = 3;
-	verbosity = 0;
+	opts->timeout 	= 2000000;
+	opts->nags 	= 3;
+	verbosity 	= 0;
+	int nags_set 	= 0;
 
 	int opt;
-	while ((opt = getopt (argc, argv, "vpl:n:t:qf:i:s:h::o:O:")) != -1)
+	while ((opt = getopt (argc, argv, "vi:pn:t:qf:I:s:ho:O:")) != -1)
 	{
 		switch (opt)
 		{
 			case 'v':
 				verbosity++;
 				break;
+			case 'i':
+				// get interval in ms
+				opts->interval = (atoi(optarg) * 1000);
+				break;
 			case 'p':
 				// get promiscuous mode
 				opts->promiscuous = 1;
 				break;
-			case 'l':
-				// get interval in ms
-				opts->interval = (atoi(optarg) * 1000);
-				break;
 			case 'n':
 				// get number times to nag a MAC
 				opts->nags = atoi(optarg);
+				nags_set = 1;
 				break;
 			case 't':
 				// get timeout in ms
@@ -146,15 +148,20 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 'q':
 				// quiet, may be redundant
 				opts->nags = 0;
+				nags_set = 1;
 				break;
 			case 'f':
 				// file has priority over device
 				opts->dev = NULL;
-				opts->nags = 0;
+				if (!nags_set)
+				{
+					opts->nags = 0;
+					nags_set = 2;
+				}
 				opts->handle = pcap_open_offline
 						(optarg, opts->errbuf);
 				break;
-			case 'i':
+			case 'I':
 				// get the interface
 				opts->dev = optarg;
 				break;
@@ -183,6 +190,9 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 					opts->parsed = 1;
 				}
 				break;
+			case 'h':
+				help();
+				exit(0);
 			case 'o':
 				opts->print_filename = optarg;
 				break;
@@ -192,9 +202,6 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 					warn("Failed to parse print interval");
 				}
 				break;
-			case 'h':
-				help();
-				exit(0);
 			default:
 				// usage
 				print_opts();
@@ -219,6 +226,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		opts->dev = pcap_lookupdev(opts->errbuf);
 	}
+	else if (nags_set == 1)
+		printf("recommended nags for file input is 0\n");
 
 	if (!opts->handle)
 	{
@@ -248,6 +257,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 void print_header(struct Opts* opts)
 {
 	if (!verbosity) printf("Verbosity:\t%d\n\n", verbosity);
+	if (!opts->dev) printf("Using file input\n\n");
 	else
 	{
 		// host block
@@ -277,14 +287,17 @@ void print_header(struct Opts* opts)
 			printf("\n");
 
 			// options block
-			printf("Timeout:\t\t%dms\n", opts->timeout / 1000);
-			if (opts->nags) printf("Nags:\t\t\t%d\n", opts->nags);
-			printf("Interval:\t\t%dms\n", opts->interval / 1000);
+			printf("Timeout:\t\t%dms\n",
+				opts->timeout / 1000);
+			if (opts->nags) printf("Nags:\t\t\t%d\n",
+				opts->nags);
+			printf("Interval:\t\t%dms\n",
+				opts->interval / 1000);
 			printf("\n");
 			printf("Output filename:\t%s\n",
-						opts->print_filename);
+				opts->print_filename);
 			printf("Output interval:\t%dms\n",
-						opts->print_interval / 1000);
+				opts->print_interval / 1000);
 			printf("\n");
 		}
 	}

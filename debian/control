@@ -11,7 +11,7 @@ Vcs-Browser: https://gitlab.com/evils/clarissa
 Package: clarissa
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Suggests: jq, mqtt, telegraf
+Suggests: jq, mqtt, telegraf, arp-scan
 Description: Near real-time network census daemon
  Clarissa is a daemon which keeps track of connected MAC addresses on a network.
  It can report these with sub-second resolution and can monitor passively.
