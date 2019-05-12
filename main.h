@@ -7,6 +7,7 @@
 #include <err.h>
 #include <pcap.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "clarissa.h"
 

@@ -75,6 +75,7 @@ struct Opts
 	int nags;
 	int promiscuous;
 	int cidr;
+	int run;
 };
 
 // extraction

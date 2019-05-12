@@ -12,8 +12,6 @@ packaging
 			first debian package attempt done (thanks TQ)
 	find a place for macs.csv
 
-add long options
-
 get_if_mac()
 	make portable
 

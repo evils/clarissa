@@ -29,7 +29,14 @@ int main (int argc, char *argv[])
 	get_if_ip(opts.host.ipv6, opts.dev, AF_INET6, opts.errbuf);
 
 	// startup header
-	print_header(&opts);
+	if (!opts.run)
+	{
+		if (verbosity < 2) verbosity = 2;
+		print_header(&opts);
+		pcap_close(opts.handle);
+		return 0;
+	}
+	else print_header(&opts);
 
 	// main loop
 	// capture, extract and update list of addresses
@@ -88,28 +95,30 @@ int main (int argc, char *argv[])
 // print help header and options
 void help()
 {
-	printf("Clarissa keeps a list of MAC and IP addresses of packets seen on the network.\n");
-	printf("It attempts to be as complete and up to date as possible.\n\n");
-	printf("Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /tmp/clarissa_list, file output interval = timeout * \u03D5\n");
+	printf("Clarissa keeps a list of all connected MAC addresses on a network.\n");
+	printf("It attempts to keep it as complete and up to date as possible.\n\n");
+	printf("Defaults: Interface = first, Timeout = 2s, Nags = 3, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout * \u03D5\n");
 
 	print_opts();
 }
 
 void print_opts()
 {
-	printf("\nOptions: (those with * require an argument)\n\n");
-	printf(" -v     increase Verbosity\n\t(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)\n");
-	printf(" -h     show the Help message\n");
-	printf(" -p     use Promiscuous mode\n");
-	printf(" -q     Quiet, send out no packets\n");
-	printf(" -I  *  set the Interface used (only one per instance)\n");
-	printf(" -i  *  set the interval (in milliseconds)\n");
-	printf(" -n  *  set times to \"Nag\" a target (-n 0 is equivalent to -q)\n");
-	printf(" -t  *  set the Timeout for an entry (wait time for nags) (in milliseconds)\n");
-	printf(" -s  *  get a Subnet to filter by, in CIDR notation\n");
-	printf(" -f  *  File input (pcap file (tcpdump/wireshark), works with - (stdin))\n");
-	printf(" -o  *  set output filename\n");
-	printf(" -O  *  set file Output interval\n");
+	printf("\nOptions:\n\n");
+	printf("--help or -h\n\tshow the help message\n");
+	printf("--header or -H\n\tshow the Header and exit\n");
+	printf("--verbose or -v\n\tincrease Verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf("--quiet or -q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
+	printf("--promiscuous or -p\n\tset the interface to Promiscuous mode\n");
+	printf("\nRequiring an argument:\n\n");
+	printf("--interface or -I\n\tset the Interface used (one per instance)\n");
+	printf("--interval or -i\n\tset the interval (in milliseconds)\n");
+	printf("--nags or -n\n\tset the number of times to \"Nag\" a target\n");
+	printf("--timeout or -t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
+	printf("--subnet or -s\n\tget a Subnet to filter by (in CIDR notation)\n");
+	printf("--file or -f\n\tFile input (pcap file, works with - (stdin))\n");
+	printf("--output_file or -o\n\tset the output filename\n");
+	printf("--output_interval or -O\n\tset the Output interval\n");
 	printf("\n");
 }
 
@@ -118,14 +127,37 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// clarissa stuff
 	opts->timeout 	= 2000000;
 	opts->nags 	= 3;
+	opts->run	= 1;
 	verbosity 	= 0;
 	int nags_set 	= 0;
 
 	int opt;
-	while ((opt = getopt (argc, argv, "vi:pn:t:qf:I:s:ho:O:")) != -1)
+
+	static struct option long_options[] =
+		{
+			{"verbose",		no_argument, 0, 	'v'},
+			{"help",		no_argument, 0,		'h'},
+			{"header",		no_argument, 0,		'H'},
+			{"promiscuous",		no_argument, 0,		'p'},
+			{"quiet",		no_argument, 0,		'q'},
+			{"interface",		required_argument, 0,	'I'},
+			{"interval",		required_argument, 0,	'i'},
+			{"nags", 		required_argument, 0,	'n'},
+			{"timeout", 		required_argument, 0,	't'},
+			{"subnet",		required_argument, 0,	's'},
+			{"file", 		required_argument, 0,	'f'},
+			{"output_file", 	required_argument, 0,	'o'},
+			{"output_interval",	required_argument, 0,	'O'}
+		};
+	int option_index = 0;
+	while ((opt = getopt_long(argc, argv, "Hvi:pn:t:qf:I:s:ho:O:",
+				long_options, &option_index)) != -1)
 	{
 		switch (opt)
 		{
+			case 'H':
+				opts->run = 0;
+				break;
 			case 'v':
 				verbosity++;
 				break;
@@ -254,16 +286,19 @@ void print_header(struct Opts* opts)
 {
 	if (!verbosity) printf("Verbosity:\t%d\n\n", verbosity);
 	if (!opts->dev) printf("Using file input\n\n");
-	else
+	if (verbosity && opts->dev)
 	{
 		// host block
 		printf("Host interface:\t\t%s\n", opts->dev);
 		printf("Host MAC address:\t");
 		print_mac(opts->host.mac);
-		printf("Host IPv4 address:\t");
-		print_ip(opts->host.ipv4);
-		printf("Host IPv6 address:\t");
-		print_ip(opts->host.ipv6);
+		if (verbosity > 1)
+		{
+			printf("Host IPv4 address:\t");
+			print_ip(opts->host.ipv4);
+			printf("Host IPv6 address:\t");
+			print_ip(opts->host.ipv6);
+		}
 		printf("\n");
 
 		// mode block
@@ -272,7 +307,7 @@ void print_header(struct Opts* opts)
 		if (opts->promiscuous || !opts-> nags) printf("\n");
 
 		// further details
-		if (verbosity > 2)
+		if (verbosity > 1)
 		{
 			// subnet block
 			printf("Host IPv4 subnet:\t");
@@ -282,19 +317,22 @@ void print_header(struct Opts* opts)
 			opts->host.ipv4_subnet.mask - 96);
 			printf("\n");
 
-			// options block
-			printf("Timeout:\t\t%dms\n",
-				opts->timeout / 1000);
-			if (opts->nags) printf("Nags:\t\t\t%d\n",
-				opts->nags);
-			printf("Interval:\t\t%dms\n",
-				opts->interval / 1000);
-			printf("\n");
-			printf("Output filename:\t%s\n",
-				opts->print_filename);
-			printf("Output interval:\t%dms\n",
-				opts->print_interval / 1000);
-			printf("\n");
+			if (verbosity > 2)
+			{
+				// options block
+				printf("Timeout:\t\t%dms\n",
+					opts->timeout / 1000);
+				if (opts->nags) printf("Nags:\t\t\t%d\n",
+					opts->nags);
+				printf("Interval:\t\t%dms\n",
+					opts->interval / 1000);
+				printf("\n");
+				printf("Output filename:\t%s\n",
+					opts->print_filename);
+				printf("Output interval:\t%dms\n",
+					opts->print_interval / 1000);
+				printf("\n");
+			}
 		}
 	}
 }

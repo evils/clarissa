@@ -4,7 +4,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH CLARISSA 8 "2019-05-01"
+.TH CLARISSA 8 "2019-05-12"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -25,57 +25,64 @@ Clarissa \- near real-time network census daemon
 .br
 .SH DESCRIPTION
 .B Clarissa
-is a daemon which keeps track of all the connected MAC addresses on a network.
+is a daemon which keeps a list of all connected MAC addresses on a network.
 .br
-It can report these with sub-second resolution and can monitor passively.
+It can keep this with sub-second resolution and can monitor passively.
 .br
 It currently includes 
 .B clar_count
 a utility to report a count of known and unknown addresses.
 .PP
 .SH OPTIONS
-Defaults: Timeout = 2s, Nags = 3, Interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, output file = /tmp/clarissa_list, file output interval = timeout * ϕ
+Defaults: Interface = first, Timeout = 2s, Nags = 3, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, Output interval = timeout * ϕ
 .br
 
-(Those with * require an argument)
 .TP
-.B -v
+.B --help or -h
+show the help message
+.TP
+.B --header or -H
+show the Header and exit
+.TP
+.B --verbose or -v
 increase Verbosity
 .br
-(shows 0 = errors & warn < MAC < IP < chatty < debug < vomit)
+(shows 0 = err & warn < MAC < IP < chatty < debug < vomit)
 .TP
-.B -h
-show the Help message
+.B --quiet or -q
+Quiet, send out no packets (equivalent to -n 0)
 .TP
-.B -p
-enable Promiscuous mode
+.B --promiscuous or -p
+set the interface to Promiscuous mode
+.SH
+Requiring an argument:
+.BR
 .TP
-.B -q
-Quiet, send out no packets
+.B --interface or -I
+set the Interface used (one per instance)
 .TP
-.B -I  *
-set the Interface used (can currently only use 1 at a time)
-.TP
-.B -i  *
+.B --interval or -i
 set the interval (in milliseconds)
 .TP
-.B -n  *
-Number of times to "Nag" a target (-n 0 is equivalent to -q)
+.B --nags or -n
+set the number of times to "Nag" a target
 .TP
-.B -t  *
-set the Timeout for an entry (wait time for nags) (in milliseconds)
+.B --timeout or -t
+set the Timeout for an entry (wait time for nags in ms)
 .TP
-.B -s  *
-get a Subnet to filter by, in CIDR notation
+.B --subnet or -s
+get a Subnet to filter by (in CIDR notation)
 .TP
-.B -f  *
-File input (pcap file (tcpdump/wireshark), works with - (stdin))
+.B --file or -f
+File input (pcap file, also works with - (stdin))
 .TP
-.B -o  *
-set output filename
+.B --output_file or -o
+set the output filename
 .TP
-.B -O  *
-set file Output interval
+.B --output_interval or -O
+set the file Output interval
 .SH SEE ALSO
-.BR clar_count (1),
+.BR clar_count (1)
 .br
+
+https://gitlab.com/evils/clarissa
