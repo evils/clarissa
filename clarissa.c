@@ -35,16 +35,16 @@ struct Addrss get_addrss
 
 		case DLT_LINUX_SLL:
 
-			warn("\"any\" device not yet supported\n");
+			warn("\"any\" device not yet supported");
 			goto fail;
 
 		case DLT_IEEE802_11:
 
-			warn("WLAN is not yet supported\n");
+			warn("WLAN is not yet supported");
 			goto fail;
 
 		default:
-			warn("unsupported link type: %i\n",
+			warn("unsupported link type: %i",
 				pcap_datalink(handle));
 			goto fail;
 	}
@@ -356,7 +356,7 @@ int bitcmp(uint8_t* a, uint8_t* b, int n)
 }
 
 // parse a CIDR notation string and save to a Subnet struct
-int parse_cidr(const char* cidr, struct Subnet* dest)
+int get_cidr(struct Subnet* dest, const char* cidr)
 {
 	char* mask_ptr, *end;
 	int retval;
@@ -651,7 +651,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	memcpy(&frame[ptr], addrss->ip+12, 4);
 	ptr += 4;
 
-	// frame check sequence (CRC) done by network card?
+	// frame check sequence (CRC) done by NIC?
 
 	// send the frame
 	if (pcap_inject(opts->handle, &frame, count) != count)
@@ -671,7 +671,8 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 {
 	// count size of the frame
 
-	uint16_t NDP_NS_size = 30; // includes 6 byte MAC address option
+	// includes 6 byte MAC address option, and 2 bytes: type and link
+	uint16_t NDP_NS_size = 32;
 
 	// no preamble / SFD
 	// MAC addresses
@@ -789,15 +790,22 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	ptr += 16;
 
 	// source link-layer address option
+
+	// type = source link-layer address
+	memset(&frame[ptr], 1, 1);
+	ptr += 1;
+	// length = 1 (x 8 octets) (includes these 2 option header bytes)
+	memset(&frame[ptr], 1, 1);
+	ptr += 1;
 	memcpy(&frame[ptr], opts->host.mac, 6);
 	ptr += 6;
 
 	// overwrite placeholder checksum with the real? deal
-	uint16_t csum =
-		inet_csum_16(pseudo_hdr, ptr - csum_start, pseudo_csum);
-	memcpy(&frame[csum_ptr], &csum, 2);
+	uint16_t csum = inet_csum_16(frame + csum_start,
+				ptr - csum_start, ~pseudo_csum);
+	memcpy(frame + csum_ptr, (uint8_t*)&csum, 2);
 
-	// frame check sequence (CRC) done automatically elsewhere?
+	// frame check sequence (CRC) done by NIC?
 
 	// send the frame
 	if (pcap_inject(opts->handle, &frame, count) != count)

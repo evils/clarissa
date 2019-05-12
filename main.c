@@ -24,6 +24,7 @@ int main (int argc, char *argv[])
 
 	// get the host ID
 	get_if_mac(opts.host.mac, opts.dev);
+	get_if_ipv4_subnet(&opts.host.ipv4_subnet, &opts);
 	get_if_ip(opts.host.ipv4, opts.dev, AF_INET, opts.errbuf);
 	get_if_ip(opts.host.ipv6, opts.dev, AF_INET6, opts.errbuf);
 
@@ -43,7 +44,7 @@ int main (int argc, char *argv[])
 			get_addrss(opts.handle, frame, &header);
 
 		// zero IP if it's not in the provided subnet
-		if (opts.parsed) subnet_check(addrss.ip, &opts.subnet);
+		if (opts.cidr) subnet_check(addrss.ip, &opts.subnet);
 		else subnet_check(addrss.ip, &opts.host.ipv4_subnet);
 
 		if (verbosity > 4)
@@ -166,14 +167,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->dev = optarg;
 				break;
 			case 's':
-				if (opts->parsed)
+				if (opts->cidr)
 				{
 					warn
 				("Multiple subnets currently not supported");
 					exit(1);
 				}
 				// parse provided CIDR notation
-				if (!parse_cidr(optarg, &opts->subnet))
+				if (!get_cidr(&opts->subnet, optarg))
 				{
 					warn("Failed to parse CIDR");
 					exit(1);
@@ -187,7 +188,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 						printf("subset mask:\t\t%d\n",
 							opts->subnet.mask);
 					}
-					opts->parsed = 1;
+					opts->cidr = 1;
 				}
 				break;
 			case 'h':
@@ -241,11 +242,6 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->dev, opts->errbuf);
 			exit(1);
 		}
-	}
-
-	if (!opts->parsed)
-	{
-		get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
 	}
 
 	if (!opts->print_filename)
