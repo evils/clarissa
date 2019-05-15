@@ -254,8 +254,6 @@ void addrss_list_nag
 		if (usec_diff(ts, &(*current)->header.ts) > timeout)
 		{
 			nag(*current, opts);
-			// reset timeval to allow for response time
-			(*current)->header.ts = *ts;
 			(*current)->tried++;
 		}
 	}
