@@ -1,6 +1,3 @@
-find the cause of pcap_next() hanging
-	hangs for ~1s unless a few ms delay is added to the main loop
-
 default output name to device+subnet
 	to work with multiple instances
 	use domain socket?

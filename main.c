@@ -46,9 +46,6 @@ int main (int argc, char *argv[])
 		frame = pcap_next(opts.handle, &header);
 		if (!frame) continue;
 
-		// TODO, ISSUE, pcap_next() hangs for ~1s without this
-		usleep(10000);
-
 		// extract addresses and update the internal list
 		struct Addrss addrss =
 			get_addrss(opts.handle, frame, &header);
@@ -66,9 +63,8 @@ int main (int argc, char *argv[])
 		// move addrss to front of list
 		addrss_list_add(&head, &addrss);
 
-		gettimeofday(&now, NULL);
-		// or use the timestamp already available
-		//now = addrss.header.ts;
+		// use arrival time to be consistent regardless of pcap to_ms
+		now = addrss.header.ts;
 
 		if (usec_diff(&now, &checked) > opts.interval)
 		{
@@ -271,9 +267,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->handle)
 	{
+		// 74 = capture length
+		// pcap timeout = half the interval (in milliseconds)
 		opts->handle = pcap_open_live
-				(opts->dev, 74, opts->promiscuous, 1000,
-					opts->errbuf);
+				(opts->dev, 74, opts->promiscuous,
+				opts->interval / 2000, opts->errbuf);
 		if (!opts->handle)
 		{
 			warn
