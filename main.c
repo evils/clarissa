@@ -46,11 +46,14 @@ int main (int argc, char *argv[])
 		frame = pcap_next(opts.handle, &header);
 		if (!frame) continue;
 
+		// TODO, ISSUE, pcap_next() hangs for ~1s without this
+		usleep(10000);
+
 		// extract addresses and update the internal list
 		struct Addrss addrss =
 			get_addrss(opts.handle, frame, &header);
 
-		// zero IP if it's not in the provided subnet
+		// zero IP if not in the provided subnet or use the host's
 		if (opts.cidr) subnet_check(addrss.ip, &opts.subnet);
 		else subnet_check(addrss.ip, &opts.host.ipv4_subnet);
 
@@ -64,18 +67,21 @@ int main (int argc, char *argv[])
 		addrss_list_add(&head, &addrss);
 
 		gettimeofday(&now, NULL);
+		// or use the timestamp already available
+		//now = addrss.header.ts;
+
 		if (usec_diff(&now, &checked) > opts.interval)
 		{
-			gettimeofday(&checked, NULL);
+			checked = now;
 
 			// cull those that have been nagged enough
 			addrss_list_cull
-				(&head, &addrss.header.ts, opts.timeout,
+				(&head, &now, opts.timeout,
 					opts.nags);
 
 			// and nag the survivors
 			addrss_list_nag
-				(&head, &addrss.header.ts, opts.timeout,
+				(&head, &now, opts.timeout,
 					&opts);
 		}
 
@@ -97,7 +103,7 @@ void help()
 {
 	printf("Clarissa keeps a list of all connected MAC addresses on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, Timeout = 2s, Nags = 3, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout * \u03D5\n");
+	printf("Defaults: Interface = first, Timeout = 2s, Nags = 3, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout / 2 \n");
 
 	print_opts();
 }
@@ -125,8 +131,8 @@ void print_opts()
 void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
 	// clarissa stuff
-	opts->timeout 	= 2000000;
-	opts->nags 	= 3;
+	opts->timeout 	= 5000000;
+	opts->nags 	= 4;
 	opts->run	= 1;
 	verbosity 	= 0;
 	int nags_set 	= 0;
@@ -251,7 +257,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	if (!opts->print_interval)
 	{
 		// TODO, find a coprime?
-		opts->print_interval = opts->timeout * 1.618;
+		// this is not phase-locked with opts.interval?
+		opts->print_interval = opts->timeout / 2;
 	}
 
 	// TODO, clean this up?

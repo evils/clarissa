@@ -207,7 +207,7 @@ top_of_loop:
 		*head = new_head;
 
 		if (verbosity) print_mac(new_addrss->mac);
-		if (verbosity > 1) print_ip(new_addrss->ip);
+		if (verbosity > 2) print_ip(new_addrss->ip);
 	}
 }
 
@@ -225,7 +225,7 @@ top_of_loop:
 			&& (usec_diff(ts, &(*current)->header.ts) > timeout))
 		{
 			// remove the struct from the list
-			if (verbosity > 2)
+			if (verbosity > 1)
 			{
 				printf("discarded: ");
 				print_mac((*current)->mac);
