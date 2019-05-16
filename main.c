@@ -1,6 +1,5 @@
 #include "main.h"
 
-// keep track of all online MAC addresses (<=10s timeout) on the LANs
 int main (int argc, char *argv[])
 {
 	// pcap setup
@@ -11,14 +10,10 @@ int main (int argc, char *argv[])
 	// clarissa setup
 	// more in the opts struct
 	struct Addrss* head = NULL;
-	struct timeval now, last_print, checked;
-
-	gettimeofday(&checked, NULL);
-	last_print = checked;
+	struct timeval now, last_print, checked = {0};
 
 	// options setup
 	struct Opts opts;
-
 	memset(&opts, 0, sizeof(opts));
 	handle_opts(argc, argv, &opts);
 
@@ -38,15 +33,12 @@ int main (int argc, char *argv[])
 	}
 	else print_header(&opts);
 
-	// main loop
 	// capture, extract and update list of addresses
 	for (;;)
 	{
-		// get a frame
 		frame = pcap_next(opts.handle, &header);
 		if (!frame) continue;
 
-		// extract addresses and update the internal list
 		struct Addrss addrss =
 			get_addrss(opts.handle, frame, &header);
 
@@ -60,7 +52,6 @@ int main (int argc, char *argv[])
 			print_ip(addrss.ip);
 		}
 
-		// move addrss to front of list
 		addrss_list_add(&head, &addrss);
 
 		// use arrival time to be consistent regardless of pcap to_ms
@@ -81,12 +72,11 @@ int main (int argc, char *argv[])
 					&opts);
 		}
 
-		// TEMPORARY, update a file with the list
+		// output the list to a file
 		if (usec_diff(&now, &last_print) > opts.print_interval) {
 			last_print = now;
 			dump_state(opts.print_filename, head);
 		}
-		// maybe only check the full list at output?
 	}
 
 	pcap_close(opts.handle);
@@ -97,9 +87,9 @@ int main (int argc, char *argv[])
 // print help header and options
 void help()
 {
-	printf("Clarissa keeps a list of all connected MAC addresses on a network.\n");
+	printf("Clarissa keeps a list of all connected devices on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, Timeout = 2s, Nags = 3, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout / 2 \n");
+	printf("Defaults: Interface = first, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout / 2 \n");
 
 	print_opts();
 }
@@ -118,7 +108,7 @@ void print_opts()
 	printf("--nags or -n\n\tset the number of times to \"Nag\" a target\n");
 	printf("--timeout or -t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
 	printf("--subnet or -s\n\tget a Subnet to filter by (in CIDR notation)\n");
-	printf("--file or -f\n\tFile input (pcap file, works with - (stdin))\n");
+	printf("--file or -f\n\tFile input (pcap file, works with - (stdin)), forces -n 0\n");
 	printf("--output_file or -o\n\tset the output filename\n");
 	printf("--output_interval or -O\n\tset the Output interval\n");
 	printf("\n");
@@ -126,7 +116,6 @@ void print_opts()
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
-	// clarissa stuff
 	opts->timeout 	= 5000000;
 	opts->nags 	= 4;
 	opts->run	= 1;
@@ -168,13 +157,15 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->interval = (atoi(optarg) * 1000);
 				break;
 			case 'p':
-				// get promiscuous mode
 				opts->promiscuous = 1;
 				break;
 			case 'n':
-				// get number times to nag a MAC
-				opts->nags = atoi(optarg);
-				nags_set = 1;
+				// get number times to nag an entry
+				if (!nags_set)
+				{
+					opts->nags = atoi(optarg);
+					nags_set = 1;
+				}
 				break;
 			case 't':
 				// get timeout in ms
@@ -311,7 +302,6 @@ void print_header(struct Opts* opts)
 		if (!opts->nags) printf("Quiet\n");
 		if (opts->promiscuous || !opts-> nags) printf("\n");
 
-		// further details
 		if (verbosity > 1)
 		{
 			// subnet block

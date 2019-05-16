@@ -43,5 +43,10 @@ $(OUTDIR)/libtq.a: $(ALL_SRCS:%.c=$(OUTDIR)/%.o)
 $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -o $@ $^ $(LDFLAGS)
 
+# not tests
+
+html: README.md
+	markdown -f +fencedcode README.md > index.html
+
 clean:
 	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR)
