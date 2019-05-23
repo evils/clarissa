@@ -21,10 +21,7 @@ graph:
 
 # tests
 OUTDIR = out
-TEST_CFLAGS = -I libtq/include
-ALL_SRCS := $(shell find libtq/src/test -type f -name "*.c")
-ALL_SRCS += libtq/test/test_main.c
-ALL_SRCS += $(wildcard *.c)
+ALL_SRCS := $(wildcard *.c)
 ALL_TEST := $(shell find test -type f -name "*.c")
 
 
@@ -36,11 +33,22 @@ $(OUTDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -c -o $@ $<
 
+ifeq ($(USE_SYSTEM_LIBTQ),)
+ALL_SRCS += $(shell find libtq/src/test -type f -name "*.c")
+ALL_SRCS += libtq/test/test_main.c
+LIBTQ_DEP = $(OUTDIR)/libtq.a
+TEST_CFLAGS += -I libtq/include
+
 $(OUTDIR)/libtq.a: $(ALL_SRCS:%.c=$(OUTDIR)/%.o)
 	if test -f $@; then rm $@; fi
 	ar crv $@ $^
 
-$(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
+else
+LIBTQ_DEP =
+LDFLAGS += -ltq
+endif
+
+$(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(LIBTQ_DEP)
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # not tests

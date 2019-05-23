@@ -1,7 +1,7 @@
 #pragma once
 #define _GNU_SOURCE
 
-#include <stdlib.h>	// exit(), free(), strtol()
+#include <stdlib.h>	// free(), strtol()
 #include <string.h>	// mem*(), strn*()
 #include <err.h>	// warn()
 #include <pcap.h>	// pcap everything duh
