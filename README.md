@@ -37,7 +37,7 @@ The design goals are an ability to run **quietly** (without sending out packets 
 
 <pre>
 --<b>interface</b> or -I
-	set the Interface used (one per instance)
+	set the Interface used. If set to "any", -n 0 is forced
 --interval or -i
 	set the interval (in milliseconds)
 --<b>nags</b> or -n

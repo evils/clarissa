@@ -33,8 +33,10 @@ int main (int argc, char *argv[])
 	}
 	else print_header(&opts);
 
+	signal(SIGINT, &sig_handler);
+
 	// capture, extract and update list of addresses
-	for (;;)
+	for (;!sig;)
 	{
 		frame = pcap_next(opts.handle, &header);
 		if (!frame) continue;
@@ -43,8 +45,8 @@ int main (int argc, char *argv[])
 			get_addrss(opts.handle, frame, &header);
 
 		// zero IP if not in the provided subnet or use the host's
-		if (opts.cidr) subnet_check(addrss.ip, &opts.subnet);
-		else subnet_check(addrss.ip, &opts.host.ipv4_subnet);
+		if (opts.cidr) subnet_filter(addrss.ip, &opts.subnet);
+		else subnet_filter(addrss.ip, &opts.host.ipv4_subnet);
 
 		if (verbosity > 4)
 		{
@@ -79,9 +81,20 @@ int main (int argc, char *argv[])
 		}
 	}
 
+	for (struct Addrss* tmp; head != NULL;)
+	{
+		tmp = head;
+		head = head->next;
+		free(tmp);
+	}
+
 	pcap_close(opts.handle);
 	return 0;
+}
 
+void sig_handler(int signum)
+{
+	sig = signum;
 }
 
 // print help header and options
@@ -103,7 +116,7 @@ void print_opts()
 	printf("--quiet or -q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
 	printf("--promiscuous or -p\n\tset the interface to Promiscuous mode\n");
 	printf("\nRequiring an argument:\n\n");
-	printf("--interface or -I\n\tset the Interface used (one per instance)\n");
+	printf("--interface or -I\n\tset the Interface used. If set to \"any\", -n 0 is forced\n");
 	printf("--interval or -i\n\tset the interval (in milliseconds)\n");
 	printf("--nags or -n\n\tset the number of times to \"Nag\" a target\n");
 	printf("--timeout or -t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
@@ -190,6 +203,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 'I':
 				// get the interface
 				opts->dev = optarg;
+				if (!strcmp(opts->dev, "any"))
+				{
+					printf("using \"any\" device\n");
+					// can't nag with "any" device
+					opts->nags = 0;
+					nags_set = 3;
+				}
 				break;
 			case 's':
 				if (opts->cidr)

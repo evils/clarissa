@@ -1,5 +1,6 @@
 #include <libtq/test.h>
 #include "../clarissa.h"
+#include "../clarissa_internal.h"
 
 TQ_TEST("net_put_u16")
 {
@@ -9,9 +10,17 @@ TQ_TEST("net_put_u16")
 	uint16_t intent = 384;
 	uint8_t target[2];
 
-	net_put_u16((uint8_t*) &target, source);
+	net_put_u16((uint8_t*) target, source);
 
-	return !memcmp(&target, &intent, sizeof(target));
+	return !memcmp(target, &intent, sizeof(target));
+}
+
+TQ_TEST("net_get_u16")
+{
+	uint8_t source[2] = {0};
+	net_put_u16(source, 384);
+	if (net_get_u16(source) == 384) return 1;
+	return 0;
 }
 
 TQ_TEST("net_put_u32")
@@ -22,9 +31,17 @@ TQ_TEST("net_put_u32")
 	uint32_t intent = 25166208;
 	uint8_t target[4];
 
-	net_put_u32((uint8_t*) &target, source);
+	net_put_u32((uint8_t*) target, source);
 
-	return !memcmp(&target, &intent, sizeof(target));
+	return !memcmp(target, &intent, sizeof(target));
+}
+
+TQ_TEST("net_get_u32")
+{
+	uint8_t source[4] = {0};
+	net_put_u32(source, 25166208);
+	if(net_get_u32(source) == 25166208) return 1;
+	return 0;
 }
 
 TQ_TEST("is_zeros/pass")
@@ -88,7 +105,7 @@ TQ_TEST("bitcmp/fail/1")
 	return bitcmp(a, b, n);
 }
 
-TQ_TEST("subnet_check/ipv4/pass/0")
+TQ_TEST("subnet_filter/ipv4/pass/0")
 {
 	uint8_t ip[16] =
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -101,13 +118,13 @@ TQ_TEST("subnet_check/ipv4/pass/0")
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
 
-	subnet_check((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet);
 
 	// .1 should be in the subnet .1, nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_check/ipv4/pass/1")
+TQ_TEST("subnet_filter/ipv4/pass/1")
 {
 	uint8_t ip[16] =
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -120,13 +137,13 @@ TQ_TEST("subnet_check/ipv4/pass/1")
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
 
-	subnet_check((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet);
 
 	// .1 should be in the subnet .1, nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_check/ipv4/fail/0")
+TQ_TEST("subnet_filter/ipv4/fail/0")
 {
 	uint8_t ip[16] =
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -139,13 +156,13 @@ TQ_TEST("subnet_check/ipv4/fail/0")
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0xFF, 0xFF, 10, 20, 0, 0 } };
 
-	subnet_check((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet);
 
 	// 192 does not match 10, the entire ip should get zerod
 	return is_zeros(ip, sizeof(ip));
 }
 
-TQ_TEST("subnet_check/ipv4/fail/1")
+TQ_TEST("subnet_filter/ipv4/fail/1")
 {
 	uint8_t ip[16] =
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -158,7 +175,7 @@ TQ_TEST("subnet_check/ipv4/fail/1")
 			{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
 
-	subnet_check((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet);
 
 	// .0 is not in .1, the entire ip should get zerod
 	// (only the masked area gets checked)

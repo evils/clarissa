@@ -1,4 +1,4 @@
-default output name to device+subnet
+default output filename to device+subnet
 	to work with multiple instances
 	use domain socket?
 
@@ -10,11 +10,23 @@ packaging
 			started
 		systemd for everything else?
 			first debian package attempt done (thanks TQ)
-	find a place for macs.csv
+			figure out how to avoid the "any" device being picked
+		nix
+			fetchFromGitLab doesn't support submodules (no libtq)
+				wait for libtq to get packaged
+				add (or fix) external libtq in Makefile
+					see branch ext_libtq
+
+remove output file when quitting?
 
 get_if_mac()
 	make portable
 
+support "any" device (linux cooked capture)
+	done, can't send packets (currently forcing -n 0)
+
 CLAR_COUNT.SH:
 
 	make sure log() doesn't lose data
+
+	find a place for macs.csv

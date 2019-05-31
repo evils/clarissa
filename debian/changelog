@@ -1,3 +1,12 @@
+clarissa (0.4) unstable; urgency=medium
+
+  * fix dump_state() memory leak
+  * catch SIGINT, exit loop and clean up
+  * "any" device listening support (no sending)
+  * fix procd init script to set interface instead of interval...
+
+ -- Evils <evils.devils@protonmail.com>  Fri, 31 May 2019 08:11:40 +0200
+
 clarissa (0.3) unstable; urgency=medium
 
   * add long options

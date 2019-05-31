@@ -1,4 +1,5 @@
 #include "clarissa.h"
+#include "clarissa_internal.h"
 
 // Save the source addresses and receive time from a packet in a struct.
 struct Addrss get_addrss
@@ -11,7 +12,7 @@ struct Addrss get_addrss
 	// an invalid MAC will be unreachable and get purged
 	// check if the IP is in the right range later?
 
-	// link type is separately stored metadata?
+	// link type is separately stored metadata
 	switch (pcap_datalink(handle))
 	{
 		case DLT_EN10MB:
@@ -22,21 +23,73 @@ struct Addrss get_addrss
 			memcpy(addrss.mac, frame += 6, 6);
 
 			// skip to metadata and get IP address
-			if (!get_tag(frame+6, &addrss))
+			if (get_tag(frame += 6, &addrss)) return addrss;
+			else if (verbosity > 3)
+				warn("failed to extract ethernet frame");
+
+			goto fail;
+
+		case DLT_LINUX_SLL:
+	// as per https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html
+		{
+			int bail = 0;
+			switch (net_get_u16(frame += 2))
+			{
+				// unsupported ARPHRD_ types
+				case 824: // ARPHRD_NETLINK
+				case ARPHRD_IPGRE:
+				case ARPHRD_IEEE80211_RADIOTAP:
+					// if DLT_IEEE802_11 gets support,
+					// go there?
+					if (verbosity > 4)
+						warn
+					("unknown ARPHRD_ type found");
+
+					bail = 1;
+			}
+
+			// only get the 6 byte link-layer addresses
+			uint8_t len[2] = {0};
+			uint16_t mac_len = 6;
+			net_put_u16(len, mac_len);
+			if (memcmp(len, frame += 2, 2))
+			{
+				if (verbosity > 3)
+					warn
+		("unsupported link-layer address length on \"any\" device");
+				goto fail;
+			}
+			memcpy(addrss.mac, frame += 2, 6);
+
+			if (bail) return addrss;
+
+			// can't nag on "any" device, dead code...
+			return addrss;
+			/*
+			// SLL reserves 8 bytes for link-layer address
+			frame += 8;
+
+			uint16_t type = net_get_u16(frame);
+			switch (type)
+			{
+				// non ethertype values of SLL protocol type
+				case 0x0001:
+				case 0x0002:
+				case 0x0003:
+				case 0x0004:
+				case 0x000C: return addrss;
+			}
+			if (get_eth_ip(frame += 2, &addrss,
+				type <= 1500 ? ETH_SIZE : type))
 			{
 				return addrss;
 			}
-			else
-			{
-				if (verbosity > 3)
-				warn("failed to extract ethernet frame");
-				goto fail;
-			}
-
-		case DLT_LINUX_SLL:
-
-			warn("\"any\" device not yet supported");
+			else if (verbosity > 3)
+				warn
+				("failed to extract \"any\" ethernet frame");
 			goto fail;
+			*/
+		}
 
 		case DLT_IEEE802_11:
 
@@ -56,7 +109,7 @@ fail:
 // get a VLAN tag from the frame and continue handling the frame
 int get_tag(const uint8_t* frame, struct Addrss* addrss)
 {
-	uint16_t type = ((uint16_t)(frame[0]) << 8) | (uint16_t)(frame[1]);
+	uint16_t type = net_get_u16(frame);
 	switch (type)
 	{
 		case DOT1Q:
@@ -103,19 +156,19 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+12, 4);
-			return 0;
+			return 1;
 
 		case ARP:
 			// map IPv4 onto IPv6 address
 			memset(addrss->ip, 0, 10);
 			memset(addrss->ip+10, 0xFF, 2);
 			memcpy(addrss->ip+12, frame+14, 4);
-			return 0;
+			return 1;
 
 		case IPv6:
 			// copy IPv6 address to addrss
 			memcpy(addrss->ip, frame+8, 16);
-			return 0;
+			return 1;
 
 		case ETH_SIZE:
 			// TODO, determine payload type
@@ -124,35 +177,35 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 			// continue without IP
 			if (verbosity > 3)
 			warn("ETH_SIZE frame found");
-			return -1;
+			return 0;
 
 		case ARUBA_AP_BC:
 
 			if (verbosity)
 			warn("Aruba Instant AP broadcast packet found");
-			return -1;
+			return 0;
 
 		case EAPOL:
 
 			if (verbosity)
 			warn("EAP over LAN packet found");
-			return -1;
+			return 0;
 
 		case DOT11R:
 
 			if (verbosity)
 			warn("Fast BSS Transition (802.11r) packet found");
-			return -1;
+			return 0;
 
 		default:
 			if (verbosity)
 			{
-				warn("unsupported EtherType: 0x%04x", type);
+				warn("unsupported EtherType: 0x%04X", type);
 				printf("From: ");
 				print_mac(addrss->mac);
 			}
 
-			return -1;
+			return 0;
 	}
 }
 
@@ -318,9 +371,9 @@ void print_ip(const uint8_t* ip)
 }
 
 // zero IPv4 non-subnet addresses and IPv6 multicast addresses
-void subnet_check(uint8_t* ip, struct Subnet* subnet)
+void subnet_filter(uint8_t* ip, struct Subnet* subnet)
 {
-	if(!is_zeros(ip, 16))
+	if (!is_zeros(ip, 16))
 	{
 		uint8_t multicast = 0xFF;
 		if (	!memcmp(ip, &multicast, 1)
@@ -414,7 +467,10 @@ void get_if_mac(uint8_t* dest, const char* dev)
 	struct ifreq ifr;
 
 	if (!dev || !strncpy(ifr.ifr_name, dev, IFNAMSIZ-1))
+	{
+		warn("No device to get MAC address for");
 		return;
+	}
 
 	// get the MAC address of the interface
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -434,7 +490,7 @@ void get_if_mac(uint8_t* dest, const char* dev)
 	}
 	else
 	{
-		warn("Failed to get host MAC address");
+		warn("Failed to get host MAC address, may be due to \"any\" device");
 	}
 }
 
@@ -455,13 +511,13 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 
 	for (pcap_if_t* d = devs; d != NULL; d = d->next)
 	{
-		if(!strcmp(d->name, dev))
+		if (!strcmp(d->name, dev))
 		{
 			for(pcap_addr_t* a = d->addresses;
 				a != NULL; a = a->next)
 			{
 				// TODO, make the logic neater?
-				if(a->addr->sa_family == AF_INET
+				if (a->addr->sa_family == AF_INET
 					&& AF == AF_INET)
 				{
 					// map the IPv4 address
@@ -475,7 +531,7 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 					goto end;
 				}
 
-				if(a->addr->sa_family == AF_INET6
+				if (a->addr->sa_family == AF_INET6
 					&& AF == AF_INET6
 					&& !bitcmp((uint8_t*)
 						&((struct sockaddr_in6*)
@@ -501,19 +557,35 @@ end:
 }
 
 // put the source's uint16 into target in network byte order
-inline void net_put_u16(uint8_t* target, uint16_t source)
+inline void net_put_u16(uint8_t* target, const uint16_t source)
 {
 	target[0] = (source >> 8) & 0xFF;
 	target[1] = (source) & 0xFF;
 }
 
 // copy from host to network byte order
-inline void net_put_u32(uint8_t* target, uint32_t source)
+inline void net_put_u32(uint8_t* target, const uint32_t source)
 {
 	target[0] = (source >> 24) & 0xFF;
 	target[1] = (source >> 16) & 0xFF;
 	target[2] = (source >> 8) & 0xFF;
 	target[3] = (source) & 0xFF;
+}
+
+inline uint16_t net_get_u16(const uint8_t* source)
+{
+	return 	( (uint16_t)(source[0] << 8)
+		| (uint16_t)(source[1])
+		);
+}
+
+inline uint32_t net_get_u32(const uint8_t* source)
+{
+	return 	( (uint32_t)(source[0] << 24)
+		| (uint32_t)(source[1] << 16)
+		| (uint32_t)(source[2] << 8)
+		| (uint32_t)(source[3])
+		);
 }
 
 // check if a run of count bytes at target are all zero
@@ -541,12 +613,12 @@ void dump_state(char* filename, struct Addrss *head) {
 	int tmp_fd = mkstemp(tmp_filename);
 	if (tmp_fd < 0) {
 		warn("Failed to create temp file");
-		return;
+		goto end;
 	}
 	FILE* stats_file = fdopen(tmp_fd, "w");
 	if (stats_file == NULL) {
 		warn("Failed to open stats file");
-		return;
+		goto end;
 	}
 	flockfile(stats_file);
 	for (struct Addrss *link = head; link != NULL; link = link->next) {
@@ -561,6 +633,8 @@ void dump_state(char* filename, struct Addrss *head) {
 	if ((rename(tmp_filename, filename) < 0) || chmod(filename, 0444)) {
 		warn("Failed to rename stats file");
 	}
+end:
+	free(tmp_filename);
 }
 
 void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts)
