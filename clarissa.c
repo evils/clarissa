@@ -342,24 +342,29 @@ void print_mac(const uint8_t* mac)
 // same but to a string (remember to free *dest!)
 void asprint_mac(char** dest, const uint8_t* mac)
 {
-	asprintf(dest, "%02x:%02x:%02x:%02x:%02x:%02x",
-		mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+	if (-1 == asprintf(dest, "%02x:%02x:%02x:%02x:%02x:%02x",
+		mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]))
+	err(2, "Error printing");
 }
 
 // print the string representation of an IPv[4|6] to stdout
 void print_ip(const uint8_t* ip)
 {
-	//char* tmp = malloc(INET6_ADDRSTRLEN);
 	char* tmp;
 	asprint_ip(&tmp, ip);
-	printf("%s\n", tmp);
+	printf("%s", tmp);
+	if (strncmp(tmp, "", 1)) printf("\n");
 	free(tmp);
 }
 
 // same but to a string (remember to free *dest!)
 void asprint_ip(char** dest, const uint8_t* ip)
 {
-	if (is_zeros(ip, 16)) asprintf(dest, "");
+	if (is_zeros(ip, 16))
+	{
+		*dest = malloc(1);
+		**dest = 0;
+	}
 	else
 	{
 		if (is_mapped(ip))
@@ -376,35 +381,6 @@ void asprint_ip(char** dest, const uint8_t* ip)
 		}
 	}
 }
-
-			/* left here for the commit, remove before the next one
-			char* tmp;
-			for (int i = 0; i < 16; i++)
-			{
-				if (!ip[i])
-				{
-					if (!ip[i+1]) continue;
-					else
-					{
-						asprintf
-						(&tmp, "%s:", *dest);
-						strcpy(*dest, tmp);
-					}
-				}
-				if (i && !(i % 2))
-				{
-					asprintf(&tmp, "%s:", *dest);
-					strcpy(*dest, tmp);
-				}
-				if (ip[i])
-				{
-					asprintf
-					(&tmp, "%s%x", *dest, ip[i]);
-					strcpy(*dest, tmp);
-				}
-			}
-			free(tmp);
-			*/
 
 // zero IPv4 non-subnet addresses and IPv6 multicast addresses
 void subnet_filter(uint8_t* ip, struct Subnet* subnet)
@@ -660,8 +636,8 @@ void dump_state(char* filename, struct Addrss *head) {
 	for (struct Addrss *link = head; link != NULL; link = link->next) {
 		asprint_mac(&tmp_mac, link->mac);
 		fprintf(stats_file, "%s\n", tmp_mac);
+		free(tmp_mac);
 	}
-	free(tmp_mac);
 	funlockfile(stats_file);
 	fclose(stats_file);
 

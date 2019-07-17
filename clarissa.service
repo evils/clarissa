@@ -8,7 +8,7 @@ Type=simple
 ExecStart=/usr/sbin/clarissa -p
 Restart=always
 ExecStop=/bin/kill -s QUIT $MAINPID
-ExecStopPost=/bin/rm -f /tmp/clarissa_list
+ExecStopPost=/bin/sh -c 'rm -f /tmp/clar_*'
 
 [Install]
 WantedBy=multi-user.target

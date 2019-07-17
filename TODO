@@ -1,21 +1,15 @@
-default output filename to device+subnet
-	to work with multiple instances
-	use domain socket?
-
 packaging
 	daemonizing
 		figure out dealing with multiple instances
-			and different options for each
+			different options for each
+			and a better output location?
 		procd for openwrt
 			started
 		systemd for everything else?
 			first debian package attempt done (thanks TQ)
 			figure out how to avoid the "any" device being picked
 		nix
-			fetchFromGitLab doesn't support submodules (no libtq)
-				wait for libtq to get packaged
-				add (or fix) external libtq in Makefile
-					see branch ext_libtq
+			wants make install, switch to that for debian as well?
 
 get_if_mac()
 	make portable

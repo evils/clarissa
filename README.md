@@ -7,7 +7,7 @@ The design goals are an ability to run **quietly** (without sending out packets 
 
 * Running **quietly** imposes a practical minimum **timeout** of the longest time between packets for any device you want to keep track of.
 * Better time resolution can be obtained by **nagging** devices.
-* The **output** is a regularly updated plain file (**/tmp/clarissa_list** by default).
+* The **output** is a regularly updated plain file (**/tmp/clar\_[dev]\_[subnet]-[mask]** by default).
 
 ## Concept
 * When a MAC address is found in a frame on an **interface**, it is saved along with a timestamp as an entry in an internal list.

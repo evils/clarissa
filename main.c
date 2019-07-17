@@ -2,16 +2,6 @@
 
 int main (int argc, char *argv[])
 {
-	// pcap setup
-	// errbuff, handle and dev are in the opts struct
-	struct pcap_pkthdr header;
-	const uint8_t* frame;
-
-	// clarissa setup
-	// more in the opts struct
-	struct Addrss* head = NULL;
-	struct timeval now, last_print, checked = {0};
-
 	// options setup
 	struct Opts opts;
 	memset(&opts, 0, sizeof(opts));
@@ -27,32 +17,71 @@ int main (int argc, char *argv[])
 	}
 	else print_header(&opts);
 
+	// pcap setup
+	// errbuff, handle and dev are in the opts struct
+	struct pcap_pkthdr* header;
+	const uint8_t* frame;
+
+	// clarissa setup
+	// more in the opts struct
+	struct Addrss* head = NULL;
+	struct Addrss addrss;
+	struct timeval now, last_print, checked = {0};
+
 	signal(SIGINT, &sig_handler);
 
 	// capture, extract and update list of addresses
 	for (;!sig;)
 	{
-		frame = pcap_next(opts.handle, &header);
-		if (!frame) continue;
-
-		struct Addrss addrss =
-			get_addrss(opts.handle, frame, &header);
-
-		// zero IP if not in the provided subnet
-		// or use the host's
-		if (opts.cidr) subnet_filter(addrss.ip,&opts.subnet);
-		else subnet_filter(addrss.ip,&opts.host.ipv4_subnet);
-
-		if (verbosity > 4)
+		int result = pcap_next_ex(opts.handle,
+					&header, &frame);
+		switch (result)
 		{
-			print_mac(addrss.mac);
-			print_ip(addrss.ip);
+			case -2:
+				printf("End of savefile reached.\n");
+				goto end;
+			case -1:
+				pcap_perror(opts.handle,
+					"Reading packet: ");
+				continue;
+			case 0:
+				warn
+				("Packet buffer timeout expired.");
+				gettimeofday(&now, NULL);
+				break;
+			case 1:
+			{
+				addrss = get_addrss(opts.handle,
+						frame, header);
+
+				// zero IP if not in the set subnet
+				// or use the host's
+				if (opts.cidr)
+					subnet_filter(addrss.ip,
+						&opts.subnet);
+				else
+					subnet_filter(addrss.ip,
+					&opts.host.ipv4_subnet);
+
+				if (verbosity > 4)
+				{
+					print_mac(addrss.mac);
+					print_ip(addrss.ip);
+				}
+
+				addrss_list_add(&head, &addrss);
+
+				// use arrival time to be consistent
+				// regardless of pcap to_ms
+				now = addrss.header.ts;
+				break;
+			}
+			default:
+				errx(1, "Unexpected return value "
+					"from pcap_next_ex: %d",
+					result);
+				continue;
 		}
-
-		addrss_list_add(&head, &addrss);
-
-		// use arrival time to be consistent regardless of pcap to_ms
-		now = addrss.header.ts;
 
 		if (usec_diff(&now, &checked) > opts.interval)
 		{
@@ -75,6 +104,8 @@ int main (int argc, char *argv[])
 			dump_state(opts.print_filename, head);
 		}
 	}
+
+end:
 
 	for (struct Addrss* tmp; head != NULL;)
 	{
@@ -131,12 +162,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	opts->nags 	= 4;
 	opts->run	= 1;
 	verbosity 	= 0;
+	int version	= 0;
 	int nags_set 	= 0;
 
 	int opt;
 
 	static struct option long_options[] =
 		{
+			{"version",		no_argument, 0,		'V'},
 			{"verbose",		no_argument, 0, 	'v'},
 			{"help",		no_argument, 0,		'h'},
 			{"header",		no_argument, 0,		'H'},
@@ -152,13 +185,16 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"output_interval",	required_argument, 0,	'O'}
 		};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "Hvi:pn:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, "HVvi:pn:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
 		{
 			case 'H':
 				opts->run = 0;
+				break;
+			case 'V':
+				version = 1;
 				break;
 			case 'v':
 				verbosity++;
@@ -251,6 +287,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				print_opts();
 				exit(1);
 		}
+	}
+
+	if (version)
+	{
+		printf("Version:\t");
+		if (verbosity) printf("\t");
+		printf("%s\n", VERSION);
 	}
 
 	if (!opts->interval)

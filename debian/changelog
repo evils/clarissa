@@ -1,3 +1,10 @@
+clarissa (0.5) unstable; urgency=medium
+
+  * change default output filename to describe the used options
+  * switch to pcap_findalldevs() (pcap_lookupdev() obsoletion)
+
+ -- Evils <evils.devils@protonmail.com>  Fri, 19 Jul 2019 22:45:50 +0200
+
 clarissa (0.4) unstable; urgency=medium
 
   * fix dump_state() memory leak
