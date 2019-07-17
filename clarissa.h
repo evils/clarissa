@@ -76,7 +76,9 @@ void addrss_list_nag(struct Addrss** head, const struct timeval* ts,
 // output
 void dump_state(char* filename, struct Addrss *head);
 void print_mac(const uint8_t* mac);
+void asprint_mac(char** dest, const uint8_t* mac);
 void print_ip(const uint8_t* ip);
+void asprint_ip(char** dest, const uint8_t* ip);
 
 // misc
 void subnet_filter(uint8_t* ip, struct Subnet* mask);

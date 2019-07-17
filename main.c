@@ -17,12 +17,6 @@ int main (int argc, char *argv[])
 	memset(&opts, 0, sizeof(opts));
 	handle_opts(argc, argv, &opts);
 
-	// get the host ID
-	get_if_mac(opts.host.mac, opts.dev);
-	get_if_ipv4_subnet(&opts.host.ipv4_subnet, &opts);
-	get_if_ip(opts.host.ipv4, opts.dev, AF_INET, opts.errbuf);
-	get_if_ip(opts.host.ipv6, opts.dev, AF_INET6, opts.errbuf);
-
 	// startup header
 	if (!opts.run)
 	{
@@ -44,9 +38,10 @@ int main (int argc, char *argv[])
 		struct Addrss addrss =
 			get_addrss(opts.handle, frame, &header);
 
-		// zero IP if not in the provided subnet or use the host's
-		if (opts.cidr) subnet_filter(addrss.ip, &opts.subnet);
-		else subnet_filter(addrss.ip, &opts.host.ipv4_subnet);
+		// zero IP if not in the provided subnet
+		// or use the host's
+		if (opts.cidr) subnet_filter(addrss.ip,&opts.subnet);
+		else subnet_filter(addrss.ip,&opts.host.ipv4_subnet);
 
 		if (verbosity > 4)
 		{
@@ -89,6 +84,9 @@ int main (int argc, char *argv[])
 	}
 
 	pcap_close(opts.handle);
+	remove(opts.print_filename);
+	free(opts.print_filename);
+	free(opts.dev);
 	return 0;
 }
 
@@ -102,7 +100,7 @@ void help()
 {
 	printf("Clarissa keeps a list of all connected devices on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clarissa_list, file output interval = timeout / 2 \n");
+	printf("Defaults: Interface = first, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clar_[dev]_[subnet]-[mask], file output interval = timeout / 2 \n");
 
 	print_opts();
 }
@@ -271,10 +269,24 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// TODO, clean this up?
 	if (!opts->dev && !opts->handle)
 	{
-		opts->dev = pcap_lookupdev(opts->errbuf);
+		pcap_if_t* devs;
+		if (pcap_findalldevs(&devs, opts->errbuf)
+			|| devs == NULL)
+		{
+			warn("Failed to find a device\n");
+			exit(1);
+		}
+
+		if (devs->description != NULL && verbosity > 2)
+		{
+			printf("%s\n", devs->description);
+		}
+
+		asprintf(&opts->dev, "%s", devs->name);
+		pcap_freealldevs(devs);
 	}
 	else if (nags_set == 1)
-		printf("recommended nags for file input is 0\n");
+		printf("Recommended nags for file input is 0\n");
 
 	if (!opts->handle)
 	{
@@ -292,9 +304,21 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		}
 	}
 
+	// fill in the host ID
+	get_if_mac(opts->host.mac, opts->dev);
+	get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
+	get_if_ip(opts->host.ipv4, opts->dev, AF_INET, opts->errbuf);
+	get_if_ip(opts->host.ipv6, opts->dev, AF_INET6,opts->errbuf);
+
+	// print_filename needs host.mac
 	if (!opts->print_filename)
 	{
-		opts->print_filename = "/tmp/clarissa_list";
+		char* ip;
+		asprint_ip(&ip, opts->host.ipv4_subnet.ip);
+		asprintf(&opts->print_filename,
+			"/tmp/clar_%s_%s-%i", opts->dev, ip,
+				opts->host.ipv4_subnet.mask - 96);
+		free(ip);
 	}
 }
 

@@ -17,8 +17,6 @@ packaging
 				add (or fix) external libtq in Makefile
 					see branch ext_libtq
 
-remove output file when quitting?
-
 get_if_mac()
 	make portable
 

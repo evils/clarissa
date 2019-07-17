@@ -330,45 +330,81 @@ void nag(const struct Addrss* addrss, const struct Opts* opts)
 	}
 }
 
+// print the string representation of a MAC address to stdout
 void print_mac(const uint8_t* mac)
 {
-	for(int byte = 0; byte <= 4; byte++)
-	{
-		printf("%02x:", mac[byte]);
-		if (byte >= 4)
-		{
-			printf("%02x", mac[byte+1]);
-		}
-	}
-	printf("\n");
+	char* tmp;
+	asprint_mac(&tmp, mac);
+	printf("%s\n", tmp);
+	free(tmp);
 }
 
+// same but to a string (remember to free *dest!)
+void asprint_mac(char** dest, const uint8_t* mac)
+{
+	asprintf(dest, "%02x:%02x:%02x:%02x:%02x:%02x",
+		mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+}
+
+// print the string representation of an IPv[4|6] to stdout
 void print_ip(const uint8_t* ip)
 {
-	if (!is_zeros(ip, 16))
+	//char* tmp = malloc(INET6_ADDRSTRLEN);
+	char* tmp;
+	asprint_ip(&tmp, ip);
+	printf("%s\n", tmp);
+	free(tmp);
+}
+
+// same but to a string (remember to free *dest!)
+void asprint_ip(char** dest, const uint8_t* ip)
+{
+	if (is_zeros(ip, 16)) asprintf(dest, "");
+	else
 	{
 		if (is_mapped(ip))
 		{
-			printf("%d.%d.%d.%d",
+			asprintf(dest, "%d.%d.%d.%d",
 				ip[12], ip[13], ip[14], ip[15]);
 		}
 		else
 		{
+			// this is surprisingly complicated...
+			*dest = malloc(INET6_ADDRSTRLEN);
+			inet_ntop(AF_INET6, ip,
+				*dest, INET6_ADDRSTRLEN);
+		}
+	}
+}
+
+			/* left here for the commit, remove before the next one
+			char* tmp;
 			for (int i = 0; i < 16; i++)
 			{
 				if (!ip[i])
 				{
 					if (!ip[i+1]) continue;
-					else printf(":");
+					else
+					{
+						asprintf
+						(&tmp, "%s:", *dest);
+						strcpy(*dest, tmp);
+					}
 				}
-				if (i && !(i % 2)) printf(":");
-				if (ip[i]) printf("%x", ip[i]);
+				if (i && !(i % 2))
+				{
+					asprintf(&tmp, "%s:", *dest);
+					strcpy(*dest, tmp);
+				}
+				if (ip[i])
+				{
+					asprintf
+					(&tmp, "%s%x", *dest, ip[i]);
+					strcpy(*dest, tmp);
+				}
 			}
-		}
-
-		printf("\n");
-	}
-}
+			free(tmp);
+			*/
 
 // zero IPv4 non-subnet addresses and IPv6 multicast addresses
 void subnet_filter(uint8_t* ip, struct Subnet* subnet)
@@ -511,44 +547,43 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 
 	for (pcap_if_t* d = devs; d != NULL; d = d->next)
 	{
-		if (!strcmp(d->name, dev))
+		if (strcmp(d->name, dev)) continue;
+
+		for(pcap_addr_t* a = d->addresses;
+			a != NULL; a = a->next)
 		{
-			for(pcap_addr_t* a = d->addresses;
-				a != NULL; a = a->next)
+			// TODO, make the logic neater?
+			if (a->addr->sa_family == AF_INET
+				&& AF == AF_INET)
 			{
-				// TODO, make the logic neater?
-				if (a->addr->sa_family == AF_INET
-					&& AF == AF_INET)
-				{
-					// map the IPv4 address
-					memset(dest, 0, 10);
-					memset(dest+10, 0xFF, 2);
-					memcpy(dest+12,
-					&((struct sockaddr_in*)
-					a->addr)->sin_addr.s_addr, 4);
+				// map the IPv4 address
+				memset(dest, 0, 10);
+				memset(dest+10, 0xFF, 2);
+				memcpy(dest+12,
+				&((struct sockaddr_in*)
+				a->addr)->sin_addr.s_addr, 4);
 
-					// stop at 1 address
-					goto end;
-				}
-
-				if (a->addr->sa_family == AF_INET6
-					&& AF == AF_INET6
-					&& !bitcmp((uint8_t*)
-						&((struct sockaddr_in6*)
-						a->addr)->sin6_addr.s6_addr,
-						v6_mask, 16)
-					)
-				{
-					memcpy(dest, &((struct sockaddr_in6*)
-					a->addr)->sin6_addr.s6_addr, 16);
-
-					// stop at 1 address
-					goto end;
-				}
+				// stop at 1 address
+				goto end;
 			}
-			// stop at the device we're looking for
-			goto end;
+
+			if (a->addr->sa_family == AF_INET6
+				&& AF == AF_INET6
+				&& !bitcmp((uint8_t*)
+					&((struct sockaddr_in6*)
+					a->addr)->sin6_addr.s6_addr,
+					v6_mask, 16)
+				)
+			{
+				memcpy(dest, &((struct sockaddr_in6*)
+				a->addr)->sin6_addr.s6_addr, 16);
+
+				// stop at 1 address
+				goto end;
+			}
 		}
+		// stop at the device we're looking for
+		goto end;
 	}
 
 end:
@@ -621,12 +656,12 @@ void dump_state(char* filename, struct Addrss *head) {
 		goto end;
 	}
 	flockfile(stats_file);
+	char* tmp_mac;
 	for (struct Addrss *link = head; link != NULL; link = link->next) {
-		for (int i = 0; i < 6; i++) {
-			fprintf(stats_file, "%02x%c",
-				link->mac[i], (i==5)?'\n':':');
-		}
+		asprint_mac(&tmp_mac, link->mac);
+		fprintf(stats_file, "%s\n", tmp_mac);
 	}
+	free(tmp_mac);
 	funlockfile(stats_file);
 	fclose(stats_file);
 
