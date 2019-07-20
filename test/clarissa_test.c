@@ -232,3 +232,134 @@ TQ_TEST("asprint_mac")
 	free(mac_string);
 	return ret;
 }
+
+TQ_TEST("get_cidr")
+{
+	char cidr[] = "192.168.0.0/16";
+	struct Subnet dest;
+	uint8_t ip_intent[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 };
+	if(get_cidr(&dest, cidr)
+		&& !bitcmp(ip_intent, dest.ip, 16 * 8)
+		&& dest.mask == 16 + 96)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+TQ_TEST("addrss_list_add/new")
+{
+	struct Addrss* head = NULL;
+	struct Addrss two;
+	struct Addrss one;
+	memset(&two, 0, sizeof(two));
+	memset(&one, 0, sizeof(one));
+	two.mac[5] = 2;
+	one.mac[5] = 1;
+	addrss_list_add(&head, &two);
+	addrss_list_add(&head, &one);
+
+	uint8_t test = head->next->mac[5];
+
+	for (struct Addrss* tmp; head != NULL;)
+        {
+                tmp = head;
+                head = head->next;
+                free(tmp);
+        }
+
+	if(test == 2)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+TQ_TEST("addrss_list_add/same")
+{
+	struct Addrss* head = NULL;
+	struct Addrss one;
+	memset(&one, 0, sizeof(one));
+	one.mac[5] = 1;
+	addrss_list_add(&head, &one);
+	addrss_list_add(&head, &one);
+
+	int test = 0;
+	if(head->next == NULL) test++;
+
+	for (struct Addrss* tmp; head != NULL;)
+        {
+                tmp = head;
+                head = head->next;
+                free(tmp);
+        }
+
+	if(test)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+TQ_TEST("addrss_list_cull")
+{
+	struct Addrss* head = NULL;
+	struct Addrss two, one;
+	struct timeval earlier, now;
+	// 10s timeout
+	int timeout = 10000;
+	int nags = 3;
+	memset(&two, 0, sizeof(two));
+	memset(&one, 0, sizeof(one));
+	memset(&now, 0, sizeof(now));
+	memset(&earlier, 0, sizeof(earlier));
+
+	// can't set earlier to less than 0
+	// so set "now" to more than timeout
+	now.tv_sec = timeout + 1;
+	two.mac[5] = 2;
+	two.header.ts = now;
+	one.mac[5] = 1;
+	one.header.ts = earlier;
+	one.tried = nags;
+
+	addrss_list_add(&head, &two);
+	addrss_list_add(&head, &one);
+
+	addrss_list_cull(&head, &now, timeout, nags);
+
+	int cull_success = 0;
+	if(head->next == NULL && head->mac[5] == 2)
+	{
+		cull_success = 1;
+	}
+
+	for (struct Addrss* tmp; head != NULL;)
+        {
+                tmp = head;
+                head = head->next;
+                free(tmp);
+        }
+
+	if(cull_success)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+/*
+TQ_TEST("addrss_list_nag")
+{
+	// this may need to get refactored to be easily testable
+	return 1;
+}
+
+TQ_TEST("get_addrss")
+{
+	this'll take some work, just run the thing...
+	return 1;
+}
+*/

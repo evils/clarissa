@@ -236,7 +236,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			case 'I':
 				// get the interface
-				opts->dev = optarg;
+				//opts->dev = optarg;
+				asprintf(&opts->dev, "%s", optarg);
 				if (!strcmp(opts->dev, "any"))
 				{
 					printf("using \"any\" device\n");

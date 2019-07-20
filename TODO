@@ -11,14 +11,18 @@ packaging
 		nix
 			wants make install, switch to that for debian as well?
 
+tests
+	get_addrss()
+		assemble a publishable pcap file
+
 get_if_mac()
 	make portable
 
 support "any" device (linux cooked capture)
-	done, can't send packets (currently forcing -n 0)
+	receiving done, can't send packets
+	save interface for each entry, get Host struct for each interface, respond appropriately?
 
 CLAR_COUNT.SH:
 
 	make sure log() doesn't lose data
-
 	find a place for macs.csv

@@ -28,7 +28,7 @@ struct Subnet
 	uint8_t ip[16];		// base address for this subnet
 };
 
-// host addresses
+// host (device) addresses
 struct Host
 {
 	struct	Subnet ipv4_subnet;	// subnet base address and mask
