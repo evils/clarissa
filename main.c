@@ -77,7 +77,7 @@ int main (int argc, char *argv[])
 				break;
 			}
 			default:
-				errx(1, "Unexpected return value "
+				warn("Unexpected return value "
 					"from pcap_next_ex: %d",
 					result);
 				continue;
@@ -249,15 +249,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 's':
 				if (opts->cidr)
 				{
-					warn
-				("Multiple subnets currently not supported");
-					exit(1);
+					errx(1,
+				"Multiple subnets currently not supported");
 				}
 				// parse provided CIDR notation
 				if (!get_cidr(&opts->subnet, optarg))
 				{
-					warn("Failed to parse CIDR");
-					exit(1);
+					errx(1, "Failed to parse CIDR");
 				}
 				else
 				{
@@ -293,7 +291,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	if (version)
 	{
 		printf("Version:\t");
-		if (verbosity) printf("\t");
+		if (verbosity || !opts->run) printf("\t");
 		printf("%s\n", VERSION);
 	}
 
@@ -317,8 +315,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		if (pcap_findalldevs(&devs, opts->errbuf)
 			|| devs == NULL)
 		{
-			warn("Failed to find a device\n");
-			exit(1);
+			err(1, "Failed to find a device\n");
 		}
 
 		if (devs->description != NULL && verbosity > 2)
@@ -341,10 +338,9 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->interval / 2000, opts->errbuf);
 		if (!opts->handle)
 		{
-			warn
-			("Couldn't open pcap source %s: %s\n",
+			errx(1,
+			"Couldn't open pcap source %s: %s\n",
 				opts->dev, opts->errbuf);
-			exit(1);
 		}
 	}
 

@@ -2,6 +2,7 @@ SHELL = /usr/bin/env sh
 CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS= -lpcap
 
+.PHONY: all
 all: clean clarissa
 
 clarissa: main.o clarissa.o time_tools.o
@@ -9,6 +10,7 @@ clarissa: main.o clarissa.o time_tools.o
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
+.PHONY: static
 static: main.o clarissa.o time_tools.o
 	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
 
@@ -48,5 +50,6 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 html: README.md
 	markdown -f +fencedcode README.md > index.html
 
+.PHONY: clean
 clean:
 	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR)
