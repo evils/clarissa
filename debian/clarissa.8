@@ -4,7 +4,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH CLARISSA 8 "2019-07-17"
+.TH CLARISSA 8 "2019-07-23"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -37,49 +37,54 @@ a utility to report a count of known and unknown addresses.
 Defaults: Interface = first, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clar_[dev]_[subnet]-[mask], Output interval = timeout / 2
 .br
 
+Long			Short
+
 .TP
-.B --help or -h
+.B --help		-h
 show the help message
 .TP
-.B --header or -H
+.B --header		-H
 show the Header and exit
 .TP
-.B --verbose or -v
+.B --verbose		-v
 increase Verbosity
+.TP
+.B --version		-V
+show the Version
 .br
 (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)
 .TP
-.B --quiet or -q
+.B --quiet		-q
 Quiet, send out no packets (equivalent to -n 0)
 .TP
-.B --promiscuous or -p
+.B --promiscuous	-p
 set the interface to Promiscuous mode
 .SH
 Requiring an argument:
 .BR
 .TP
-.B --interface or -I
+.B --interface	-I
 set the Interface used. If set to "any", -n 0 is forced
 .TP
-.B --interval or -i
+.B --interval	-i
 set the interval (in milliseconds)
 .TP
-.B --nags or -n
+.B --nags		-n
 set the number of times to "Nag" a target
 .TP
-.B --timeout or -t
+.B --timeout		-t
 set the Timeout for an entry (wait time for nags in ms)
 .TP
-.B --subnet or -s
+.B --subnet		-s
 get a Subnet to filter by (in CIDR notation)
 .TP
-.B --file or -f
+.B --file		-f
 File input (pcap file, also works with - (stdin)), forces -n 0
 .TP
-.B --output_file or -o
+.B --output_file	-o
 set the output filename
 .TP
-.B --output_interval or -O
+.B --output_interval	-O
 set the file Output interval
 .SH SEE ALSO
 .BR clar_count (1)

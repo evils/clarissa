@@ -1,5 +1,6 @@
 clarissa.service ExecStopPost is still allowed to remove everything everything?
-update main.h $DEFINE VERSION
+update main.h #DEFINE VERSION
 update manpage date
+--help, readme.md, and manpage match?
 update debian/changelog (including dch --release)
 debuild succeeds and package installs correctly?

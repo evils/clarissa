@@ -21,36 +21,40 @@ The design goals are an ability to run **quietly** (without sending out packets 
 ## Options
 
 <pre>
---help or -h
+Long		Short
+
+--help		-h
 	show the help message
---header or -H
+--header	-H
 	show the Header and exit
---verbose or -v
-	increase Verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)
---<b>quiet</b> or -q
+--verbose	-v
+	increase verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)
+--version	-V
+	show the Version
+--<b>quiet</b>		-q
 	Quiet, send out no packets (equivalent to -n 0)
---<b>promiscuous</b> or -p
+--<b>promiscuous</b> -p
 	set the interface to Promiscuous mode
 </pre>
 
 ### Requiring an argument:
 
 <pre>
---<b>interface</b> or -I
+--<b>interface</b>	-I
 	set the Interface used. If set to "any", -n 0 is forced
---interval or -i
+--interval	-i
 	set the interval (in milliseconds)
---<b>nags</b> or -n
+--<b>nags</b>		-n
 	set the number of times to "Nag" a target
---<b>timeout</b> or -t
+--<b>timeout</b>	-t
 	set the Timeout for an entry (wait time for nags in ms)
---subnet or -s
+--subnet	-s
 	get a Subnet to filter by (in CIDR notation)
---file or -f
+--file		-f
 	File input (pcap file, works with - (stdin)), forces -n 0
---<b>output_file</b> or -o
+--<b>output_file</b>	-o
 	set the output filename
---output_interval or -O
+--output_interval	-O
 	set the Output interval
 </pre>
 

@@ -138,22 +138,23 @@ void help()
 
 void print_opts()
 {
-	printf("\nOptions:\n\n");
-	printf("--help or -h\n\tshow the help message\n");
-	printf("--header or -H\n\tshow the Header and exit\n");
-	printf("--verbose or -v\n\tincrease Verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)\n");
-	printf("--quiet or -q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
-	printf("--promiscuous or -p\n\tset the interface to Promiscuous mode\n");
+	printf("\n%s\n", VERSION);
+	printf("\nOptions:\nLong\t\tShort\n\n");
+	printf("--help\t\t-h\n\tshow the help message\n");
+	printf("--header\t-H\n\tshow the Header and exit\n");
+	printf("--verbose\t-v\n\tincrease verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf("--version\t-V\n\tshow the Version\n");
+	printf("--quiet\t\t-q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
+	printf("--promiscuous\t-p\n\tset the interface to Promiscuous mode\n");
 	printf("\nRequiring an argument:\n\n");
-	printf("--interface or -I\n\tset the Interface used. If set to \"any\", -n 0 is forced\n");
-	printf("--interval or -i\n\tset the interval (in milliseconds)\n");
-	printf("--nags or -n\n\tset the number of times to \"Nag\" a target\n");
-	printf("--timeout or -t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
-	printf("--subnet or -s\n\tget a Subnet to filter by (in CIDR notation)\n");
-	printf("--file or -f\n\tFile input (pcap file, works with - (stdin)), forces -n 0\n");
-	printf("--output_file or -o\n\tset the output filename\n");
-	printf("--output_interval or -O\n\tset the Output interval\n");
-	printf("\n");
+	printf("--interface\t-I\n\tset the Interface used. If set to \"any\", -n 0 is forced\n");
+	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
+	printf("--nags\t\t-n\n\tset the number of times to \"Nag\" a target\n");
+	printf("--timeout\t-t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
+	printf("--subnet\t-s\n\tget a Subnet to filter by (in CIDR notation)\n");
+	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin)), forces -n 0\n");
+	printf("--output_file\t-o\n\tset the output filename\n");
+	printf("--output_interval -O\n\tset the Output interval\n");
 }
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
@@ -236,7 +237,6 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			case 'I':
 				// get the interface
-				//opts->dev = optarg;
 				asprintf(&opts->dev, "%s", optarg);
 				if (!strcmp(opts->dev, "any"))
 				{

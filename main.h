@@ -1,7 +1,7 @@
 #pragma once
 
 #define _GNU_SOURCE
-#define VERSION "v0.5"
+#define VERSION "v0.5-sync"
 
 #include <stdio.h>
 #include <stdint.h>
