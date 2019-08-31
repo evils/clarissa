@@ -29,6 +29,7 @@ int main (int argc, char *argv[])
 	struct timeval now, last_print, checked = {0};
 
 	signal(SIGINT, &sig_handler);
+	signal(SIGTERM, &sig_handler);
 
 	// capture, extract and update list of addresses
 	for (;!sig;)
@@ -118,6 +119,17 @@ end:
 	remove(opts.print_filename);
 	free(opts.print_filename);
 	free(opts.dev);
+	printf("Stopped by:\t\t");
+	switch (sig)
+	{
+		case SIGINT:
+			printf("SIGINT");
+			break;
+		case SIGTERM:
+			printf("SIGTERM");
+			break;
+	}
+	printf("\n");
 	return 0;
 }
 
@@ -237,7 +249,10 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			case 'I':
 				// get the interface
-				asprintf(&opts->dev, "%s", optarg);
+				if (asprintf(&opts->dev, "%s", optarg) == -1)
+				{
+					errx(1, "Failed to save given interface name");
+				}
 				if (!strcmp(opts->dev, "any"))
 				{
 					printf("using \"any\" device\n");
@@ -323,7 +338,10 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			printf("%s\n", devs->description);
 		}
 
-		asprintf(&opts->dev, "%s", devs->name);
+		if (asprintf(&opts->dev, "%s", devs->name) == -1)
+		{
+			errx(1, "Failed to save found interface name");
+		}
 		pcap_freealldevs(devs);
 	}
 	else if (nags_set == 1)
@@ -355,9 +373,12 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		char* ip;
 		asprint_ip(&ip, opts->host.ipv4_subnet.ip);
-		asprintf(&opts->print_filename,
+		if (asprintf(&opts->print_filename,
 			"/tmp/clar_%s_%s-%i", opts->dev, ip,
-				opts->host.ipv4_subnet.mask - 96);
+				opts->host.ipv4_subnet.mask - 96) == -1)
+		{
+			errx(1, "Failed to set the output filename");
+		}
 		free(ip);
 	}
 }

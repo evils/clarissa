@@ -14,7 +14,31 @@ clarissa: main.o clarissa.o time_tools.o
 static: main.o clarissa.o time_tools.o
 	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
 
+DESTDIR = /usr
+SYSDIR = /lib/systemd/system
+.PHONY: install
+install: clarissa
+	mkdir -p $(DESTDIR)/sbin $(DESTDIR)/bin $(DESTDIR)/share/man1 $(DESTDIR)/share/man8 $(DESTDIR)/share/doc/clarissa $(SYSDIR)
+	install clarissa $(DESTDIR)/sbin/clarissa
+	install clar_count.sh $(DESTDIR)/bin/clar_count
+	gzip -c debian/clar_count.1 > $(DESTDIR)/share/man1/clar_count.1.gz
+	gzip -c debian/clarissa.8 > $(DESTDIR)/share/man8/clarissa.8.gz
+	install debian/copyright $(DESTDIR)/share/doc/clarissa/copyright
+	gzip -c debian/changelog > $(DESTDIR)/share/doc/clarissa/changelog.gz
+	install clarissa.service $(SYSDIR)/clarissa.service
+.PHONY: uninstall
+uninstall:
+	systemctl stop clarissa
+	rm -rf /tmp/clar_*
+	rm -rf $(DESTDIR)/sbin/clarissa
+	rm -rf $(DESTDIR)/bin/clar_count
+	rm -rf $(DESTDIR)/share/man1/clar_count.1.gz
+	rm -rf $(DESTDIR)/share/man8/clarissa.8.gz
+	rm -rf $(DESTDIR)/share/doc/clarissa
+	rm -rf $(SYSDIR)/clarissa.service
+
 # uses pycflow2dot (from pip)
+.PHONY: graph
 graph:
 	rm -f cflow_sum.c
 	cat *.c > cflow_sum.c
@@ -47,7 +71,7 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 
 # not tests
 
-html: README.md
+index.html: README.md
 	markdown -f +fencedcode README.md > index.html
 
 .PHONY: clean

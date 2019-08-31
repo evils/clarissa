@@ -369,8 +369,11 @@ void asprint_ip(char** dest, const uint8_t* ip)
 	{
 		if (is_mapped(ip))
 		{
-			asprintf(dest, "%d.%d.%d.%d",
-				ip[12], ip[13], ip[14], ip[15]);
+			if (asprintf(dest, "%d.%d.%d.%d",
+				ip[12], ip[13], ip[14], ip[15]) == -1)
+			{
+				err(1, "Failed to asprintf an IPv4 address");
+			}
 		}
 		else
 		{
@@ -620,7 +623,10 @@ int is_mapped(const uint8_t* ip)
 // write The list out to a file
 void dump_state(char* filename, struct Addrss *head) {
 	char* tmp_filename;
-	asprintf(&tmp_filename, "%s.XXXXXX", filename);
+	if (asprintf(&tmp_filename, "%s.XXXXXX", filename) == -1)
+	{
+		errx(1, "Failed to save temporary filename");
+	}
 	int tmp_fd = mkstemp(tmp_filename);
 	if (tmp_fd < 0) {
 		warn("Failed to create temp file");
