@@ -1,12 +1,15 @@
 [Unit]
-Description=Network census daemon
+Description=the network census daemon
 Documentation=man:clarissa(8)
-Wants=network.target
+after=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 ExecStart=/usr/sbin/clarissa -p
 Restart=always
+RestartSec=1
+StartLimitBurst=10
 ExecStopPost=/bin/sh -c 'rm -f /tmp/clar_*'
 
 [Install]
