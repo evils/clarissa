@@ -1,3 +1,7 @@
+prevent the usage of the loopback interface at startup
+	prevent usage of the loopback interface from making the process unstoppable
+		currently hardcoded a comparison and exit if "lo" is used
+
 packaging
 	daemonizing
 		figure out dealing with multiple instances

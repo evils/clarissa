@@ -346,6 +346,9 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	}
 	else if (nags_set == 1)
 		printf("Recommended nags for file input is 0\n");
+	char lo[] = "lo";
+	if (!strncmp(opts->dev, lo, 2))
+		errx(1, "loopback device currently not supported");
 
 	if (!opts->handle)
 	{
