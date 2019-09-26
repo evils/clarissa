@@ -4,3 +4,4 @@ update manpage date
 --help, readme.md, and manpage match?
 update debian/changelog (including dch --release)
 debuild succeeds and package installs correctly?
+nix builds this correctly?

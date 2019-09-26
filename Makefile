@@ -14,28 +14,27 @@ clarissa: main.o clarissa.o time_tools.o
 static: main.o clarissa.o time_tools.o
 	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
 
-DESTDIR = /usr
+DESTDIR =
+PREFIX = /usr
 SYSDIR = /lib/systemd/system
+SYSDINST = true
 .PHONY: install
 install: clarissa
-	mkdir -p $(DESTDIR)/sbin $(DESTDIR)/bin $(DESTDIR)/share/man1 $(DESTDIR)/share/man8 $(DESTDIR)/share/doc/clarissa $(SYSDIR)
-	install clarissa $(DESTDIR)/sbin/clarissa
-	install clar_count.sh $(DESTDIR)/bin/clar_count
-	gzip -c debian/clar_count.1 > $(DESTDIR)/share/man1/clar_count.1.gz
-	gzip -c debian/clarissa.8 > $(DESTDIR)/share/man8/clarissa.8.gz
-	install debian/copyright $(DESTDIR)/share/doc/clarissa/copyright
-	gzip -c debian/changelog > $(DESTDIR)/share/doc/clarissa/changelog.gz
-	install clarissa.service $(SYSDIR)/clarissa.service
+	mkdir -p $(DESTDIR)$(PREFIX)/sbin $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
+	install clarissa $(DESTDIR)$(PREFIX)/sbin/clarissa
+	install clar_count.sh $(DESTDIR)$(PREFIX)/bin/clar_count
+	install clar_count.1 $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1
+	install clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
+	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && install clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 .PHONY: uninstall
 uninstall:
 	systemctl stop clarissa
 	rm -rf /tmp/clar_*
-	rm -rf $(DESTDIR)/sbin/clarissa
-	rm -rf $(DESTDIR)/bin/clar_count
-	rm -rf $(DESTDIR)/share/man1/clar_count.1.gz
-	rm -rf $(DESTDIR)/share/man8/clarissa.8.gz
-	rm -rf $(DESTDIR)/share/doc/clarissa
-	rm -rf $(SYSDIR)/clarissa.service
+	rm -rf $(DESTDIR)$(PREFIX)/sbin/clarissa
+	rm -rf $(DESTDIR)$(PREFIX)/bin/clar_count
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1.gz
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8.gz
+	if $(SYSDINST); then rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 
 # uses pycflow2dot (from pip)
 .PHONY: graph
