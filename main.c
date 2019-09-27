@@ -365,6 +365,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		}
 	}
 
+	/*
+	if (pcap_set_immediate_mode(opts->handle, 1) == PCAP_ERROR_ACTIVATED)
+	{
+		warn("Failed to set immediate mode");
+	}
+	*/
+
 	// fill in the host ID
 	get_if_mac(opts->host.mac, opts->dev);
 	get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
