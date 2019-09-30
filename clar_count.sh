@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# get the count of MAC addresses' named in the macs.csv ($1) for all the found MAC addresses ($2)
+# get the count of MAC addresses named in the macs.csv ($1) for all the found MAC addresses ($2)
 # and output a count of the unique names (minus those with "?") and tally of the remaining addresses
 # and provide a list of those names (minus those with "!")
 # in a variety of formats (specified by $3)
