@@ -1,19 +1,20 @@
-prevent the usage of the loopback interface at startup
-	prevent usage of the loopback interface from making the process unstoppable
-		currently hardcoded a comparison and exit if "lo" is used
-
 packaging
 	daemonizing
 		figure out dealing with multiple instances
 			different options for each
 			and a better output location?
+				/tmp is a security issue?
 		procd for openwrt
 			started
 		systemd for everything else?
-			first debian package attempt done (thanks TQ)
-			figure out how to avoid the "any" device being picked
-		nix
-			wants make install, switch to that for debian as well?
+			figure out how to avoid the "any" and "lo" devices being picked
+				current approach
+					require network-online.target (no "any")
+					fail on "lo", 1s restart timer, 10 tries
+			nix
+				started
+			debian
+				works from Makefile now
 
 tests
 	get_addrss()
