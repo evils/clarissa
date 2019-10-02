@@ -23,9 +23,9 @@ packaging
 					require network-online.target (no "any")
 					fail on "lo", 1s restart timer, 10 tries
 			nix
-				started
+				works
 			debian
-				works from Makefile now
+				works
 
 tests
 	end-end test

@@ -465,7 +465,7 @@ TQ_TEST("asprint_mac")
 	uint8_t mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	char* mac_string;
 	asprint_mac(&mac_string, mac);
-	char* intent = "ff:ff:ff:ff:ff:ff";
+	char* intent = "FF:FF:FF:FF:FF:FF";
 	int ret = !strncmp(mac_string, intent, 18);
 	free(mac_string);
 	return ret;
