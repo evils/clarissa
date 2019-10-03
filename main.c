@@ -12,8 +12,7 @@ int main (int argc, char *argv[])
 	{
 		if (verbosity < 2) verbosity = 2;
 		print_header(&opts);
-		pcap_close(opts.handle);
-		return 0;
+		goto end_header;
 	}
 	else print_header(&opts);
 
@@ -114,11 +113,7 @@ end:
 		head = head->next;
 		free(tmp);
 	}
-
-	pcap_close(opts.handle);
 	remove(opts.print_filename);
-	free(opts.print_filename);
-	free(opts.dev);
 	printf("Stopped by:\t\t");
 	switch (sig)
 	{
@@ -130,6 +125,12 @@ end:
 			break;
 	}
 	printf("\n");
+
+end_header:
+
+	pcap_close(opts.handle);
+	free(opts.print_filename);
+	free(opts.dev);
 	return 0;
 }
 
@@ -391,6 +392,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		}
 		free(ip);
 	}
+	else
+	{
+		if (asprintf(&opts->print_filename, "%s", opts->print_filename) == -1)
+		{
+			errx(1, "Failed to set the output filename");
+		}
+	}
 }
 
 void print_header(struct Opts* opts)
@@ -419,12 +427,13 @@ void print_header(struct Opts* opts)
 
 		if (verbosity > 1)
 		{
-			// subnet block
-			printf("Host IPv4 subnet:\t");
-			print_ip(opts->host.ipv4_subnet.ip);
-			printf("Host IPv4 mask:\t\t%d\n",
-			// minus 96 as long as this is IPv4
-			opts->host.ipv4_subnet.mask - 96);
+			// subnet block,
+			// mask minus 96 as this is mapped IPv4
+			char* ip;
+			asprint_ip(&ip, opts->host.ipv4_subnet.ip);
+			printf("Host IPv4 subnet:\t%s/%d\n",
+				ip, opts->host.ipv4_subnet.mask - 96);
+			free(ip);
 			printf("\n");
 
 			if (verbosity > 2)
