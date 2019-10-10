@@ -1,5 +1,7 @@
 clarissa
+clarissad
 clarissa_static
+clarissad_static
 *.o
 *.out
 *.test

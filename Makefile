@@ -11,9 +11,9 @@ LDFLAGS += -lxnet		# socket etc functions ld errors
 endif
 
 .PHONY: all
-all: clean clarissa
+all: clean clarissad clar_OUI.csv
 
-clarissa: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+clarissad: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $<
@@ -30,7 +30,9 @@ PREFIX = /usr
 SYSDIR = /lib/systemd/system
 SYSDINST = true
 DOCDIR = docs
-
+GETOUI = true
+clar_OUI.csv:
+	if $(GETOUI); then ./OUI_assemble.sh; fi
 .PHONY: install
 install: clarissa man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
@@ -38,6 +40,7 @@ install: clarissa man
 	install $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
 	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
 	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && cp clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+	if $(GETOUI); then mkdir -p $(DESTDIR)$(PREFIX)/share/clarissa && cp clar_OUI.csv $(DESTDIR)$(PREFIX)/share/clarissa/clar_OUI.csv; fi
 .PHONY: uninstall
 uninstall:
 	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
@@ -100,4 +103,5 @@ clean:
 	rm -rf clarissa clarissa_static
 	rm -rf *.o $(OUTDIR)
 	rm -rf docs/*.[0-9] index.html
+	rm -rf clar_OUI.csv
 	rm -rf cflow*
