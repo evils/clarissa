@@ -56,6 +56,7 @@ struct Opts
 	int promiscuous;
 	int cidr;
 	int run;
+	int immediate;
 };
 
 // extraction

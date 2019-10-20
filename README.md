@@ -35,6 +35,8 @@ Long		Short
 	Quiet, send out no packets (equivalent to -n 0)
 --<b>promiscuous</b> -p
 	set the interface to Promiscuous mode
+--unbuffered	-u
+	don't buffer packets (use immediate mode)
 </pre>
 
 ### Requiring an argument:

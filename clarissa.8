@@ -4,7 +4,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH CLARISSA 8 "2019-07-23"
+.TH CLARISSA 8 "2019-10-20"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -59,6 +59,9 @@ Quiet, send out no packets (equivalent to -n 0)
 .TP
 .B --promiscuous	-p
 set the interface to Promiscuous mode
+.TP
+.B --unbuffered	-u
+don't buffer packets (use immediate mode)
 .SH
 Requiring an argument:
 .BR

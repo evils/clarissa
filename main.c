@@ -159,6 +159,7 @@ void print_opts()
 	printf("--version\t-V\n\tshow the Version\n");
 	printf("--quiet\t\t-q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
 	printf("--promiscuous\t-p\n\tset the interface to Promiscuous mode\n");
+	printf("--unbuffered\t-u\n\tdon't buffer packets (use immediate mode)\n");
 	printf("\nRequiring an argument:\n\n");
 	printf("--interface\t-I\n\tset the Interface used. If set to \"any\", -n 0 is forced\n");
 	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
@@ -175,6 +176,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	opts->timeout 	= 5000000;
 	opts->nags 	= 4;
 	opts->run	= 1;
+	opts->immediate	= 0;
 	verbosity 	= 0;
 	int version	= 0;
 	int nags_set 	= 0;
@@ -189,6 +191,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"header",		no_argument, 0,		'H'},
 			{"promiscuous",		no_argument, 0,		'p'},
 			{"quiet",		no_argument, 0,		'q'},
+			{"unbuffered",		no_argument, 0,		'u'},
 			{"interface",		required_argument, 0,	'I'},
 			{"interval",		required_argument, 0,	'i'},
 			{"nags", 		required_argument, 0,	'n'},
@@ -199,11 +202,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"output_interval",	required_argument, 0,	'O'}
 		};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "HVvi:pn:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, "uHVvi:pn:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
 		{
+			case 'u':
+				opts->immediate = 1;
+				break;
 			case 'H':
 				opts->run = 0;
 				break;
@@ -353,25 +359,85 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->handle)
 	{
-		// 74 = capture length
-		// pcap timeout = half the interval (in milliseconds)
-		opts->handle = pcap_open_live
-				(opts->dev, 74, opts->promiscuous,
-				opts->interval / 2000, opts->errbuf);
-		if (!opts->handle)
+		opts->handle = pcap_create(opts->dev, opts->errbuf);
+		if (opts->handle == NULL)
 		{
-			errx(1,
-			"Couldn't open pcap source %s: %s\n",
-				opts->dev, opts->errbuf);
+			errx(1, "Failed to create pcap handle: %s",
+				opts->errbuf);
+		}
+
+		// 74 = capture length
+		if (pcap_set_snaplen(opts->handle, 74))
+		{
+			warn("Failed to set snapshot length");
+		}
+
+		if (pcap_set_promisc(opts->handle,
+			opts->promiscuous))
+		{
+			warn("Failed to set promiscuous mode");
+		}
+
+		// timeout shouldn't have an effect if immediate
+		// but i'm getting timeouts on immediate mode
+		// TODO, solve this discrepency and remove this if
+		if (!opts->immediate)
+		{
+		// pcap timeout = half the interval (in milliseconds)
+			if (pcap_set_timeout(opts->handle,
+				opts->interval / 2000))
+			{
+				warn("Failed to set packet buffer timeout");
+			}
+		}
+
+		if (pcap_set_immediate_mode
+			(opts->handle, opts->immediate))
+		{
+			warn("Failed to set immediate mode");
+		}
+
+		int result = pcap_activate(opts->handle);
+		switch (result)
+		{
+			// warnings
+			case PCAP_WARNING_PROMISC_NOTSUP:
+				pcap_perror
+				(opts->handle, "Activation: ");
+				warn
+				("promiscuous mode not supported");
+				break;
+			case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
+				warn("set timestamp not supported");
+				break;
+			case PCAP_WARNING:
+				pcap_perror
+				(opts->handle, "Activation: ");
+				break;
+			// errors
+			case PCAP_ERROR_ACTIVATED:
+				errx(1, "handle already active");
+			case PCAP_ERROR_NO_SUCH_DEVICE:
+				pcap_perror
+				(opts->handle, "Activation: ");
+				errx(1, "no such capture source");
+			case PCAP_ERROR_PERM_DENIED:
+				pcap_perror
+				(opts->handle, "Activation: ");
+				errx
+				(1, "no permission to open source");
+			case PCAP_ERROR_PROMISC_PERM_DENIED:
+				errx
+				(1, "no permission for promiscuous");
+			case PCAP_ERROR_RFMON_NOTSUP:
+				errx(1, "can't use monitor mode");
+			case PCAP_ERROR_IFACE_NOT_UP:
+				errx(1, "capture source is not up");
+			case PCAP_ERROR:
+				pcap_perror
+				(opts->handle, "Activation: ");
 		}
 	}
-
-	/*
-	if (pcap_set_immediate_mode(opts->handle, 1) == PCAP_ERROR_ACTIVATED)
-	{
-		warn("Failed to set immediate mode");
-	}
-	*/
 
 	// fill in the host ID
 	get_if_mac(opts->host.mac, opts->dev);
@@ -422,8 +488,13 @@ void print_header(struct Opts* opts)
 
 		// mode block
 		if (opts->promiscuous) printf("Promiscuous\n");
+		if (opts->immediate) printf("Unbuffered\n");
 		if (!opts->nags) printf("Quiet\n");
-		if (opts->promiscuous || !opts-> nags) printf("\n");
+		if (opts->promiscuous || opts->immediate
+			|| !opts-> nags)
+		{
+			printf("\n");
+		}
 
 		if (verbosity > 1)
 		{
