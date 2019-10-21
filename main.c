@@ -26,6 +26,8 @@ int main (int argc, char *argv[])
 	struct Addrss* head = NULL;
 	struct Addrss addrss;
 	struct timeval now, last_print, checked = {0};
+	// can do at least 420 packets per second, ~100 days with 32b
+	uint64_t count = 0;
 
 	signal(SIGINT, &sig_handler);
 	signal(SIGTERM, &sig_handler);
@@ -95,7 +97,7 @@ int main (int argc, char *argv[])
 			// and nag the survivors
 			addrss_list_nag
 				(&head, &now, opts.timeout,
-					&opts);
+					&opts, &count);
 		}
 
 		// output the list to a file
@@ -105,6 +107,24 @@ int main (int argc, char *argv[])
 		}
 	}
 
+	// stats footer
+	if(verbosity)
+	{
+		struct pcap_stat ps = {0};
+		if(!pcap_stats(opts.handle, &ps))
+		{
+			printf
+			("\nclarissa sent\t\t%lu\n", count);
+			printf
+			("clarissa received\t%i\n", ps.ps_recv);
+			printf
+			("buffer dropped\t\t%i\n", ps.ps_drop);
+			printf
+			("interface dropped\t%i\n", ps.ps_ifdrop);
+		}
+	}
+
+// cleanup
 end:
 
 	for (struct Addrss* tmp; head != NULL;)
@@ -114,18 +134,19 @@ end:
 		free(tmp);
 	}
 	remove(opts.print_filename);
-	printf("Stopped by:\t\t");
+	fprintf(stderr, "\nStopped by:\t\t");
 	switch (sig)
 	{
 		case SIGINT:
-			printf("SIGINT");
+			fprintf(stderr, "SIGINT");
 			break;
 		case SIGTERM:
-			printf("SIGTERM");
+			fprintf(stderr, "SIGTERM");
 			break;
 	}
 	printf("\n");
 
+// and the stuff that's used by the header
 end_header:
 
 	pcap_close(opts.handle);
@@ -379,16 +400,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		}
 
 		// timeout shouldn't have an effect if immediate
-		// but i'm getting timeouts on immediate mode
-		// TODO, solve this discrepency and remove this if
-		if (!opts->immediate)
-		{
 		// pcap timeout = half the interval (in milliseconds)
-			if (pcap_set_timeout(opts->handle,
-				opts->interval / 2000))
-			{
-				warn("Failed to set packet buffer timeout");
-			}
+		if (pcap_set_timeout(opts->handle,
+			opts->interval / 2000))
+		{
+			warn("Failed to set packet buffer timeout");
 		}
 
 		if (pcap_set_immediate_mode
@@ -469,7 +485,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 void print_header(struct Opts* opts)
 {
-	if (!verbosity) printf("Verbosity:\t%d\n\n", verbosity);
+	if (!verbosity)
+		fprintf(stderr, "Verbosity:\t%d\n\n", verbosity);
 	if (!opts->dev) printf("Using file input\n\n");
 	if (verbosity && opts->dev)
 	{

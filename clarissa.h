@@ -70,9 +70,9 @@ void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts);
 // list
 void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss);
 void addrss_list_cull(struct Addrss** head, const struct timeval* ts,
-			const int timeout, const int nags);
+	const int timeout, const int nags);
 void addrss_list_nag(struct Addrss** head, const struct timeval* ts,
-			const int timeout, const struct Opts* opts);
+	const int timeout, const struct Opts* opts, uint64_t* count);
 
 // output
 void dump_state(char* filename, struct Addrss *head);

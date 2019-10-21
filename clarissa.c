@@ -298,7 +298,7 @@ top_of_loop:
 
 void addrss_list_nag
 (struct Addrss** head, const struct timeval* ts,
-	const int timeout, const struct Opts* opts)
+	const int timeout, const struct Opts* opts, uint64_t* count)
 {
 	for (struct Addrss** current = head;
 		*current != NULL;
@@ -306,19 +306,20 @@ void addrss_list_nag
 	{
 		if (usec_diff(ts, &(*current)->header.ts) > timeout)
 		{
-			nag(*current, opts);
+			nag(*current, opts, count);
 			(*current)->tried++;
 		}
 	}
 }
 
 // send something to the target MAC to see if it's online
-void nag(const struct Addrss* addrss, const struct Opts* opts)
+void nag(const struct Addrss* addrss,
+	 const struct Opts* opts, uint64_t* count)
 {
 	// assumes non-subnet addresses have been zero'd (subnet check)
 	if (!is_zeros(addrss->ip, 16))
 	{
-
+		*count += 1;
 		if (is_mapped(addrss->ip))
 		{
 			send_arp(addrss, opts);

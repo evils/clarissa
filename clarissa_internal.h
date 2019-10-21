@@ -34,7 +34,8 @@ int is_mapped(const uint8_t* ip);
 int bitcmp(uint8_t* a, uint8_t* b, int n);
 
 // network output
-void nag(const struct Addrss* addrss, const struct Opts* opts);
+void nag(const struct Addrss* addrss,
+	 const struct Opts* opts, uint64_t* count);
 void send_arp(const struct Addrss* addrss, const struct Opts* opts);
 void send_ndp(const struct Addrss* addrss, const struct Opts* opts);
 // helpers
