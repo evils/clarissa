@@ -4,7 +4,7 @@
 #include <stdint.h>	// uint8_t
 #include <pcap.h>	// pcap_*
 
-#include "get_mac.h"	// get_mac()
+#include "get_hardware_address.h"	// get_hardware_address()
 
 int main(void)
 {
@@ -30,7 +30,7 @@ int main(void)
 	}
 	pcap_freealldevs(devs);
 
-	get_mac(dev, mac);
+	get_hardware_address(dev, mac);
 	printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
 		mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
 	return 0;

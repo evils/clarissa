@@ -4,7 +4,7 @@ LDFLAGS= -lpcap
 .PHONY: all
 all: clean test
 
-test: test.o get_mac.o
+test: test.o get_hardware_address.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<

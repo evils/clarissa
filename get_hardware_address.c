@@ -23,12 +23,12 @@
  *
  * Description:
  *
- * This contains the platform dependent implementations of get_mac()
+ * This contains the platform dependent implementations of get_hardware_address()
  *
  */
 
 
-#include "get_mac.h"
+#include "get_hardware_address.h"
 
 /* C89 standard headers */
 #include <stdio.h>
@@ -270,7 +270,7 @@ link_close(link_t *handle) {
 }
 
 /*
- *      get_mac		 the Ethernet MAC address associated
+ *      get_hardware_address		 the Ethernet MAC address associated
  *                       with the given device.
  *      Inputs:
  *
@@ -282,7 +282,7 @@ link_close(link_t *handle) {
  *      None
  */
 void
-get_mac(const char *if_name, unsigned char hw_address[]) {
+get_hardware_address(const char *if_name, unsigned char hw_address[]) {
    link_t *handle;
 
    handle = link_open(if_name);
@@ -311,7 +311,7 @@ get_mac(const char *if_name, unsigned char hw_address[]) {
 #include <net/if_dl.h>
 
 /*
- *      get_mac    -- Get the Ethernet MAC address associated
+ *      get_hardware_address    -- Get the Ethernet MAC address associated
  *                                 with the given device.
  *      Inputs:
  *
@@ -323,7 +323,7 @@ get_mac(const char *if_name, unsigned char hw_address[]) {
  *      None
  */
 void
-get_mac(const char *if_name, unsigned char hw_address[]) {
+get_hardware_address(const char *if_name, unsigned char hw_address[]) {
    struct if_msghdr *ifm;
    struct sockaddr_dl *sdl=NULL;
    unsigned char *p;
@@ -585,7 +585,7 @@ link_open(const char *device) {
 }
 
 /*
- *      get_mac    -- Get the Ethernet MAC address associated
+ *      get_hardware_address    -- Get the Ethernet MAC address associated
  *                                 with the given device.
  *      Inputs:
  *
@@ -597,7 +597,7 @@ link_open(const char *device) {
  *      None
  */
 void
-get_mac(const char *if_name, unsigned char hw_address[]) {
+get_hardware_address(const char *if_name, unsigned char hw_address[]) {
    union DL_primitives *dlp;
    unsigned char buf[MAXDLBUF];
    link_t *handle;
@@ -622,7 +622,7 @@ get_mac(const char *if_name, unsigned char hw_address[]) {
 // placeholder
 #include <err.h>
 void
-get_mac(const char *if_name, unsigned char hw_address[])
+get_hardware_address(const char *if_name, unsigned char hw_address[])
 {
 	errx(1, "Cannot get interface hardware address (MAC) on windows.");
 }
