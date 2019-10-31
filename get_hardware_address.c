@@ -2,7 +2,7 @@
  * The ARP Scanner (arp-scan) is Copyright (C) 2005-2019 Roy Hills,
  * NTA Monitor Ltd.
  *
- * This file is was part of arp-scan.
+ * This file was part of arp-scan.
  *
  * arp-scan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
