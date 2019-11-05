@@ -2,14 +2,14 @@
 
 stdenv.mkDerivation rec {
 
-  version = "0.6";
-  name = "clarissa-${version}";
+  pname = "clarissa";
+  version = "0.6.1";
 
   src = fetchFromGitLab {
     owner = "evils";
     repo = "clarissa";
     rev = "v${version}";
-    sha256 = "0xm9v9h4v7s2rdwzfjnmlfas18x9qirrcn01qvclca63pypz3xdk";
+    sha256 = "07pjhs3szd742771wkdbmsh3z6mjcf034jlsvsd2l0aqza4vhnqz";
   };
 
   buildInputs = [ libpcap perl ];
