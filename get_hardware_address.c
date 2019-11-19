@@ -1,33 +1,3 @@
-/*
- * The ARP Scanner (arp-scan) is Copyright (C) 2005-2019 Roy Hills,
- * NTA Monitor Ltd.
- *
- * This file was part of arp-scan.
- *
- * arp-scan is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * arp-scan is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with arp-scan.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * Author:	Roy Hills
- * Date:	1 July 2006
- *
- * Description:
- *
- * This contains the platform dependent implementations of get_hardware_address()
- *
- */
-
-
 #include "get_hardware_address.h"
 
 /* C89 standard headers */
