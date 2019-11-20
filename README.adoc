@@ -36,7 +36,8 @@ It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC 
 * Windows
 
 == Test
-The supplied test will try to find the hardware address of the first available interface. +
+The supplied test uses libpcap. +
+It will try to find the hardware address of the first available interface. +
 Alternatively, the name of the interface can be supplied as an argument and this will be used instead. +
 
 E.G.: `$ make test && sudo ./test eth0`
