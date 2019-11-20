@@ -1,0 +1,8 @@
+CODE
+	depreciate linux SIOCGIFHWADDR for netlink
+	review the necessity of the helper functions
+	add windows
+META
+	test on each supported platform
+	make a test setup to test each implementation's compilation and functionality
+	redo the transfer from arp-scan to regain per-line history and blame

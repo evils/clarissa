@@ -9,6 +9,13 @@ test: test.o get_hardware_address.o
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
+index.html:
+	asciidoctor README.adoc -o index.html
+
+.PHONY: manual
+manual:
+	asciidoctor -b manpage README.adoc
+
 .PHONY: clean
 clean:
-	rm -f test *.o
+	rm -f test *.o get_hardware_address.3 index.html

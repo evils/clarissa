@@ -1,0 +1,39 @@
+= get_hardware_address(3)
+Evils <evils.devils@protonmail.com>
+Unstable
+:description: Documentation for the get_hardware_address function's code
+:keywords: MAC, mac, address, clarissa, arp-scan, arp, scan, network, LAN, lan
+:doctype: manpage
+:url-project: https://gitlab.com/evils/get_hardware_address
+
+== Name
+get_hardware_address - get an interface's hardware address
+
+== Description
+A simple multi-platform function for getting the hardware (MAC) address of an OS network interface.
+
+It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC address' 6 octets in network order.
+
+== Synopsis
+[source,C]
+```
+#include "get_hardware_address.h"
+
+void get_hardware_address(const char* if_name, unsigned char hw_address[6]);
+```
+
+== Supported Platforms
+=== Confirmed
+* Linux
+** 4.19
+
+=== Unconfirmed
+* Unix
+* Solaris
+
+=== Planned
+* Windows
+
+== Origin
+This is an adaption of https://github.com/royhills/arp-scan[arp-scan]'s `get_hardware_address()` as written in its `link-*.c`.
+It is relicensed with https://github.com/royhills/arp-scan/issues/43[permission], for ease of reuse in https://gitlab.com/evils/clarissa[clarissa].
