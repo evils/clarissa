@@ -26,9 +26,10 @@ void get_hardware_address(const char* if_name, unsigned char hw_address[6]);
 === Confirmed
 * Linux
 ** 4.19
+* Unix
+** FreeBSD 12.0-RELEASE
 
 === Unconfirmed
-* Unix
 * Solaris
 
 === Planned

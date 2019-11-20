@@ -1,11 +1,12 @@
 CFLAGS= -pedantic -Wall -Wextra -g
 LDFLAGS= -lpcap
+OBJS= test.o get_hardware_address.o
 
 .PHONY: all
 all: clean test
 
-test: test.o get_hardware_address.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+test: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
