@@ -44,7 +44,7 @@ E.G.: `$ make test && sudo ./test eth0`
 It will print the interface and address to STDOUT.
 
 == Origin
-This is an adaption of https://github.com/royhills/arp-scan[arp-scan]'s `get_hardware_address()` as written in its `link-*.c`.
+This is an adaption of https://github.com/royhills/arp-scan[arp-scan]'s `get_hardware_address()` as written in its `link-*.c`. +
 It is relicensed with https://github.com/royhills/arp-scan/issues/43[permission], for ease of reuse in https://gitlab.com/evils/clarissa[clarissa].
 
 == See Also
