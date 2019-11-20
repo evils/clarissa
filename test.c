@@ -12,8 +12,6 @@ int main(int argc, char* argv[])
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 
-	pcap_if_t* devs;
-
 	if (argc > 1)
 	{
 		if ((asprintf(&dev, "%s", argv[1]) == -1))
@@ -24,6 +22,8 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
+		pcap_if_t* devs;
+
 		if (pcap_findalldevs(&devs, errbuf)
 				|| devs == NULL)
 		{
@@ -41,9 +41,9 @@ int main(int argc, char* argv[])
 			errx(1, "Failed to save found interface name");
 		}
 		printf("Found interface: \t%s\n", dev);
-	}
 
-	pcap_freealldevs(devs);
+		pcap_freealldevs(devs);
+	}
 
 	get_hardware_address(dev, mac);
 	printf("With MAC address: \t");
