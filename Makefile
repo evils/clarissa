@@ -10,12 +10,12 @@ test: $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-index.html:
-	asciidoctor README.adoc -o index.html
-
 .PHONY: manual
 manual:
 	asciidoctor -b manpage README.adoc
+.PHONY: index.html
+index.html:
+	asciidoctor README.adoc -o index.html
 
 .PHONY: clean
 clean:

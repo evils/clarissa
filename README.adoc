@@ -9,11 +9,6 @@ Unstable
 == Name
 get_hardware_address - get an interface's hardware address
 
-== Description
-A simple multi-platform function for getting the hardware (MAC) address of an OS network interface.
-
-It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC address' 6 octets in network order.
-
 == Synopsis
 [source,C]
 ```
@@ -21,6 +16,11 @@ It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC 
 
 void get_hardware_address(const char* if_name, unsigned char hw_address[6]);
 ```
+
+== Description
+A simple multi-platform function for getting the hardware (MAC) address of an OS network interface.
+
+It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC address' 6 octets in network order.
 
 == Supported Platforms
 === Confirmed
@@ -35,6 +35,17 @@ void get_hardware_address(const char* if_name, unsigned char hw_address[6]);
 === Planned
 * Windows
 
+== Test
+The supplied test will try to find the hardware address of the first available interface. +
+Alternatively, the name of the interface can be supplied as an argument and this will be used instead. +
+
+E.G.: `$ make test && sudo ./test eth0`
+
+It will print the interface and address to STDOUT.
+
 == Origin
 This is an adaption of https://github.com/royhills/arp-scan[arp-scan]'s `get_hardware_address()` as written in its `link-*.c`.
 It is relicensed with https://github.com/royhills/arp-scan/issues/43[permission], for ease of reuse in https://gitlab.com/evils/clarissa[clarissa].
+
+== See Also
+{url-project}
