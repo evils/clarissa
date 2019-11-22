@@ -41,12 +41,33 @@
 #define ETH_ALEN 6	/* Octets in one ethernet addr */
 
 
+void err_sys(const char* fmt,...);
+void err_msg(const char* fmt,...);
+void warn_msg(const char* fmt,...);
+void err_print(int errnoflag, const char* fmt, va_list ap);
+void* Malloc(size_t size);
 size_t strlcat(char* dst, const char* src, size_t siz);
 size_t strlcpy(char* dst, const char* src, size_t siz);
 
-void err_print(int errnoflag, const char* fmt, va_list ap);
-void err_sys(const char* fmt,...);
-void warn_msg(const char* fmt,...);
+void err_sys(const char* fmt,...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	err_print(1, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
+
+void err_msg(const char* fmt,...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	err_print(0, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
 
 void warn_msg(const char* fmt,...)
 {
@@ -55,6 +76,20 @@ void warn_msg(const char* fmt,...)
 	va_start(ap, fmt);
 	err_print(0, fmt, ap);
 	va_end(ap);
+}
+
+void* Malloc(size_t size)
+{
+	void* result;
+
+	result = malloc(size);
+
+	if (result == NULL)
+	{
+		err_sys("malloc");
+	}
+
+	return result;
 }
 
 void err_print(int errnoflag, const char* fmt, va_list ap)
@@ -77,49 +112,6 @@ void err_print(int errnoflag, const char* fmt, va_list ap)
 	fputs(buf, stderr);
 	fflush(stderr);
 }
-
-void err_sys(const char* fmt,...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	err_print(1, fmt, ap);
-	va_end(ap);
-	exit(EXIT_FAILURE);
-}
-
-void err_msg(const char* fmt,...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	err_print(0, fmt, ap);
-	va_end(ap);
-	exit(EXIT_FAILURE);
-}
-
-void* Malloc(size_t size)
-{
-	void* result;
-
-	result = malloc(size);
-
-	if (result == NULL)
-	{
-		err_sys("malloc");
-	}
-
-	return result;
-}
-
-// most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/
-#if defined(__linux__) || defined(__linux) || defined(__gnu_linux__) || defined(linux) || defined(__ANDROID__) || defined(__GNU__) || defined(__gnu_hurd__)
-
-#include <linux/if_packet.h>	// struct sockaddr_ll sll
-#include <net/if.h>		// struct ifreq, IFNAMSIZ
-
-size_t strlcat(char* dst, const char* src, size_t siz);
-size_t strlcpy(char* dst, const char* src, size_t siz);
 
 size_t strlcat(char* dst, const char* src, size_t siz)
 {
@@ -176,6 +168,13 @@ size_t strlcpy(char* dst, const char* src, size_t siz)
 
 	return(s - src - 1);	/* count does not include NUL */
 }
+
+
+// most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/
+#if defined(__linux__) || defined(__linux) || defined(__gnu_linux__) || defined(linux) || defined(__ANDROID__) || defined(__GNU__) || defined(__gnu_hurd__)
+
+#include <linux/if_packet.h>	// struct sockaddr_ll sll
+#include <net/if.h>		// struct ifreq, IFNAMSIZ
 
 #ifdef HAVE_NETPACKET_PACKET_H
 #include <netpacket/packet.h>
