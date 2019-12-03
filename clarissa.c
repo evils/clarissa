@@ -640,10 +640,13 @@ void dump_state(char* filename, struct Addrss *head) {
 	}
 	flockfile(stats_file);
 	char* tmp_mac;
+	char* tmp_ip;
 	for (struct Addrss *link = head; link != NULL; link = link->next) {
 		asprint_mac(&tmp_mac, link->mac);
-		fprintf(stats_file, "%s\n", tmp_mac);
+		asprint_ip(&tmp_ip, link->ip);
+		fprintf(stats_file, "%s\t%s\n", tmp_mac, tmp_ip);
 		free(tmp_mac);
+		free(tmp_ip);
 	}
 	funlockfile(stats_file);
 	fclose(stats_file);
