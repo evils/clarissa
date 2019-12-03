@@ -1,0 +1,7 @@
+test
+*.o
+*.swp
+.swp
+*.1
+*.3
+*.html
