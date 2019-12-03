@@ -20,12 +20,23 @@ tests
 	get_addrss()
 		assemble a publishable pcap file
 
-get_if_mac()
-	make portable
+docs
+	document output
+		maybe after the domain socket thing?
 
-support "any" device (linux cooked capture)
-	receiving done, can't send packets
-	save interface for each entry, get Host struct for each interface, respond appropriately?
+output
+	switch to domain socket
+		on read, fork, dump out the list, die
+		where to put this?
+
+code
+	support "any" device (linux cooked capture)
+		receiving done, can't send packets
+		save interface for each entry, get Host struct for each interface, respond appropriately?
+			a lot of overhead?
+
+	separately save and output the IPv4 address
+		make sure the most recent [IPv4|IPv6] entry gets used to nag?
 
 CLAR_COUNT.SH:
 

@@ -1,17 +1,19 @@
 SHELL = /usr/bin/env sh
 CFLAGS = -pedantic -Wall -Wextra -g
-LDFLAGS= -lpcap
+LDFLAGS = -lpcap
 
 .PHONY: all
 all: clean clarissa
 
-clarissa: main.o clarissa.o time_tools.o
+clarissa: main.o clarissa.o time_tools.o get_hardware_address.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
+get_hardware_address.o: get_hardware_address/get_hardware_address.c
+	$(CC) $(CFLAGS) -c $<
 
 .PHONY: static
-static: main.o clarissa.o time_tools.o
+static: main.o clarissa.o time_tools.o get_hardware_address.o
 	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
 
 DESTDIR =
@@ -50,6 +52,7 @@ TEST_CFLAGS = -I libtq/include
 ALL_SRCS := $(shell find libtq/src/test -type f -name "*.c")
 ALL_SRCS += libtq/test/test_main.c
 ALL_SRCS += $(wildcard *.c)
+ALL_SRCS += get_hardware_address/get_hardware_address.c
 ALL_TEST := $(shell find test -type f -name "*.c")
 
 
@@ -68,8 +71,8 @@ $(OUTDIR)/libtq.a: $(ALL_SRCS:%.c=$(OUTDIR)/%.o)
 $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -o $@ $^ $(LDFLAGS)
 
-# not tests
 
+# not tests
 index.html: README.md
 	markdown -f +fencedcode README.md > index.html
 

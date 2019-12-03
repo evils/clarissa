@@ -479,35 +479,7 @@ end:
 // fill in the destination with device's MAC address
 void get_if_mac(uint8_t* dest, const char* dev)
 {
-	int fd, rc;
-	struct ifreq ifr;
-
-	if (!dev || !strncpy(ifr.ifr_name, dev, IFNAMSIZ-1))
-	{
-		warn("No device to get MAC address for");
-		return;
-	}
-
-	// get the MAC address of the interface
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	rc = ioctl(fd, SIOCGIFHWADDR, &ifr);
-	close(fd);
-
-	if (!rc)
-	{
-		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
-		{
-			warn("Failed to get host MAC address, not ethernet");
-			return;
-		}
-
-		// copy the MAC address over
-		memcpy(dest, (uint8_t*)ifr.ifr_hwaddr.sa_data, 6);
-	}
-	else
-	{
-		warn("Failed to get host MAC address, may be due to \"any\" device");
-	}
+	get_hardware_address(dev, dest);
 }
 
 // fill in the destination with device's IP Address of Family [4|6]

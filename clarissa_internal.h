@@ -11,6 +11,8 @@
 #include <stdio.h>      // asprintf()
 #include <sys/stat.h>   // chmod
 
+#include "get_hardware_address/get_hardware_address.h"
+
 // ethernet types
 #define IPv4 0x0800
 #define IPv6 0x86DD
