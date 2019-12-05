@@ -152,17 +152,11 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 	switch (type)
 	{
 		case IPv4:
-			// map IPv4 onto IPv6 address
-			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 0xFF, 2);
-			memcpy(addrss->ip+12, frame+12, 4);
+			map_ipv4(addrss->ip, frame+12);
 			return 1;
 
 		case ARP:
-			// map IPv4 onto IPv6 address
-			memset(addrss->ip, 0, 10);
-			memset(addrss->ip+10, 0xFF, 2);
-			memcpy(addrss->ip+12, frame+14, 4);
+			map_ipv4(addrss->ip, frame+14);
 			return 1;
 
 		case IPv6:
@@ -232,7 +226,17 @@ top_of_loop:
 			(*current)->header.ts = new_addrss->header.ts;
 			(*current)->tried = 0;
 			if (!is_zeros(new_addrss->ip, 16))
+			{
+				if(is_mapped(new_addrss->ip))
+				{
+					// safe the latest IPv4 address separately
+					// for user convenience
+					memcpy((*current)->ipv4, new_addrss->ip+12, 4);
+				}
+				// save the latest IP address regardless of version
+				// this is the one used for nagging
 				memcpy((*current)->ip, new_addrss->ip, 16);
+			}
 
 			// move it to the start of the list
 			if (current != head) {
@@ -361,28 +365,20 @@ void print_ip(const uint8_t* ip)
 // same but to a string (remember to free *dest!)
 void asprint_ip(char** dest, const uint8_t* ip)
 {
-	if (is_zeros(ip, 16))
+	if (is_mapped(ip))
 	{
-		*dest = malloc(1);
-		**dest = 0;
+		if (asprintf(dest, "%d.%d.%d.%d",
+			ip[12], ip[13], ip[14], ip[15]) == -1)
+		{
+			err(1, "Failed to asprintf an IPv4 address");
+		}
 	}
 	else
 	{
-		if (is_mapped(ip))
-		{
-			if (asprintf(dest, "%d.%d.%d.%d",
-				ip[12], ip[13], ip[14], ip[15]) == -1)
-			{
-				err(1, "Failed to asprintf an IPv4 address");
-			}
-		}
-		else
-		{
-			// this is surprisingly complicated...
-			*dest = malloc(INET6_ADDRSTRLEN);
-			inet_ntop(AF_INET6, ip,
-				*dest, INET6_ADDRSTRLEN);
-		}
+		// this is surprisingly complicated...
+		*dest = malloc(INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, ip,
+			*dest, INET6_ADDRSTRLEN);
 	}
 }
 
@@ -479,6 +475,15 @@ end:
 // fill in the destination with device's MAC address
 void get_if_mac(uint8_t* dest, const char* dev)
 {
+	// get_hardware_address brings it all down on failure
+	if(!strncmp(dev, "any", 3))
+	{
+		warn("Can't get MAC address for \"any\" device");
+		return;
+	}
+	// separate project
+	// https://gitlab.com/evils/get_hardware_address
+	// portable thanks to the arp-scan contributors
 	get_hardware_address(dev, dest);
 }
 
@@ -508,10 +513,7 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 			if (a->addr->sa_family == AF_INET
 				&& AF == AF_INET)
 			{
-				// map the IPv4 address
-				memset(dest, 0, 10);
-				memset(dest+10, 0xFF, 2);
-				memcpy(dest+12,
+				memcpy(dest,
 				&((struct sockaddr_in*)
 				a->addr)->sin_addr.s_addr, 4);
 
@@ -594,38 +596,81 @@ int is_mapped(const uint8_t* ip)
 }
 
 // write The list out to a file
-void dump_state(char* filename, struct Addrss *head) {
+void dump_state(char* filename, struct Addrss *head)
+{
 	char* tmp_filename;
+
 	if (asprintf(&tmp_filename, "%s.XXXXXX", filename) == -1)
 	{
 		errx(1, "Failed to save temporary filename");
 	}
+
 	int tmp_fd = mkstemp(tmp_filename);
-	if (tmp_fd < 0) {
+
+	if (tmp_fd < 0)
+	{
 		warn("Failed to create temp file");
 		goto end;
 	}
+
 	FILE* stats_file = fdopen(tmp_fd, "w");
-	if (stats_file == NULL) {
+
+	if (stats_file == NULL)
+	{
 		warn("Failed to open stats file");
 		goto end;
 	}
+
 	flockfile(stats_file);
+
 	char* tmp_mac;
-	char* tmp_ip;
-	for (struct Addrss *link = head; link != NULL; link = link->next) {
+	char* tmp_ipv4;
+	char* tmp_ipv6;
+
+	for (struct Addrss *link = head;
+		link != NULL; link = link->next)
+	{
 		asprint_mac(&tmp_mac, link->mac);
-		asprint_ip(&tmp_ip, link->ip);
-		fprintf(stats_file, "%s\t%s\n", tmp_mac, tmp_ip);
+
+		// asprint_ip expects an IPv6 or mapped IPv4 address
+		uint8_t tmpv6[16];
+		map_ipv4(tmpv6, link->ipv4);
+		asprint_ip(&tmp_ipv4, tmpv6);
+
+		if (!is_mapped(link->ip))
+		{
+			asprint_ip(&tmp_ipv6, link->ip);
+		}
+		else
+		{
+			// no IPv6
+			// can't override link->ip
+			// (that's the most recent address independent of v4 or v6)
+			// must allocate something or fprintf will cause a segfault
+			// and i don't want to repeat the IPv4 address
+			if (asprintf(&tmp_ipv6, "::") == -1)
+			{
+				err(1, "Failed to asprintf \"::\"");
+			}
+		}
+
+		fprintf(stats_file, "%s\t%s \t%s\n",
+			tmp_mac, tmp_ipv4, tmp_ipv6);
+
 		free(tmp_mac);
-		free(tmp_ip);
+		free(tmp_ipv4);
+		free(tmp_ipv6);
 	}
+
 	funlockfile(stats_file);
 	fclose(stats_file);
 
-	if ((rename(tmp_filename, filename) < 0) || chmod(filename, 0444)) {
+	if ((rename(tmp_filename, filename) < 0)
+		|| chmod(filename, 0444))
+	{
 		warn("Failed to rename stats file");
 	}
+
 end:
 	free(tmp_filename);
 }
@@ -705,7 +750,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	ptr += 6;
 
 	// sender protocol address (mapped IPv4)
-	memcpy(&frame[ptr], opts->host.ipv4+12, 4);
+	memcpy(&frame[ptr], opts->host.ipv4, 4);
 	ptr += 4;
 
 	// target hardware address
@@ -942,4 +987,13 @@ uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start)
 	while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
 
 	return ~sum;
+}
+
+
+// map an IPv4 address to IPv6
+void map_ipv4(uint8_t* ipv6, const uint8_t ip[4])
+{
+	memset(ipv6, 0, 10);
+	memset(ipv6+10, 0xFF, 2);
+	memcpy(ipv6+12, ip, 4);
 }

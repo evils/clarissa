@@ -29,7 +29,7 @@ NAMES=()
 TALLY=0
 
 while read -r; do
-	LINE="$(grep -i "$REPLY" "$1")"
+	LINE="$(grep -i "$(echo "$REPLY" | awk '{print $1}')" "$1")"
 	if [ "$LINE" ]; then
 		NAMES+=("$(echo "$LINE" | awk -F "," '{print $2}')" )
 	else

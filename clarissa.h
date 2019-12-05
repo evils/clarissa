@@ -13,10 +13,11 @@ int verbosity;
 struct Addrss
 {
 	struct pcap_pkthdr	header;	// pcap metadata for this capture
-	uint8_t 		ip[16];	// IPv6 and mapped IPv4
+	uint8_t 		ipv4[4];// latest IPv4 address
+	uint8_t 		ip[16];	// latest IPv6 or mapped IPv4 address
 	uint8_t 		mac[6];	// source MAC
 	uint64_t		tags;	// VLAN tags (up to 5)
-	uint8_t			tried;	// number of packets sent to target
+	uint16_t		tried;	// number of packets sent to target
 	struct Addrss*		next;	// pointer to next element in list
 };
 
@@ -33,8 +34,8 @@ struct Host
 {
 	struct	Subnet ipv4_subnet;	// subnet base address and mask
 	uint8_t mac[6];			// MAC for ethernet frames
+	uint8_t ipv4[4];		// IPv4 for ARP packets
 	uint8_t ipv6[16];		// IPv6 for NDP packets
-	uint8_t ipv4[16];		// IPv4 for ARP packets
 };
 
 // a bunch of variables used in handle_opts() and elsewhere
