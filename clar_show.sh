@@ -27,4 +27,5 @@ while read -r; do
 	printf "  %s\t\t  %s\n" "$ipv4" "$ipv6"
 done < "$1"
 
-echo
+printf "\nClarissa found %s devices.\n" "$(wc -l $1 | awk '{print $1}')"
+printf "on interface: %s\n\n" "$(echo "$1" | awk -F '_' '{print $2}')"
