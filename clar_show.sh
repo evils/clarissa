@@ -11,14 +11,20 @@ if [ -z "$1" ]; then
 	echo
 fi
 
+echo "format is:"
+echo "MAC	Vendor"
+echo "  IPv4	  IPv6"
+echo
+
 while read -r; do
-	ip="$(echo "$REPLY" | awk '{print $2}')"
+	ipv6="$(echo "$REPLY" | awk '{print $3}')"
+	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$REPLY" | tr -d ":-" | tr "a-f" "A-F" | awk '{print substr($1,1,6)}')"
 	vendor="$(grep "$vend_mac" $oui | awk -F ',' '{print $2}' | sed 's/"//g' )"
 	if [ -z "$vendor" ]; then vendor="(unknown)"; fi
 	printf "%s\t%s\n" "$mac" "$vendor"
-	if [ "$ip" ]; then echo " $ip"; fi
+	printf "  %s\t\t  %s\n" "$ipv4" "$ipv6"
 done < "$1"
 
 echo

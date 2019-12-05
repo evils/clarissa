@@ -23,7 +23,7 @@ fi
 
 fault=0
 count=0
-while [ $count -lt $tries ]; do
+while [ $count -le $tries ]; do
 
 	if [ $count -ge $tries ]; then fault=1; break; fi
 
@@ -53,7 +53,7 @@ done
 if [ $fault -gt 0 ]; then
 	echo "failed to get $file"
 	rm -rf $tmp $file
-	exit
+	exit $fault
 fi
 
 rm -f $file
