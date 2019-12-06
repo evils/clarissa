@@ -1,3 +1,17 @@
+code
+	output
+		switch to domain socket
+			on read, fork, dump out the list, die
+			where to put this?
+
+	support "any" device (linux cooked capture)
+		receiving done, can't send packets
+		save interface for each entry, get Host struct for each interface, respond appropriately?
+			a lot of overhead?
+		separate listen and send interface +1
+
+	add way to separate listening and sending interface
+
 packaging
 	daemonizing
 		figure out dealing with multiple instances
@@ -24,21 +38,12 @@ docs
 	document output
 		maybe after the domain socket thing?
 
-output
-	switch to domain socket
-		on read, fork, dump out the list, die
-		where to put this?
 
-code
-	support "any" device (linux cooked capture)
-		receiving done, can't send packets
-		save interface for each entry, get Host struct for each interface, respond appropriately?
-			a lot of overhead?
+tools
 
-	separately save and output the IPv4 address
-		make sure the most recent [IPv4|IPv6] entry gets used to nag?
+	show
+		add reverse DNS lookup
 
-CLAR_COUNT.SH:
-
-	make sure log() doesn't lose data
-	find a place for macs.csv
+	count
+		make sure log() doesn't lose data
+		find a place for macs.csv
