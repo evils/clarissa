@@ -12,9 +12,14 @@ if [ -z "$1" ]; then
 fi
 
 echo "format is:"
-echo "MAC	Vendor"
-echo "  IPv4	  IPv6"
+printf "MAC\tVendor\n  IPv4\t  IPv6\n"
 echo
+
+printf "Interface: %s\n" "$(echo "$1" | awk -F '_' '{print $2}')"
+count=$(wc -l "$1" | awk '{print $1}')
+printf "Clarissa found %s device" "$count"
+if [ $count -gt 1 ]; then printf "s"; fi
+printf "\n\n"
 
 while read -r; do
 	ipv6="$(echo "$REPLY" | awk '{print $3}')"
@@ -27,5 +32,4 @@ while read -r; do
 	printf "  %s\t\t  %s\n" "$ipv4" "$ipv6"
 done < "$1"
 
-printf "\nClarissa found %s devices.\n" "$(wc -l $1 | awk '{print $1}')"
-printf "on interface: %s\n\n" "$(echo "$1" | awk -F '_' '{print $2}')"
+echo
