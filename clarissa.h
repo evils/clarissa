@@ -34,8 +34,8 @@ struct Host
 {
 	struct	Subnet ipv4_subnet;	// subnet base address and mask
 	uint8_t mac[6];			// MAC for ethernet frames
-	uint8_t ipv4[4];		// IPv4 for ARP packets
 	uint8_t ipv6[16];		// IPv6 for NDP packets
+	uint8_t ipv4[16];		// IPv4 for ARP packets (mapped on IPv6 for ease of use)
 };
 
 // a bunch of variables used in handle_opts() and elsewhere

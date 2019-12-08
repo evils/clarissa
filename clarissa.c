@@ -513,9 +513,9 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 			if (a->addr->sa_family == AF_INET
 				&& AF == AF_INET)
 			{
-				memcpy(dest,
+				map_ipv4(dest,(const uint8_t *)
 				&((struct sockaddr_in*)
-				a->addr)->sin_addr.s_addr, 4);
+				a->addr)->sin_addr.s_addr);
 
 				// stop at 1 address
 				goto end;
@@ -750,7 +750,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	ptr += 6;
 
 	// sender protocol address (mapped IPv4)
-	memcpy(&frame[ptr], opts->host.ipv4, 4);
+	memcpy(&frame[ptr], opts->host.ipv4+12, 4);
 	ptr += 4;
 
 	// target hardware address
