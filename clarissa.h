@@ -41,23 +41,23 @@ struct Host
 // a bunch of variables used in handle_opts() and elsewhere
 struct Opts
 {
-	//pcap stuff
-	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t* handle;
-	char* dev;
+	// pcap stuff
+	char errbuf[PCAP_ERRBUF_SIZE];	// pcap stuff
+	pcap_t* handle;			// pcap stuff
+	char* dev;			// name of the device to listen on
 
 	// clarissa stuff
-	struct Subnet subnet;
-	struct Host host;
-	int timeout;
-	int interval;
-	int print_interval;
-	char* print_filename;
-	int nags;
-	int promiscuous;
-	int cidr;
-	int run;
-	int immediate;
+	struct Subnet subnet;	// IPv4 subnet to filter by before nagging
+	struct Host host;	// details of the interface being used
+	int timeout;		// hold-off time between receiving a frame and [nagging|culling]
+	int interval;		// how often to run through the main loop
+	int print_interval;	// how often to output the file
+	char* print_filename;	// name of the output file
+	int nags;		// how many times to nag a known MAC before culling it
+	int promiscuous;	// whether to pcap_set_promisc on the listening interface
+	int cidr;		// how many subnets have been set (<=1 valid) by handle_opts()
+	int run;		// whether to run, 0 if just printing the header
+	int immediate;		// whether to pcap_set_immediate_mode
 };
 
 // extraction
