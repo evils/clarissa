@@ -41,10 +41,12 @@ struct Host
 // a bunch of variables used in handle_opts() and elsewhere
 struct Opts
 {
-	// pcap stuff
-	char errbuf[PCAP_ERRBUF_SIZE];	// pcap stuff
-	pcap_t* handle;			// pcap stuff
-	char* dev;			// name of the device to listen on
+	//pcap stuff
+	char errbuf[PCAP_ERRBUF_SIZE];
+	char* l_dev;		// name string for the listen device
+	pcap_t* l_handle;	// listen handle from which we get frames
+	char* s_dev;		// name string for the sending device
+	pcap_t* s_handle;	// sending handle to which we send nag frames
 
 	// clarissa stuff
 	struct Subnet subnet;	// IPv4 subnet to filter by before nagging

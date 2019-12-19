@@ -679,7 +679,7 @@ void get_if_ipv4_subnet(struct Subnet* subnet, struct Opts* opts)
 {
 	// get IPv4 subnet base address and actual mask
 	uint32_t netp, maskp;
-	pcap_lookupnet(opts->dev, &netp, &maskp, opts->errbuf);
+	pcap_lookupnet(opts->s_dev, &netp, &maskp, opts->errbuf);
 
 	// save base address mapped to IPv6
 	memset(subnet->ip, 0, 16);
@@ -764,7 +764,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	// frame check sequence (CRC) done by NIC?
 
 	// send the frame
-	if (pcap_inject(opts->handle, &frame, count) != count)
+	if (pcap_inject(opts->s_handle, &frame, count) != count)
 	{
 		warn("Failed to inject ARP frame");
 	}
@@ -918,7 +918,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	// frame check sequence (CRC) done by NIC?
 
 	// send the frame
-	if (pcap_inject(opts->handle, &frame, count) != count)
+	if (pcap_inject(opts->s_handle, &frame, count) != count)
 	{
 		warn("Failed to inject NDP frame");
 	}

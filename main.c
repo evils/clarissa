@@ -35,7 +35,7 @@ int main (int argc, char *argv[])
 	// capture, extract and update list of addresses
 	for (;!sig;)
 	{
-		int result = pcap_next_ex(opts.handle,
+		int result = pcap_next_ex(opts.l_handle,
 					&header, &frame);
 		switch (result)
 		{
@@ -43,7 +43,7 @@ int main (int argc, char *argv[])
 				printf("End of savefile reached.\n");
 				goto end;
 			case -1:
-				pcap_perror(opts.handle,
+				pcap_perror(opts.l_handle,
 					"Reading packet: ");
 				continue;
 			case 0:
@@ -53,7 +53,7 @@ int main (int argc, char *argv[])
 				break;
 			case 1:
 			{
-				addrss = get_addrss(opts.handle,
+				addrss = get_addrss(opts.l_handle,
 						frame, header);
 
 				// zero IP if not in the set subnet
@@ -111,7 +111,7 @@ int main (int argc, char *argv[])
 	if(verbosity)
 	{
 		struct pcap_stat ps = {0};
-		if(!pcap_stats(opts.handle, &ps))
+		if(!pcap_stats(opts.l_handle, &ps))
 		{
 			printf
 			("\nclarissa sent\t\t%lu\n", count);
@@ -125,6 +125,9 @@ int main (int argc, char *argv[])
 	}
 
 // cleanup
+
+	// skip filename removal if EOF is reached
+	remove(opts.print_filename);
 end:
 
 	for (struct Addrss* tmp; head != NULL;)
@@ -133,7 +136,6 @@ end:
 		head = head->next;
 		free(tmp);
 	}
-	remove(opts.print_filename);
 	fprintf(stderr, "\nStopped by:\t\t");
 	switch (sig)
 	{
@@ -149,9 +151,11 @@ end:
 // and the stuff that's used by the header
 end_header:
 
-	pcap_close(opts.handle);
+	if(opts.l_handle) pcap_close(opts.l_handle);
+	if(opts.s_handle) pcap_close(opts.s_handle);
 	free(opts.print_filename);
-	free(opts.dev);
+	if(opts.l_dev) free(opts.l_dev);
+	if(opts.s_dev != opts.l_dev) free(opts.s_dev);
 	return 0;
 }
 
@@ -201,6 +205,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	verbosity 	= 0;
 	int version	= 0;
 	int nags_set 	= 0;
+	char* auto_dev	= NULL;
+	char* filename	= NULL;
 
 	int opt;
 
@@ -213,6 +219,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"promiscuous",		no_argument, 0,		'p'},
 			{"quiet",		no_argument, 0,		'q'},
 			{"unbuffered",		no_argument, 0,		'u'},
+			{"listen",		required_argument, 0,	'l'},
 			{"interface",		required_argument, 0,	'I'},
 			{"interval",		required_argument, 0,	'i'},
 			{"nags", 		required_argument, 0,	'n'},
@@ -223,7 +230,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"output_interval",	required_argument, 0,	'O'}
 		};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "uHVvi:pn:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, "uHVvi:pn:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
@@ -255,6 +262,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 					nags_set = 1;
 				}
 				break;
+			case 'l':
+				// get the listen interface
+				if (asprintf(&opts->l_dev, "%s", optarg) == -1)
+				{
+					errx(1, "Failed to save given listening interface name");
+				}
+				break;
 			case 't':
 				// get timeout in ms
 				opts->timeout = (atoi(optarg) * 1000);
@@ -265,28 +279,17 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				nags_set = 1;
 				break;
 			case 'f':
-				// file has priority over device
-				opts->dev = NULL;
-				if (!nags_set)
+				// save filename
+				if (asprintf(&filename, "%s", optarg) == -1)
 				{
-					opts->nags = 0;
-					nags_set = 2;
+					errx(1, "Failed to save given file name");
 				}
-				opts->handle = pcap_open_offline
-						(optarg, opts->errbuf);
 				break;
 			case 'I':
-				// get the interface
-				if (asprintf(&opts->dev, "%s", optarg) == -1)
+				// get the sending interface
+				if (asprintf(&opts->s_dev, "%s", optarg) == -1)
 				{
-					errx(1, "Failed to save given interface name");
-				}
-				if (!strcmp(opts->dev, "any"))
-				{
-					printf("using \"any\" device\n");
-					// can't nag with "any" device
-					opts->nags = 0;
-					nags_set = 3;
+					errx(1, "Failed to save given sending interface name");
 				}
 				break;
 			case 's':
@@ -351,14 +354,34 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		opts->print_interval = opts->timeout / 2;
 	}
 
-	// TODO, clean this up?
-	if (!opts->dev && !opts->handle)
+	// can't listen on loopback
+	// set to NULL to allow fallback to s_dev or auto_dev
+	if (opts->l_dev && !strncmp(opts->l_dev, "lo", 2))
+	{
+		warn("Listening to loopback currently not supported"
+		", falling back on something else.");
+		free(opts->l_dev);
+		opts->l_dev = NULL;
+	}
+
+	// can't send to the "any" interface
+	// set to null to allow fallback to auto_dev
+	if (opts->s_dev && !strncmp(opts->s_dev, "any", 3))
+	{
+		warn("Sending to \"any\" currently not supported"
+		", falling back on the first available interface.");
+		free(opts->s_dev);
+		opts->s_dev = NULL;
+	}
+
+	// auto select dev if needed
+	if (!opts->l_dev || !opts->s_dev)
 	{
 		pcap_if_t* devs;
 		if (pcap_findalldevs(&devs, opts->errbuf)
 			|| devs == NULL)
 		{
-			err(1, "Failed to find a device\n");
+			err(1, "Failed to find an interface\n");
 		}
 
 		if (devs->description != NULL && verbosity > 2)
@@ -366,34 +389,70 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			printf("%s\n", devs->description);
 		}
 
-		if (asprintf(&opts->dev, "%s", devs->name) == -1)
+		if (asprintf(&auto_dev, "%s", devs->name) == -1)
 		{
-			errx(1, "Failed to save found interface name");
+			errx(1, "Failed to save found listen interface name");
 		}
+
 		pcap_freealldevs(devs);
 	}
-	else if (nags_set == 1)
-		printf("Recommended nags for file input is 0\n");
-	char lo[] = "lo";
-	if (opts->dev != NULL && !strncmp(opts->dev, lo, 2))
-		errx(1, "loopback device currently not supported");
 
-	if (!opts->handle)
+	// fall back on s_dev or auto_dev
+	if (!opts->l_dev)
 	{
-		opts->handle = pcap_create(opts->dev, opts->errbuf);
-		if (opts->handle == NULL)
+		if (opts->s_dev)
 		{
-			errx(1, "Failed to create pcap handle: %s",
+			if (asprintf(&opts->l_dev, "%s", opts->s_dev)
+				== -1)
+			{
+				errx(1, "Failed to write s_dev to l_dev");
+			}
+		}
+		else
+		{
+			if (asprintf(&opts->l_dev, "%s", auto_dev)
+				== -1)
+			{
+				errx(1, "Failed to write auto_dev to l_dev");
+			}
+		}
+	}
+
+	// fall back on auto_dev
+	if (!opts->s_dev)
+	{
+		if (asprintf(&opts->s_dev, "%s", auto_dev) == -1)
+		{
+			errx(1, "Failed to save auto_dev to s_dev");
+		}
+	}
+
+	// assert everything's set up
+	// TODO, support listening from file and sending to stdout or file
+	// this would involve no devices...
+	if (!(opts->l_dev && opts->s_dev))
+	{
+		errx(1, "Failed to set up device(s)");
+	}
+
+	// make l_handle
+	if (!filename)
+	{
+		opts->l_handle = pcap_create(opts->l_dev,
+			opts->errbuf);
+		if (opts->l_handle == NULL)
+		{
+			errx(1, "pcap failed to create l_handle: %s",
 				opts->errbuf);
 		}
 
 		// 74 = capture length
-		if (pcap_set_snaplen(opts->handle, 74))
+		if (pcap_set_snaplen(opts->l_handle, 74))
 		{
 			warn("Failed to set snapshot length");
 		}
 
-		if (pcap_set_promisc(opts->handle,
+		if (pcap_set_promisc(opts->l_handle,
 			opts->promiscuous))
 		{
 			warn("Failed to set promiscuous mode");
@@ -401,25 +460,25 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 		// timeout shouldn't have an effect if immediate
 		// pcap timeout = half the interval (in milliseconds)
-		if (pcap_set_timeout(opts->handle,
+		if (pcap_set_timeout(opts->l_handle,
 			opts->interval / 2000))
 		{
 			warn("Failed to set packet buffer timeout");
 		}
 
 		if (pcap_set_immediate_mode
-			(opts->handle, opts->immediate))
+			(opts->l_handle, opts->immediate))
 		{
 			warn("Failed to set immediate mode");
 		}
 
-		int result = pcap_activate(opts->handle);
+		int result = pcap_activate(opts->l_handle);
 		switch (result)
 		{
 			// warnings
 			case PCAP_WARNING_PROMISC_NOTSUP:
 				pcap_perror
-				(opts->handle, "Activation: ");
+				(opts->l_handle, "Activation: ");
 				warn
 				("promiscuous mode not supported");
 				break;
@@ -428,18 +487,18 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			case PCAP_WARNING:
 				pcap_perror
-				(opts->handle, "Activation: ");
+				(opts->l_handle, "Activation: ");
 				break;
 			// errors
 			case PCAP_ERROR_ACTIVATED:
-				errx(1, "handle already active");
+				errx(1, "l_handle already active");
 			case PCAP_ERROR_NO_SUCH_DEVICE:
 				pcap_perror
-				(opts->handle, "Activation: ");
+				(opts->l_handle, "Activation: ");
 				errx(1, "no such capture source");
 			case PCAP_ERROR_PERM_DENIED:
 				pcap_perror
-				(opts->handle, "Activation: ");
+				(opts->l_handle, "Activation: ");
 				errx
 				(1, "no permission to open source");
 			case PCAP_ERROR_PROMISC_PERM_DENIED:
@@ -451,24 +510,53 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				errx(1, "capture source is not up");
 			case PCAP_ERROR:
 				pcap_perror
-				(opts->handle, "Activation: ");
+				(opts->l_handle, "Activation: ");
 		}
 	}
 
-	// fill in the host ID
-	get_if_mac(opts->host.mac, opts->dev);
-	get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
-	get_if_ip(opts->host.ipv4, opts->dev, AF_INET, opts->errbuf);
-	get_if_ip(opts->host.ipv6, opts->dev, AF_INET6,opts->errbuf);
+	// separate sending interface
+	if (opts->nags)
+	{
+		opts->s_handle = pcap_open_live(opts->s_dev, 0, 0, 0,
+			opts->errbuf);
+		if (opts->s_handle == NULL)
+		{
+			errx(1, "pcap failed to create s_handle: %s",
+				opts->errbuf);
+		}
+	};
 
-	// print_filename needs host.mac
+	// one interface
+	if (!opts->s_handle && opts->l_handle)
+	{
+		opts->s_handle = opts->l_handle;
+	};
+
+	// overwrite l_handle if a file input is being used
+	if (filename)
+	{
+		opts->l_handle = pcap_open_offline(filename, opts->errbuf);
+	}
+
+	// fill in the host ID
+	get_if_mac(opts->host.mac, opts->s_dev);
+	get_if_ipv4_subnet(&opts->host.ipv4_subnet, opts);
+	get_if_ip(opts->host.ipv4, opts->s_dev, AF_INET, opts->errbuf);
+	get_if_ip(opts->host.ipv6, opts->s_dev, AF_INET6,opts->errbuf);
+
+	// print_filename needs host.ipv4_subnet
 	if (!opts->print_filename)
 	{
 		char* ip;
 		asprint_ip(&ip, opts->host.ipv4_subnet.ip);
-		if (asprintf(&opts->print_filename,
-			"/tmp/clar_%s_%s-%i", opts->dev, ip,
-				opts->host.ipv4_subnet.mask - 96) == -1)
+		if (asprintf(&opts->print_filename
+			// output to current directory (not removed)
+			// if reading from file
+			, !filename ? "/tmp/clar_%s_%s-%i"
+			: "clar_parsed_%s"
+			, filename ? filename : opts->l_dev
+			, ip
+			, opts->host.ipv4_subnet.mask - 96) == -1)
 		{
 			errx(1, "Failed to set the output filename");
 		}
@@ -481,17 +569,20 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			errx(1, "Failed to set the output filename");
 		}
 	}
+
+	free(auto_dev);
 }
 
 void print_header(struct Opts* opts)
 {
 	if (!verbosity)
 		fprintf(stderr, "Verbosity:\t%d\n\n", verbosity);
-	if (!opts->dev) printf("Using file input\n\n");
-	if (verbosity && opts->dev)
+	if (!opts->l_dev) printf("Using file input\n\n");
+	if (verbosity && opts->s_dev)
 	{
 		// host block
-		printf("Host interface:\t\t%s\n", opts->dev);
+		printf("Listen interface:\t%s\n", opts->l_dev);
+		printf("Host interface:\t\t%s\n", opts->s_dev);
 		printf("Host MAC address:\t");
 		print_mac(opts->host.mac);
 		if (verbosity > 1)

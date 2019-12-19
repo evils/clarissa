@@ -4,14 +4,6 @@ code
 			on read, fork, dump out the list, die
 			where to put this?
 
-	support "any" device (linux cooked capture)
-		receiving done, can't send packets
-		save interface for each entry, get Host struct for each interface, respond appropriately?
-			a lot of overhead?
-		separate listen and send interface +1
-
-	add way to separate listening and sending interface
-
 packaging
 	daemonizing
 		figure out dealing with multiple instances
