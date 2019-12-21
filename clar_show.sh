@@ -12,7 +12,7 @@ if [ -z "$1" ]; then
 fi
 
 echo "format is:"
-printf "MAC\tVendor\n  IPv4\t  IPv6\n"
+printf "MAC\tvendor\n  IPv4\t  domain\t  IPv6\n"
 echo
 
 printf "Interface: %s\n" "$(echo "$1" | awk -F '_' '{print $2}')"
@@ -22,14 +22,25 @@ if [ $count -gt 1 ]; then printf "s"; fi
 printf "\n\n"
 
 while read -r; do
-	ipv6="$(echo "$REPLY" | awk '{print $3}')"
-	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$REPLY" | tr -d ":-" | tr "a-f" "A-F" | awk '{print substr($1,1,6)}')"
 	vendor="$(grep "$vend_mac" $oui | awk -F ',' '{print $2}' | sed 's/"//g' )"
+
+	ipv4="$(echo "$REPLY" | awk '{print $2}')"
+	ipv6="$(echo "$REPLY" | awk '{print $3}')"
+	domain="$(dig -x "$ipv4" | grep "ANSWER SECTION" -A 1 | awk '{print substr($5, 1, length($5)-1)}' | sed '/^\s*$/d')"
+
 	if [ -z "$vendor" ]; then vendor="(unknown)"; fi
 	printf "%s\t%s\n" "$mac" "$vendor"
-	printf "  %s\t\t  %s\n" "$ipv4" "$ipv6"
+	printf "  %s\t\t" "$ipv4"
+	if [ "$domain" ]; then
+		printf "  %s" "$domain"
+		if [ $(echo "$domain" | wc -c) -le 12 ]; then
+			printf "\t"
+		fi
+	else printf "\t\t"
+	fi
+	printf "\t  %s\n" "$ipv6"
 done < "$1"
 
 echo
