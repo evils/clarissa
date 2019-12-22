@@ -1,20 +1,21 @@
 SHELL = /usr/bin/env sh
 CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS = -lpcap
+OBJS = main.o clarissa.o time_tools.o get_hardware_address.o
 
 .PHONY: all
 all: clean clarissa
 
-clarissa: main.o clarissa.o time_tools.o get_hardware_address.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+clarissa: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 get_hardware_address.o: get_hardware_address/get_hardware_address.c
 	$(CC) $(CFLAGS) -c $<
 
 .PHONY: static
-static: main.o clarissa.o time_tools.o get_hardware_address.o
-	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
+static: $(OBJS)
+	$(CC) $(CFLAGS) -static -o clarissa_static $(OBJS) $(LDFLAGS)
 
 DESTDIR =
 PREFIX = /usr

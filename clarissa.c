@@ -36,9 +36,9 @@ struct Addrss get_addrss
 			switch (net_get_u16(frame += 2))
 			{
 				// unsupported ARPHRD_ types
-				case 824: // ARPHRD_NETLINK
-				case ARPHRD_IPGRE:
-				case ARPHRD_IEEE80211_RADIOTAP:
+				case 824:	// ARPHRD_NETLINK
+				case 778: 	// ARPHRD_IPGRE
+				case 803:	// ARPHRD_IEEE80211_RADIOTAP
 					// if DLT_IEEE802_11 gets support,
 					// go there?
 					if (verbosity > 4)

@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/socket.h> // AF_INET, AF_INET6, freebsd
 
 #include "clarissa.h"
 

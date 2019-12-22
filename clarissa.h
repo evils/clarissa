@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 
 #include <pcap.h>	// pcap everything duh
+#include <netinet/in.h> // sockaddr_in, sockaddr_in6, freebsd
 
 #include "time_tools.h"	// usec_diff()
 
