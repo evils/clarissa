@@ -1,12 +1,13 @@
 output
 	raw list available on the machine as a file
-		include IPs to allow resumption?
+		since the default file storage is in /tmp, no stale data remains
 		switch to a domain socket?
 			requires either socat or "clarissa state"
 				socat's not guaranteed to be available
 					clarissa is
 						por que no los dos?
-			since the default file storage is in /tmp, it shouldn't be kept (no privacy issue)
+			more requests == more dead time
+				fork() on request, die after replying
 			a domain socket could easily be exposed over the network?
 			would lose the potential to allow resumption (unless the file output is kept)
 		separate program translates list and makes available on LAN?
@@ -15,7 +16,6 @@ output
 				can't be integrated because of topic?
 				separate script or just crontab oneliner with mosquitto_pub
 					does run clar_count.sh twice...
-			use the OUI registry?
 
 preload
 	if output is persistent and includes the IP address, load
