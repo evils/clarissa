@@ -169,7 +169,7 @@ void help()
 {
 	printf("Clarissa keeps a list of all connected devices on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = interface's IPv4 subnet, output file = /tmp/clar_[dev]_[subnet]-[mask], file output interval = timeout / 2 \n");
+	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = Interface's IPv4 subnet, output file = /tmp/clar_[dev]_[subnet]-[mask], file output interval = timeout / 2\n");
 
 	print_opts();
 }
@@ -186,12 +186,13 @@ void print_opts()
 	printf("--promiscuous\t-p\n\tset the interface to Promiscuous mode\n");
 	printf("--unbuffered\t-u\n\tdon't buffer packets (use immediate mode)\n");
 	printf("\nRequiring an argument:\n\n");
-	printf("--interface\t-I\n\tset the Interface used. If set to \"any\", -n 0 is forced\n");
+	printf("--interface\t-I\n\tset the primary Interface\n");
+	printf("--listen\t-l\n\tset the Listening interface\n");
 	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
 	printf("--nags\t\t-n\n\tset the number of times to \"Nag\" a target\n");
 	printf("--timeout\t-t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
 	printf("--subnet\t-s\n\tget a Subnet to filter by (in CIDR notation)\n");
-	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin)), forces -n 0\n");
+	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n");
 	printf("--output_file\t-o\n\tset the output filename\n");
 	printf("--output_interval -O\n\tset the Output interval\n");
 }
@@ -358,7 +359,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// set to NULL to allow fallback to s_dev or auto_dev
 	if (opts->l_dev && !strncmp(opts->l_dev, "lo", 2))
 	{
-		warn("Listening to loopback currently not supported"
+		warn("Listening on loopback currently not supported"
 		", falling back on something else.");
 		free(opts->l_dev);
 		opts->l_dev = NULL;
@@ -375,7 +376,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	}
 
 	// auto select dev if needed
-	if (!opts->l_dev || !opts->s_dev)
+	if (!opts->l_dev || !opts->s_dev
+		|| (opts->s_dev && !strncmp(opts->s_dev, "lo", 2)))
 	{
 		pcap_if_t* devs;
 		if (pcap_findalldevs(&devs, opts->errbuf)
@@ -400,7 +402,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// fall back on s_dev or auto_dev
 	if (!opts->l_dev)
 	{
-		if (opts->s_dev)
+		if (opts->s_dev && strncmp(opts->s_dev, "lo", 2))
 		{
 			if (asprintf(&opts->l_dev, "%s", opts->s_dev)
 				== -1)

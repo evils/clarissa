@@ -1,3 +1,13 @@
+clarissa (0.7) unstable; urgency=medium
+
+  * file output line format is now MAC <tab> IPv4 <tab> IPv6
+  * separate listening interface is now an option
+  * use get_hardware_address() for get_if_mac()
+  * cleanup libtq subtree
+  * FreeBSD supported
+
+ -- Evils <evils.devils@protonmail.com>  Tue, 24 Dec 2019 20:29:00 +0200
+
 clarissa (0.6.1) unstable; urgency=medium
 
   * don't strncmp NULL in file input mode

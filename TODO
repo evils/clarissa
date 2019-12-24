@@ -3,6 +3,13 @@ code
 		switch to domain socket
 			on read, fork, dump out the list, die
 			where to put this?
+				/run/clar/192.168.0.0/16?
+
+	reconsider options
+		make capitalization more consistent?
+		add redundant options?
+		separate flags and options?
+		separate setup and algorithm options?
 
 packaging
 	daemonizing
@@ -30,12 +37,6 @@ docs
 	document output
 		maybe after the domain socket thing?
 
-
-tools
-
-	show
-		add reverse DNS lookup
-
-	count
+CLAR_COUNT
 		make sure log() doesn't lose data
 		find a place for macs.csv
