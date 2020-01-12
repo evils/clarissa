@@ -31,9 +31,9 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <pcap.h>
+/* #include <pcap.h> */
 #include <sys/ioctl.h>
-//#include <sys/bufmod.h>
+/* #include <sys/bufmod.h> */
 #include <search.h>
 
 
@@ -170,19 +170,11 @@ size_t strlcpy(char* dst, const char* src, size_t siz)
 }
 
 
-// most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/
+/* most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
 #if defined(__linux__) || defined(__linux) || defined(__gnu_linux__) || defined(linux) || defined(__ANDROID__) || defined(__GNU__) || defined(__gnu_hurd__)
 
-#include <linux/if_packet.h>	// struct sockaddr_ll sll
-#include <net/if.h>		// struct ifreq, IFNAMSIZ
-
-#ifdef HAVE_NETPACKET_PACKET_H
-#include <netpacket/packet.h>
-#endif
-
-#ifdef HAVE_NET_IF_H
-#include <net/if.h>
-#endif
+#include <linux/if_packet.h>	/* struct sockaddr_ll sll */
+#include <net/if.h>		/* struct ifreq, IFNAMSIZ */
 
 /*
  *	Link layer handle structure for packet socket.
@@ -582,8 +574,9 @@ void get_hardware_address
 
 
 #elif defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(TOS_WIN__) || defined(__WINDOWS__) || defined(OS_Windows)
-// TODO
-// placeholder
+/* TODO
+ * placeholder
+*/
 #include <err.h>
 void get_hardware_address
 (const char* if_name, unsigned char hw_address[])
