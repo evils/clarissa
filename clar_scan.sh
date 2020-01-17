@@ -18,7 +18,15 @@ while read -r "REPLY"; do
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$REPLY" | tr -d ":-" | tr "a-f" "A-F" | awk '{print substr($1,1,6)}')"
 	vendor="$(grep "$vend_mac" $oui | awk -F ',' '{print $2}' | sed 's/"//g' )"
-	if [ -z "$vendor" ]; then vendor="(unknown)"; fi
+	if [ -z "$vendor" ]; then
+		vendor="(Unknown"
+		byte2="$(echo "$vend_mac" | cut -b 2)"
+		result="$(( ( "$byte2" / 2 ) % 2 ))"
+		if [ "$result" -eq 1 ]; then
+			vendor="$(printf "%s: locally administered" "$vendor")"
+		fi
+		vendor="$(printf "%s)" "$vendor")"
+	fi
 	if [ "$ipv4" = "0.0.0.0" ]; then continue; fi
 	printf "%s \\t%s\\t%s\\n" "$ipv4" "$mac" "$vendor"
 	count=$(( count + 1 ))
