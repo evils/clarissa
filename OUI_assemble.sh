@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-rev="e7c037439e5e9b35f4608eebae5464089c4f59af"
+rev="e34197559bf9f307baeb2ef543cb9e5491c57d1b"
 path="https://raw.githubusercontent.com/hdm/mac-ages/$rev/data/ieee/"
 tables="cid iab mam oui oui36"
 
@@ -9,7 +9,7 @@ tmp=".tmp_$file"
 
 # to ensure this script ran correctly
 # should get checked by nix regardless, but not elsewhere
-sha256="f0dfd56de696e2c39be70363edffdce4d1da7c34cce09f34d24072940fea5542  -"
+sha256="afb18362a357be377c42d4f46e86b7298b02d3f2058186ce404410a938b9980a  -"
 tries=2
 
 if [ "$(type wget)" ]; then
