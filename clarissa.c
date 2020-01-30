@@ -5,12 +5,28 @@
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header)
 {
+	if (header->len < header->caplen)
+	{
+		warn("Frame is shorter than required");
+		goto fail;
+	}
 	struct Addrss addrss = {0};
-	addrss.header = *header;
 
-	// assume a packet is correct (discard len < caplen (74) ?)
+	intptr_t max = (intptr_t)frame + header->caplen;
+
+	// internally, only 1 timestamp is available, held in ipv4_t
+	// if addrss.latest (IPv6 is the latest address)
+	// this timestamp gets moved to ipv6_t and ipv4_t gets nulled
+	// at the label "end"
+	// everything that uses the returned addresses,
+	// must check addrss.latest before using ipv*_t
+	// and should check if the MAC or ipv*_t is non-zero
+	addrss.ipv4_t = header->ts;
+
+	// assume a packet is correct
 	// an invalid MAC will be unreachable and get purged
-	// check if the IP is in the right range later?
+	// IP may go through subnet_filter() later
+	// and an empty result may be caught by addrss_valid()
 
 	// link type is separately stored metadata
 	switch (pcap_datalink(handle))
@@ -20,19 +36,34 @@ struct Addrss get_addrss
 			// preamble and start of frame delimiter not included
 
 			// skip to source MAC address and store it
+			// check bounds and fail on zeros MAC
+			if ((intptr_t)frame + (6 + 6) > max
+				|| is_zeros(frame + 6, 6))
+			{
+				warn("Exceeded capture length or MAC is zeros");
+				goto fail;
+			}
 			memcpy(addrss.mac, frame += 6, 6);
 
 			// skip to metadata and get IP address
-			if (get_tag(frame += 6, &addrss)) return addrss;
-			else if (verbosity > 3)
-				warn("failed to extract ethernet frame");
+			if (get_tag(frame += 6, max, &addrss)) goto end;
+			else
+			{
+				if (verbosity > 3)
+				warn("Failed to extract ethernet frame");
 
-			goto fail;
+				goto fail;
+			}
 
 		case DLT_LINUX_SLL:
 	// as per https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html
 		{
-			int bail = 0;
+			bool bail = false;
+			if ((intptr_t)frame + 2 > max)
+			{
+				warn("Exceeded frame length at DLT_LINUX_SLL, 0");
+				goto fail;
+			}
 			switch (net_get_u16(frame += 2))
 			{
 				// unsupported ARPHRD_ types
@@ -43,29 +74,36 @@ struct Addrss get_addrss
 					// go there?
 					if (verbosity > 4)
 						warn
-					("unknown ARPHRD_ type found");
+					("Unknown ARPHRD_ type found");
 
-					bail = 1;
+					bail = true;
 			}
 
 			// only get the 6 byte link-layer addresses
 			uint8_t len[2] = {0};
 			uint16_t mac_len = 6;
 			net_put_u16(len, mac_len);
+			if ((intptr_t)frame + 2 > max)
+			{
+				warn("Exceeded frame length at DLT_LINUX_SLL, 1");
+				goto fail;
+			}
 			if (memcmp(len, frame += 2, 2))
 			{
 				if (verbosity > 3)
 					warn
-		("unsupported link-layer address length on \"any\" device");
+		("Unsupported link-layer address length on \"any\" device");
+				goto fail;
+			}
+			if ((intptr_t)frame + (2 + 6) > max)
+			{
+				warn("Exceeded frame length at DLT_LINUX_SLL, 2");
 				goto fail;
 			}
 			memcpy(addrss.mac, frame += 2, 6);
 
-			if (bail) return addrss;
+			if (bail == true) goto end;
 
-			// can't nag on "any" device, dead code...
-			return addrss;
-			/*
 			// SLL reserves 8 bytes for link-layer address
 			frame += 8;
 
@@ -77,18 +115,21 @@ struct Addrss get_addrss
 				case 0x0002:
 				case 0x0003:
 				case 0x0004:
-				case 0x000C: return addrss;
+				case 0x000C: goto end;
 			}
-			if (get_eth_ip(frame += 2, &addrss,
+			if (get_eth_ip(frame += 2, max, &addrss,
 				type <= 1500 ? ETH_SIZE : type))
 			{
-				return addrss;
+				goto end;
 			}
-			else if (verbosity > 3)
-				warn
-				("failed to extract \"any\" ethernet frame");
-			goto fail;
-			*/
+			else
+			{
+				if (verbosity > 3)
+					warn
+				("Failed to extract \"any\" ethernet frame");
+
+				goto fail;
+			}
 		}
 
 		case DLT_IEEE802_11:
@@ -97,24 +138,38 @@ struct Addrss get_addrss
 			goto fail;
 
 		default:
-			warn("unsupported link type: %i",
+			warn("Unsupported link type: %i",
 				pcap_datalink(handle));
 			goto fail;
 	}
 
 fail:
-		return (struct Addrss){0};
+	if (verbosity > 4)
+	{
+		warn("Failed to extract a frame");
+	}
+	return (struct Addrss){0};
+end:
+	if (addrss.latest == true)
+	{
+		addrss.ipv6_t = addrss.ipv4_t;
+		memset(&addrss.ipv4_t, 0, sizeof(addrss.ipv4_t));
+	}
+	return addrss;
 }
 
 // get a VLAN tag from the frame and continue handling the frame
-int get_tag(const uint8_t* frame, struct Addrss* addrss)
+int get_tag(const uint8_t* frame, intptr_t max, struct Addrss* addrss)
 {
+	if ((intptr_t)frame > max) return -1;
 	uint16_t type = net_get_u16(frame);
 	switch (type)
 	{
 		case DOT1Q:
 		case DOT1AD:
 		case DOT1QINQ:
+
+			if ((intptr_t)frame + 3 > max) return -1;
 
 			if ((addrss->tags >> 60) >= 5)
 			{
@@ -136,32 +191,35 @@ int get_tag(const uint8_t* frame, struct Addrss* addrss)
 			addrss->tags += (VID << (addrss->tags >> 60) * 12)
 					+ ((uint64_t) 1 << 60);
 
-			addrss->header.caplen -= 4;
-
-			return get_tag(frame + 4, addrss);
+			return get_tag(frame + 4, max, addrss);
 
 		default:
-			addrss->header.caplen -= 2;
-			return get_eth_ip(frame + 2, addrss,
+			return get_eth_ip(frame + 2, max, addrss,
 				type <= 1500 ? ETH_SIZE : type);
 	}
 }
 
-int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
+int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss, uint16_t type)
 {
 	switch (type)
 	{
 		case IPv4:
-			map_ipv4(addrss->ip, frame+12);
+			if ((intptr_t)frame + (12 + 4) > max) return -1;
+			memcpy(addrss->ipv4, frame + 12, 4);
+			addrss->latest = false;
 			return 1;
 
 		case ARP:
-			map_ipv4(addrss->ip, frame+14);
+			if ((intptr_t)frame + (14 + 4) > max) return -1;
+			memcpy(addrss->ipv4, frame + 14, 4);
+			addrss->latest = false;
 			return 1;
 
 		case IPv6:
+			if ((intptr_t)frame + (8 + 16) > max) return -1;
 			// copy IPv6 address to addrss
-			memcpy(addrss->ip, frame+8, 16);
+			memcpy(addrss->ipv6, frame + 8, 16);
+			addrss->latest = true;
 			return 1;
 
 		case ETH_SIZE:
@@ -204,11 +262,12 @@ int get_eth_ip(const uint8_t* frame, struct Addrss* addrss, uint16_t type)
 }
 
 // update the list with a new entry
-void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss)
+void addrss_list_add(struct Addrss** head
+		, const struct Addrss* new_addrss)
 {
 	if (is_zeros(new_addrss->mac, 6)) return;
 
-	int found = 0;
+	bool found = false;
 
 	// go through the list while keeping a pointer
 	// to the previous pointer
@@ -216,27 +275,45 @@ void addrss_list_add(struct Addrss** head, const struct Addrss* new_addrss)
 		*current != NULL;
 		current = &((*current)->next))
 	{
-top_of_loop:
 		// check if this has the new MAC address
 		if (!memcmp((*current)->mac, new_addrss->mac, 6))
 		{
-			found = 1;
+			found = true;
 
-			// update time and ip
-			(*current)->header.ts = new_addrss->header.ts;
-			(*current)->tried = 0;
-			if (!is_zeros(new_addrss->ip, 16))
+			(*current)->latest = new_addrss->latest;
+
+			// update IP and time for latest pair
+			if ((*current)->latest == true)
 			{
-				if(is_mapped(new_addrss->ip))
+				// ipv6 is going to be set if latest
+				// but may actually have been zero?
+				if (!is_zeros(new_addrss->ipv6
+					, sizeof(new_addrss->ipv6)))
 				{
-					// safe the latest IPv4 address separately
-					// for user convenience
-					memcpy((*current)->ipv4, new_addrss->ip+12, 4);
+					memcpy((*current)->ipv6
+						, new_addrss->ipv6
+					, sizeof((*current)->ipv6));
 				}
-				// save the latest IP address regardless of version
-				// this is the one used for nagging
-				memcpy((*current)->ip, new_addrss->ip, 16);
+
+				(*current)->ipv6_t =
+					new_addrss->ipv6_t;
 			}
+			else
+			{
+				// ipv4 may be zero if no IP was seen
+				// the intent is to keep the latest
+				if (!is_zeros(new_addrss->ipv4
+					, sizeof(new_addrss->ipv4)))
+				{
+					memcpy((*current)->ipv4
+						, new_addrss->ipv4
+					, sizeof((*current)->ipv4));
+				}
+
+				(*current)->ipv4_t =
+						new_addrss->ipv4_t;
+			}
+			(*current)->tried = 0;
 
 			// move it to the start of the list
 			if (current != head) {
@@ -245,18 +322,13 @@ top_of_loop:
 				move->next = *head;
 				*head = move;
 
-				if (*current != NULL)
-				{
-					goto top_of_loop;
-				}
-				else break;
+				break;
 			}
 		}
-
 	}
 
-	// insert at start of the list
-	if (!found)
+	// prepend new_addrss if it's MAC was not found
+	if (found == false)
 	{
 		struct Addrss *new_head = malloc(sizeof *new_head);
 		*new_head = *new_addrss;
@@ -264,7 +336,10 @@ top_of_loop:
 		*head = new_head;
 
 		if (verbosity) print_mac(new_addrss->mac);
-		if (verbosity > 2) print_ip(new_addrss->ip);
+		if (verbosity > 2) print_ip(new_addrss->latest
+					  ? new_addrss->ipv6
+					  : new_addrss->ipv4
+					  , new_addrss->latest);
 	}
 }
 
@@ -279,7 +354,10 @@ void addrss_list_cull
 	{
 top_of_loop:
 		if (((*current)->tried >= nags)
-			&& (usec_diff(ts, &(*current)->header.ts) > timeout))
+			&& (usec_diff(ts,  (*current)->latest
+					? &(*current)->ipv6_t
+					: &(*current)->ipv4_t)
+				> timeout))
 		{
 			// remove the struct from the list
 			if (verbosity > 1)
@@ -308,7 +386,10 @@ void addrss_list_nag
 		*current != NULL;
 		current = &((*current)->next))
 	{
-		if (usec_diff(ts, &(*current)->header.ts) > timeout)
+		if (usec_diff(ts,  (*current)->latest
+				? &(*current)->ipv6_t
+				: &(*current)->ipv4_t)
+			> timeout)
 		{
 			nag(*current, opts, count);
 			(*current)->tried++;
@@ -321,16 +402,23 @@ void nag(const struct Addrss* addrss,
 	 const struct Opts* opts, uint64_t* count)
 {
 	// assumes non-subnet addresses have been zero'd (subnet check)
-	if (!is_zeros(addrss->ip, 16))
+	if (!is_zeros(addrss->latest
+			? addrss->ipv6
+			: addrss->ipv4
+			, sizeof( addrss->latest
+				? addrss->ipv6
+				: addrss->ipv4)))
 	{
+		// increment count of packets sent
 		*count += 1;
-		if (is_mapped(addrss->ip))
+
+		if (addrss->latest == true)
 		{
-			send_arp(addrss, opts);
+			send_ndp(addrss, opts);
 		}
 		else
 		{
-			send_ndp(addrss, opts);
+			send_arp(addrss, opts);
 		}
 	}
 }
@@ -353,28 +441,29 @@ void asprint_mac(char** dest, const uint8_t* mac)
 }
 
 // print the string representation of an IPv[4|6] to stdout
-void print_ip(const uint8_t* ip)
+void print_ip(const uint8_t* ip, const bool v6)
 {
 	char* tmp;
-	asprint_ip(&tmp, ip);
-	printf("%s", tmp);
-	if (strncmp(tmp, "", 1)) printf("\n");
+	asprint_ip(&tmp, ip, v6);
+	printf("%s\n", tmp);
 	free(tmp);
 }
 
 // same but to a string (remember to free *dest!)
-void asprint_ip(char** dest, const uint8_t* ip)
+void asprint_ip(char** dest, const uint8_t* ip, const bool v6)
 {
-	if (is_mapped(ip))
+	if (v6 == false)
 	{
-		if (asprintf(dest, "%d.%d.%d.%d",
-			ip[12], ip[13], ip[14], ip[15]) == -1)
-		{
-			err(1, "Failed to asprintf an IPv4 address");
-		}
+		asprint_ipv4(dest, ip);
 	}
 	else
 	{
+		if (is_mapped(ip))
+		{
+			asprint_ipv4(dest, ip + 12);
+			return;
+		}
+
 		// this is surprisingly complicated...
 		*dest = malloc(INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, ip,
@@ -382,29 +471,43 @@ void asprint_ip(char** dest, const uint8_t* ip)
 	}
 }
 
-// zero IPv4 non-subnet addresses and IPv6 multicast addresses
-void subnet_filter(uint8_t* ip, struct Subnet* subnet)
+void asprint_ipv4(char** dest, const uint8_t* ip)
 {
-	if (!is_zeros(ip, 16))
+		if (asprintf(dest, "%d.%d.%d.%d",
+			ip[0], ip[1], ip[2], ip[3]) == -1)
+		{
+			err(1, "Failed to asprintf an IPv4 address");
+		}
+}
+
+// zero IPv4 non-subnet addresses and IPv6 multicast addresses
+void
+subnet_filter(uint8_t* ip, const struct Subnet* subnet,const bool v6)
+{
+	if (!is_zeros(ip, v6 ? 16 : 4))
 	{
-		uint8_t multicast = 0xFF;
-		if (	!memcmp(ip, &multicast, 1)
-			|| (is_mapped(ip)
-			&& bitcmp(ip, subnet->ip, subnet->mask)))
+		uint8_t multicast = 0xff;
+		// if v4 or v6 has 0xff it's multicast
+		// else, bitcompare ip to mask to appropriate length
+		// currently don't have an IPv6 subnet...
+		if (!memcmp(ip, &multicast, 1)
+			|| ((!v6 || (v6 && is_mapped(ip)))
+			&& bitcmp(ip, subnet->ip + (v6 ? 0 : 12)
+				  , subnet->mask - (v6 ? 0 : 96))))
 		{
 			if (verbosity > 3)
 			{
 				printf("zerod ip: ");
-				print_ip(ip);
+				print_ip(ip, v6);
 			}
 
-			memset(ip, 0, 16);
+			memset(ip, 0, v6 ? 16 : 4);
 		}
 	}
 }
 
 // bitwise compare a to b to n bits
-int bitcmp(uint8_t* a, uint8_t* b, int n)
+int bitcmp(const uint8_t* a, const uint8_t* b, int n)
 {
 	n = n >= 0 ? n : 0;
 	int bytes = n / 8;
@@ -476,7 +579,7 @@ end:
 void get_if_mac(uint8_t* dest, const char* dev)
 {
 	// get_hardware_address brings it all down on failure
-	if(!strncmp(dev, "any", 3))
+	if (!strncmp(dev, "any", 3))
 	{
 		warn("Can't get MAC address for \"any\" device");
 		return;
@@ -494,35 +597,33 @@ void get_if_ip(uint8_t* dest, const char* dev, int AF, char* errbuf)
 
 	// TODO, save all IPv6 addresses for a device
 	// and nag with the one with the same prefix
+
+	// link local prefix
 	// can't use uint16_t because of endianness
 	uint8_t v6_mask[2] = { 0xfe, 0x80 };
 
-	if (!dev || pcap_findalldevs(&devs, errbuf))
-	{
-		return;
-	}
+	if (!dev || pcap_findalldevs(&devs, errbuf)) return;
 
 	for (pcap_if_t* d = devs; d != NULL; d = d->next)
 	{
 		if (strcmp(d->name, dev)) continue;
 
-		for(pcap_addr_t* a = d->addresses;
+		for (pcap_addr_t* a = d->addresses;
 			a != NULL; a = a->next)
 		{
 			// TODO, make the logic neater?
-			if (a->addr->sa_family == AF_INET
-				&& AF == AF_INET)
+			if (AF == AF_INET
+				&& a->addr->sa_family == AF_INET)
 			{
-				map_ipv4(dest,(const uint8_t *)
-				&((struct sockaddr_in*)
-				a->addr)->sin_addr.s_addr);
+				memcpy(dest, &((struct sockaddr_in*)
+				a->addr)->sin_addr.s_addr, 4);
 
 				// stop at 1 address
 				goto end;
 			}
 
-			if (a->addr->sa_family == AF_INET6
-				&& AF == AF_INET6
+			if (AF == AF_INET6
+				&& a->addr->sa_family == AF_INET6
 				&& !bitcmp((uint8_t*)
 					&((struct sockaddr_in6*)
 					a->addr)->sin6_addr.s6_addr,
@@ -578,17 +679,17 @@ inline uint32_t net_get_u32(const uint8_t* source)
 }
 
 // check if a run of count bytes at target are all zero
-int is_zeros(const uint8_t* target, int count)
+bool is_zeros(const uint8_t* target, int count)
 {
 	while (count--)
 	{
-		if (target[count]) return 0;
+		if (target[count]) return false;
 	}
-	return 1;
+	return true;
 }
 
 // check if a given IP address is an IPv4-mapped IPv6 address
-int is_mapped(const uint8_t* ip)
+bool is_mapped(const uint8_t* ip)
 {
 	return ((uint64_t*) ip)[0] == 0
 		&& ((uint16_t*) ip)[4] == 0
@@ -631,28 +732,8 @@ void dump_state(char* filename, struct Addrss *head)
 		link != NULL; link = link->next)
 	{
 		asprint_mac(&tmp_mac, link->mac);
-
-		// asprint_ip expects an IPv6 or mapped IPv4 address
-		uint8_t tmpv6[16];
-		map_ipv4(tmpv6, link->ipv4);
-		asprint_ip(&tmp_ipv4, tmpv6);
-
-		if (!is_mapped(link->ip))
-		{
-			asprint_ip(&tmp_ipv6, link->ip);
-		}
-		else
-		{
-			// no IPv6
-			// can't override link->ip
-			// (that's the most recent address independent of v4 or v6)
-			// must allocate something or fprintf will cause a segfault
-			// and i don't want to repeat the IPv4 address
-			if (asprintf(&tmp_ipv6, "::") == -1)
-			{
-				err(1, "Failed to asprintf \"::\"");
-			}
-		}
+		asprint_ip(&tmp_ipv4, link->ipv4, false);
+		asprint_ip(&tmp_ipv6, link->ipv6, true);
 
 		fprintf(stats_file, "%s\t%s \t%s\n",
 			tmp_mac, tmp_ipv4, tmp_ipv6);
@@ -666,7 +747,7 @@ void dump_state(char* filename, struct Addrss *head)
 	fclose(stats_file);
 
 	if ((rename(tmp_filename, filename) < 0)
-		|| chmod(filename, 0444))
+			|| chmod(filename, 0444))
 	{
 		warn("Failed to rename stats file");
 	}
@@ -749,16 +830,16 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	memcpy(&frame[ptr], opts->host.mac, 6);
 	ptr += 6;
 
-	// sender protocol address (mapped IPv4)
-	memcpy(&frame[ptr], opts->host.ipv4+12, 4);
+	// sender protocol address
+	memcpy(&frame[ptr], opts->host.ipv4, 4);
 	ptr += 4;
 
 	// target hardware address
 	memcpy(&frame[ptr], addrss->mac, 6);
 	ptr += 6;
 
-	// target protocol address (mapped IPv4)
-	memcpy(&frame[ptr], addrss->ip+12, 4);
+	// target protocol address
+	memcpy(&frame[ptr], addrss->ipv4, 4);
 	ptr += 4;
 
 	// frame check sequence (CRC) done by NIC?
@@ -772,7 +853,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	{
 		printf("ARP packet %d sent to ",
 			(addrss->tried) + 1);
-		print_ip(addrss->ip);
+		print_ip(addrss->ipv4, false);
 	}
 }
 
@@ -844,7 +925,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	ptr += 16;
 
 	// destination IPv6 address
-	memcpy(&frame[ptr], addrss->ip, 16);
+	memcpy(&frame[ptr], addrss->ipv6, 16);
 	ptr += 16;
 
 	// next header is ICMPv6, no extension headers used
@@ -875,7 +956,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 		pseudo_ptr += 16;
 
 		// destination IPv6 address
-		memcpy(&pseudo_hdr[pseudo_ptr], addrss->ip, 16);
+		memcpy(&pseudo_hdr[pseudo_ptr], addrss->ipv6, 16);
 		pseudo_ptr += 16;
 
 		// "upper-layer packet length", 4 bytes, right endianness?
@@ -896,7 +977,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	ptr += 4;
 
 	// target address
-	memcpy(&frame[ptr], addrss->ip, 16);
+	memcpy(&frame[ptr], addrss->ipv6, 16);
 	ptr += 16;
 
 	// source link-layer address option
@@ -926,7 +1007,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	{
 		printf("NDP packet %d sent to ",
 			(addrss->tried) + 1);
-		print_ip(addrss->ip);
+		print_ip(addrss->ipv6, true);
 	}
 }
 
@@ -989,11 +1070,29 @@ uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start)
 	return ~sum;
 }
 
-
 // map an IPv4 address to IPv6
 void map_ipv4(uint8_t* ipv6, const uint8_t ip[4])
 {
 	memset(ipv6, 0, 10);
 	memset(ipv6+10, 0xFF, 2);
 	memcpy(ipv6+12, ip, 4);
+}
+
+// for debugging
+void print_addrss(const struct Addrss* addrss)
+{
+        print_mac(addrss->mac);
+        print_ip(addrss->ipv4, false);
+        print_ip(addrss->ipv6, true);
+        printf("\n");
+}
+
+// quick check for mac and timeval
+bool addrss_valid(const struct Addrss* addrss)
+{
+	return !(is_zeros(addrss->mac, 6)
+		|| 0 == ( addrss->latest
+			? addrss->ipv6_t.tv_sec
+			: addrss->ipv4_t.tv_sec)
+		);
 }

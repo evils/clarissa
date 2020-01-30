@@ -40,7 +40,7 @@ TQ_TEST("net_get_u32")
 {
 	uint8_t source[4] = {0};
 	net_put_u32(source, 25166208);
-	if(net_get_u32(source) == 25166208) return 1;
+	if (net_get_u32(source) == 25166208) return 1;
 	return 0;
 }
 
@@ -105,20 +105,137 @@ TQ_TEST("bitcmp/fail/1")
 	return bitcmp(a, b, n);
 }
 
-TQ_TEST("subnet_filter/ipv4/pass/0")
+TQ_TEST("subnet_filter/ipv6/pass0")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 };
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+	uint8_t start[16];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 0,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// ::1/127 should be in the subnet ::1/127
+	// nothing should be changed
+	return !memcmp(&ip, &start, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6/pass1")
+{
+	uint8_t ip[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+	uint8_t start[16];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 0,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// ::1/127 should be in the subnet ::1/127
+	// nothing should be changed
+	return !memcmp(&ip, &start, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6/fail0")
+{
+	uint8_t ip[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
 	uint8_t start[16];
 	memcpy(&start, &ip, sizeof(ip));
 
 	struct Subnet subnet = { .mask = 127,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 } };
 
-	subnet_filter((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// ::1/127 should not be in ::2/127, (0b01, ob10)
+	// CAUTION! currently don't have an a way to obtain an
+	// IPv6 subnet, hence only filtering out multicast
+	return !memcmp(&ip, &start, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6/fail1")
+{
+	uint8_t ip[16] =
+		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+	uint8_t start[16];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 0,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	return is_zeros(ip, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6_mapped/pass")
+{
+	uint8_t ip[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
+
+	uint8_t start[16];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 127,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// .0 should be in .0, nothing should change
+	return !memcmp(&ip, &start, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6_mapped/fail")
+{
+	uint8_t ip[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
+
+	uint8_t start[16];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 128,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 1 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// .0 should not be in .1, ip should be zerod
+	return is_zeros(ip, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv4/pass/0")
+{
+	uint8_t ip[4] = { 192, 168, 0, 0 };
+	uint8_t start[4];
+	memcpy(&start, &ip, sizeof(ip));
+
+	struct Subnet subnet = { .mask = 127,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, false);
 
 	// .1 should be in the subnet .1, nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
@@ -126,18 +243,16 @@ TQ_TEST("subnet_filter/ipv4/pass/0")
 
 TQ_TEST("subnet_filter/ipv4/pass/1")
 {
-	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
-	uint8_t start[16];
+	uint8_t ip[4] = { 192, 168, 1, 0 };
+	uint8_t start[4];
 	memcpy(&start, &ip, sizeof(ip));
 
 	struct Subnet subnet = { .mask = 119,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
 
-	subnet_filter((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet, false);
 
 	// .1 should be in the subnet .1, nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
@@ -145,18 +260,16 @@ TQ_TEST("subnet_filter/ipv4/pass/1")
 
 TQ_TEST("subnet_filter/ipv4/fail/0")
 {
-	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 };
-	uint8_t start[16];
+	uint8_t ip[4] = { 192, 168, 0, 0 };
+	uint8_t start[4];
 	memcpy(&start, &ip, sizeof(ip));
 
 	struct Subnet subnet = { .mask = 97,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 10, 20, 0, 0 } };
+		  0x00, 0x00, 0xFF, 0xFF, 10, 20, 0, 0 } };
 
-	subnet_filter((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet, false);
 
 	// 192 does not match 10, the entire ip should get zerod
 	return is_zeros(ip, sizeof(ip));
@@ -164,18 +277,16 @@ TQ_TEST("subnet_filter/ipv4/fail/0")
 
 TQ_TEST("subnet_filter/ipv4/fail/1")
 {
-	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 1 };
-	uint8_t start[16];
+	uint8_t ip[4] = { 192, 168, 0, 1 };
+	uint8_t start[4];
 	memcpy(&start, &ip, sizeof(ip));
 
 	struct Subnet subnet = { .mask = 128,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
 
-	subnet_filter((uint8_t*) &ip, &subnet);
+	subnet_filter((uint8_t*) &ip, &subnet, false);
 
 	// .0 is not in .1, the entire ip should get zerod
 	// (only the masked area gets checked)
@@ -184,24 +295,48 @@ TQ_TEST("subnet_filter/ipv4/fail/1")
 
 TQ_TEST("asprint_ip/ipv4")
 {
-	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 1 };
+	uint8_t ip[4] = { 192, 168, 0, 1 };
 	char* ip_string;
-	asprint_ip(&ip_string, ip);
+	// bool indicates if this is an IPv6 address
+	asprint_ip(&ip_string, ip, false);
 	char* intent = "192.168.0.1";
+	int ret = !strcmp(ip_string, intent);
+	free(ip_string);
+
+	return ret;
+}
+
+TQ_TEST("asprint_ip/ipv4_null")
+{
+	uint8_t ip[4] = { 0, 0, 0, 0 };
+	char* ip_string;
+	asprint_ip(&ip_string, ip, false);
+	char* intent = "0.0.0.0";
 	int ret = !strcmp(ip_string, intent);
 	free(ip_string);
 	return ret;
 }
 
-TQ_TEST("asprint_ip/ipv6")
+TQ_TEST("asprint_ip/ipv6_null")
+{
+	uint8_t ip[16] =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	char* ip_string;
+	asprint_ip(&ip_string, ip, true);
+	char* intent = "::";
+	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
+	free(ip_string);
+	return ret;
+}
+
+TQ_TEST("asprint_ip/ipv6_full")
 {
 	uint8_t ip[16] =
 		{ 0x20, 0x01, 0x0D, 0xB8, 0x11, 0x11, 0x11, 0x11,
 		  0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x27 };
 	char* ip_string;
-	asprint_ip(&ip_string, ip);
+	asprint_ip(&ip_string, ip, true);
 	// want max size
 	char* intent = "2001:db8:1111:1111:1111:1111:1111:1127";
 	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
@@ -209,27 +344,42 @@ TQ_TEST("asprint_ip/ipv6")
 	return ret;
 }
 
-TQ_TEST("asprint_ip/null_ipv4")
+TQ_TEST("asprint_ip/ipv6_short")
 {
 	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 };
+		{ 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x27 };
 	char* ip_string;
-	asprint_ip(&ip_string, ip);
-	char* intent = "0.0.0.0";
+	asprint_ip(&ip_string, ip, true);
+	// want max size
+	char* intent = "2001:db8::27";
 	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
 	free(ip_string);
 	return ret;
 }
 
-TQ_TEST("asprint_ip/null_ipv6")
+TQ_TEST("asprint_ip/ipv6_short_gap")
+{
+	uint8_t ip[16] =
+		{ 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x27 };
+	char* ip_string;
+	asprint_ip(&ip_string, ip, true);
+	// want max size
+	char* intent = "2001:db8::1:0:0:27";
+	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
+	free(ip_string);
+	return ret;
+}
+
+TQ_TEST("asprint_ip/ipv6_mapped_ipv4_null")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+		  0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 };
 	char* ip_string;
-	asprint_ip(&ip_string, ip);
-	char* intent = "::";
+	asprint_ip(&ip_string, ip, true);
+	char* intent = "0.0.0.0";
 	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
 	free(ip_string);
 	return ret;
@@ -252,8 +402,8 @@ TQ_TEST("get_cidr")
 	struct Subnet dest;
 	uint8_t ip_intent[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 };
-	if(get_cidr(&dest, cidr)
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 };
+	if (get_cidr(&dest, cidr)
 		&& !bitcmp(ip_intent, dest.ip, 16 * 8)
 		&& dest.mask == 16 + 96)
 	{
@@ -283,7 +433,7 @@ TQ_TEST("addrss_list_add/new")
                 free(tmp);
         }
 
-	if(test == 2)
+	if (test == 2)
 	{
 		return 1;
 	}
@@ -300,7 +450,7 @@ TQ_TEST("addrss_list_add/same")
 	addrss_list_add(&head, &one);
 
 	int test = 0;
-	if(head->next == NULL) test++;
+	if (head->next == NULL) test++;
 
 	for (struct Addrss* tmp; head != NULL;)
         {
@@ -309,7 +459,7 @@ TQ_TEST("addrss_list_add/same")
                 free(tmp);
         }
 
-	if(test)
+	if (test)
 	{
 		return 1;
 	}
@@ -333,9 +483,9 @@ TQ_TEST("addrss_list_cull")
 	// so set "now" to more than timeout
 	now.tv_sec = timeout + 1;
 	two.mac[5] = 2;
-	two.header.ts = now;
+	two.ipv4_t = now;
 	one.mac[5] = 1;
-	one.header.ts = earlier;
+	one.ipv4_t = earlier;
 	one.tried = nags;
 
 	addrss_list_add(&head, &two);
@@ -344,7 +494,7 @@ TQ_TEST("addrss_list_cull")
 	addrss_list_cull(&head, &now, timeout, nags);
 
 	int cull_success = 0;
-	if(head->next == NULL && head->mac[5] == 2)
+	if (head->next == NULL && head->mac[5] == 2)
 	{
 		cull_success = 1;
 	}
@@ -356,7 +506,7 @@ TQ_TEST("addrss_list_cull")
                 free(tmp);
         }
 
-	if(cull_success)
+	if (cull_success)
 	{
 		return 1;
 	}
@@ -370,11 +520,38 @@ TQ_TEST("map_ipv4")
 
 	uint8_t intent[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
+		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
 
 	map_ipv4(ipv6, ipv4);
 
 	return (!memcmp(ipv6, intent, 16));
+}
+
+TQ_TEST("addrss_valid")
+{
+	// all zero, invalid
+	struct Addrss addrss = {0};
+	// non-zero MAC and timeval, valid
+	struct Addrss bddrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4_t.tv_sec = 1
+		};
+
+	// either zero, invalid
+	struct Addrss cddrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4_t.tv_sec = 0
+		};
+	struct Addrss dddrss = {
+			.mac = { 0, 0, 0, 0, 0, 0 },
+			.ipv4_t.tv_sec = 1
+		};
+
+	// non-zero MAC and IPv4_t should be valid
+	return !addrss_valid(&addrss)
+	    &&  addrss_valid(&bddrss)
+	    && !addrss_valid(&cddrss)
+	    && !addrss_valid(&dddrss);
 }
 
 /*

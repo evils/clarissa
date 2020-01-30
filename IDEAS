@@ -2,14 +2,17 @@ output
 	raw list available on the machine as a file
 		since the default file storage is in /tmp, no stale data remains
 		switch to a domain socket?
-			requires either socat or "clarissa state"
+			requires either socat or 'clarissa cat'
 				socat's not guaranteed to be available
 					clarissa is
 						por que no los dos?
+					'cat' should be part of the main binary
 			more requests == more dead time
 				fork() on request, die after replying
 			a domain socket could easily be exposed over the network?
 			would lose the potential to allow resumption (unless the file output is kept)
+				can still preload a previous output
+				and optionally output to a file on exit
 		separate program translates list and makes available on LAN?
 			clar_count.sh makes translation available on the machine
 			output to mqtt?

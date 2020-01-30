@@ -26,14 +26,15 @@
 #define DOT11R 0x890d
 
 // extraction
-int get_tag(const uint8_t* frame, struct Addrss* addrss);
-int get_eth_ip(const uint8_t* frame, struct Addrss* addrss,
+int get_tag(const uint8_t* frame, intptr_t max, struct Addrss* addrss);
+int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss,
 		const uint16_t type);
 
 // helpers
-int is_zeros(const uint8_t* target, int count);
-int is_mapped(const uint8_t* ip);
-int bitcmp(uint8_t* a, uint8_t* b, int n);
+bool is_zeros(const uint8_t* target, int count);
+bool is_mapped(const uint8_t* ip);
+int bitcmp(const uint8_t* a, const uint8_t* b, int n);
+void asprint_ipv4(char** dest, const uint8_t* ip);
 
 // network output
 void nag(const struct Addrss* addrss,

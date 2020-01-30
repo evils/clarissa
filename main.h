@@ -22,7 +22,7 @@ extern int verbosity;
 void help();
 void print_opts();
 void handle_opts(int argc, char* argv[], struct Opts* opts);
-void print_header(struct Opts* opts);
+void print_header(const struct Opts* opts);
 
 volatile sig_atomic_t sig = 0;
 void sig_handler(int signum);
