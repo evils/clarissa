@@ -581,6 +581,6 @@ void get_hardware_address
 void get_hardware_address
 (const char* if_name, unsigned char hw_address[])
 {
-	errx(1, "Cannot get interface hardware address (MAC) on windows.");
+	err(1, "Cannot get interface hardware address (MAC) on windows.");
 }
 #endif
