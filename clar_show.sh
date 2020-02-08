@@ -4,6 +4,10 @@ oui=clar_OUI.csv
 
 echo
 
+if [ ! -f "$oui" ]; then
+        echo "WARNING: No OUI file, try OUI_assemble.sh?"
+fi
+
 if [ -z "$1" ]; then
 	# shellcheck disable=SC2086
 	set $1 "$(echo /tmp/clar_*)"
@@ -32,7 +36,7 @@ sort "$1" \
 	vend_mac="$(echo "$REPLY" | tr -d ":-" \
 		| tr "a-f" "A-F" \
 		| awk '{print substr($1,1,6)}')"
-	vendor="$(grep "$vend_mac" $oui \
+	vendor="$(grep -s "$vend_mac" $oui \
 		| awk -F ',' '{print $2}' | sed 's/"//g' )"
 	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	ipv6="$(echo "$REPLY" | awk '{print $3}')"
