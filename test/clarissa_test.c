@@ -513,20 +513,6 @@ TQ_TEST("addrss_list_cull")
 	return 0;
 }
 
-TQ_TEST("map_ipv4")
-{
-	uint8_t ipv6[16] = {0};
-	uint8_t ipv4[4] = {192, 168, 1, 0};
-
-	uint8_t intent[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 1, 0 };
-
-	map_ipv4(ipv6, ipv4);
-
-	return (!memcmp(ipv6, intent, 16));
-}
-
 TQ_TEST("addrss_valid")
 {
 	// all zero, invalid

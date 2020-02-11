@@ -50,4 +50,3 @@ void net_put_u32(uint8_t* target, const uint32_t source);
 uint16_t net_get_u16(const uint8_t* source);
 uint32_t net_get_u32(const uint8_t* source);
 uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start);
-void map_ipv4(uint8_t* ipv6, const uint8_t ipv4[4]);

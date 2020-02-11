@@ -1070,14 +1070,6 @@ uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start)
 	return ~sum;
 }
 
-// map an IPv4 address to IPv6
-void map_ipv4(uint8_t* ipv6, const uint8_t ip[4])
-{
-	memset(ipv6, 0, 10);
-	memset(ipv6+10, 0xFF, 2);
-	memcpy(ipv6+12, ip, 4);
-}
-
 // for debugging
 void print_addrss(const struct Addrss* addrss)
 {
