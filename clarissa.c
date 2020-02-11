@@ -1110,7 +1110,13 @@ int asprint_clar(char** dest, const struct Addrss* addrss)
 				, (long int)addrss->ipv6_t.tv_sec) == -1)
 	{
 		warn("Failed to asprintf output string");
+		free(mac);
+		free(ipv4);
+		free(ipv6);
 		return -1;
 	}
+	free(mac);
+	free(ipv4);
+	free(ipv6);
 	return 0;
 }

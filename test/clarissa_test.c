@@ -105,7 +105,7 @@ TQ_TEST("bitcmp/fail/1")
 	return bitcmp(a, b, n);
 }
 
-TQ_TEST("subnet_filter/ipv6/pass0")
+TQ_TEST("subnet_filter/ipv6/pass/0")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -125,7 +125,7 @@ TQ_TEST("subnet_filter/ipv6/pass0")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/pass1")
+TQ_TEST("subnet_filter/ipv6/pass/1")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -145,7 +145,7 @@ TQ_TEST("subnet_filter/ipv6/pass1")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/fail0")
+TQ_TEST("subnet_filter/ipv6/fail/0")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -166,7 +166,7 @@ TQ_TEST("subnet_filter/ipv6/fail0")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/fail1")
+TQ_TEST("subnet_filter/ipv6/fail/1")
 {
 	uint8_t ip[16] =
 		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -538,6 +538,106 @@ TQ_TEST("addrss_valid")
 	    &&  addrss_valid(&bddrss)
 	    && !addrss_valid(&cddrss)
 	    && !addrss_valid(&dddrss);
+}
+
+TQ_TEST("asprint_clar/pass/0")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4 = { 10, 20, 0, 1 },
+			.ipv4_t.tv_sec = 1581412781,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01\t10.20.0.1\t1581412781\t2001:db8::27\t1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/1")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4 = { 0, 0, 0, 0 },
+			.ipv4_t.tv_sec = 1581412781,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01\t0.0.0.0\t\t1581412781\t2001:db8::27\t1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/2")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4 = { 0, 0, 0, 0 },
+			.ipv4_t.tv_sec = 0,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01\t0.0.0.0\t\t0\t\t2001:db8::27\t1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/3")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4 = { 192, 168, 255, 255 },
+			.ipv4_t.tv_sec = 1581412781,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01\t192.168.255.255\t1581412781\t2001:db8::27\t1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/4")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ipv4 = { 192, 168, 255, 255 },
+			.ipv4_t.tv_sec = 1581412782,
+			.ipv6 = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x00 },
+			.ipv6_t.tv_sec = 0
+		};
+	char* intent =
+"00:00:00:00:00:01\t192.168.255.255\t1581412782\t::\t0\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
 }
 
 /*

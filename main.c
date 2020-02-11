@@ -141,7 +141,7 @@ int clarissa(int argc, char* argv[])
 			else if (child == 0)
 			{
 				handle_con(sock_d, sock_v, &head);
-				exit(0);
+				goto end;
 			}
 
 			close(sock_v);
@@ -284,6 +284,7 @@ end_header:
 	if (opts.l_handle) pcap_close(opts.l_handle);
 	if (opts.s_handle) pcap_close(opts.s_handle);
 	free(opts.print_filename);
+	free(opts.socket);
 	if (opts.l_dev) free(opts.l_dev);
 	if (opts.s_dev != opts.l_dev) free(opts.s_dev);
 	return 0;
