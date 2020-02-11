@@ -747,7 +747,7 @@ void dump_state(char* filename, struct Addrss *head)
 	fclose(stats_file);
 
 	if ((rename(tmp_filename, filename) < 0)
-			|| chmod(filename, 0444))
+			|| chmod(filename, PERMS))
 	{
 		warn("Failed to rename stats file");
 	}
@@ -1087,4 +1087,30 @@ bool addrss_valid(const struct Addrss* addrss)
 			? addrss->ipv6_t.tv_sec
 			: addrss->ipv4_t.tv_sec)
 		);
+}
+
+// assemble a v1.x output string
+int asprint_clar(char** dest, const struct Addrss* addrss)
+{
+	char* mac;
+	char* ipv4;
+	char* ipv6;
+	asprint_mac(&mac, addrss->mac);
+	asprint_ip(&ipv4, addrss->ipv4, false);
+	asprint_ip(&ipv6, addrss->ipv6, true);
+
+	// v1.x output format
+	if (asprintf(dest, "%s\t%s%s\t%0li%s\t%s\t%0li\n"
+				, mac
+				, ipv4
+				, strlen(ipv4) < 8 ? "\t" : ""
+				, (long int)addrss->ipv4_t.tv_sec
+				, addrss->ipv4_t.tv_sec ? "" : "\t"
+				, ipv6
+				, (long int)addrss->ipv6_t.tv_sec) == -1)
+	{
+		warn("Failed to asprintf output string");
+		return -1;
+	}
+	return 0;
 }

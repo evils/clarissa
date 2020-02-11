@@ -9,7 +9,6 @@
 #include <unistd.h>     // close()
 #include <net/if_arp.h> // ARPHRD_*
 #include <stdio.h>      // asprintf()
-#include <sys/stat.h>   // chmod
 
 #include "get_hardware_address/get_hardware_address.h"
 

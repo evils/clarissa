@@ -6,10 +6,12 @@
 #include <pcap.h>	// pcap everything duh
 #include <netinet/in.h> // freebsd
 #include <stdbool.h>	// type bool
+#include <sys/stat.h>   // chmod
 
 #include "time_tools.h"	// usec_diff()
 
 #define CAPLEN 74
+#define PERMS 0444
 int verbosity;
 
 // extracted frame data
@@ -69,6 +71,7 @@ struct Opts
 	int interval;		// how often to run through the main loop
 	int print_interval;     // how often to output the file
 	char* print_filename;   // name of the output file
+	char* socket;		// name of the output socket
 	uint8_t cidr;		// how many subnets have been set (<=1 valid) by handle_opts()
 	bool run;		// whether to run, 0 if just printing the header
 	bool immediate;		// whether to pcap_set_immediate_mode
@@ -98,6 +101,7 @@ void asprint_mac(char** dest, const uint8_t* mac);
 void print_ip(const uint8_t* ip, bool v6);
 void asprint_ip(char** dest, const uint8_t* ip, bool v6);
 void print_addrss(const struct Addrss* addrss);
+int asprint_clar(char** dest, const struct Addrss* addrss);
 
 // misc
 void subnet_filter(uint8_t* ip, const struct Subnet* mask,

@@ -2,6 +2,15 @@
 
 int main(int argc, char* argv[])
 {
+	if (argc > 1 && !strncmp(argv[1], "cat", 3))
+	{
+		return clar_cat(--argc, ++argv);
+	}
+	else return clarissa(argc, argv);
+}
+
+int clarissa(int argc, char* argv[])
+{
 	// options setup
 	struct Opts opts;
 	memset(&opts, 0, sizeof(opts));
@@ -30,94 +39,200 @@ int main(int argc, char* argv[])
 	// not in opts so that only describes config state
 	uint64_t count = 0;
 
+	// socket setup
+	int sock_d, sock_v, pcap_fd;
+	struct sockaddr_un local, remote;
+	if ((sock_d = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+	{
+		err(1, "Failed to create socket");
+	}
+
+	int snl = snprintf(local.sun_path
+			, sizeof(local.sun_path)
+			, "%s", opts.socket);
+	if (snl == sizeof(local.sun_path))
+	{
+		err(1, "Socket path is too long");
+	}
+
+	int flags = fcntl(sock_d, F_GETFL, 0);
+	if (flags == -1)
+	{
+		err(1, "Failed to get socket flags");
+	}
+	if (fcntl(sock_d, F_SETFL, flags | O_NONBLOCK) == -1)
+	{
+		err(1, "Failed to set O_NONBLOCK on socket");
+	}
+
+	unlink(local.sun_path);
+	local.sun_family = AF_UNIX;
+	if (bind(sock_d, (struct sockaddr*)&local,
+				strlen(local.sun_path)
+				+ sizeof(local.sun_family))
+			== -1)
+	{
+		err(1, "Failed to bind socket");
+	}
+
+	if (chmod(opts.socket, PERMS) != 0)
+	{
+		err(1, "Failed to set socket permissions");
+	}
+
+	if (listen(sock_d, 5) == -1) // "5 is way more than enough"
+	{
+		err(1, "Failed to set socket to listening mode");
+	}
+
+	// set up poll() (not select())
+	//pcap_fd = pcap_get_selectable_fd(opts.l_handle)
+	pcap_fd = sock_d;
+	//if (pcap_fd == PCAP_ERROR)
+	if (pcap_fd == -1)
+	{
+		err(1, "Failed to get pcap selectable fd");
+	}
+
+	struct pollfd fds[POLL_N];
+	memset(fds, 0, sizeof(fds));
+	//fds[0] = { .fd = sock_d, .events = POLLIN };
+	fds[0].fd = sock_d;
+	fds[0].events = POLLIN;
+	//fds[1] = { .fd = pcap_fd, .events = POLLIN };
+	fds[1].fd = pcap_fd;
+	fds[1].events = POLLIN;
+
+	solve_zombies();
+
 	signal(SIGINT, &sig_handler);
 	signal(SIGTERM, &sig_handler);
 
 	// capture, extract and update list of addresses
 	for (;!sig;)
 	{
-		int result = pcap_next_ex(opts.l_handle,
-					&header, &frame);
-		switch (result)
+		// POLL_* #defined in main.h
+		if (poll(fds, POLL_N, opts.interval / 2) < 1)
 		{
-			case -2:
-				printf("End of savefile reached.\n");
-				goto end;
-			case -1:
-				pcap_perror(opts.l_handle,
-					"Reading packet: ");
-				continue;
-			case 0:
-				warn
-				("Packet buffer timeout expired.");
-				gettimeofday(&now, NULL);
-				break;
-			case 1:
+			if (verbosity > 4)
+				warn("poll() timed out or failed, retrying");
+			continue;
+		}
+
+		if (fds[0].revents & POLLIN)
+		{
+			socklen_t size = sizeof(remote);
+			sock_v = accept(sock_d
+					, (struct sockaddr*)&remote
+					, &size);
+
+			if (sock_v == -1)
 			{
-				addrss = get_addrss(opts.l_handle,
-						frame, header);
-
-				// zero IP if not in the set subnet
-				// or use the host's subnet
-				subnet_filter   ( addrss.latest
-						? addrss.ipv6
-						: addrss.ipv4
-				, opts.cidr	? &opts.subnet
-						: &opts.host.subnet
-				, addrss.latest);
-
-				// go again if extraction failed
-				// mac and a timeval are required
-				if (!addrss_valid(&addrss)) continue;
-
-				if (verbosity > 4)
-				{
-					print_mac(addrss.mac);
-					print_ip( addrss.latest
-						? addrss.ipv6
-						: addrss.ipv4
-						, addrss.latest);
-				}
-
-				addrss_list_add(&head, &addrss);
-
-				// use arrival time to be consistent
-				// regardless of pcap to_ms
-				now = addrss.latest
-					? addrss.ipv6_t
-					: addrss.ipv4_t;
-				break;
-			}
-			default:
-				warn("Unexpected return value "
-					"from pcap_next_ex: %d",
-					result);
+				warn("Parent's accept() failed, retrying");
 				continue;
+			}
+
+			int child = fork();
+			if (child < 0)
+			{
+				warn("Failed to fork(), retrying");
+				continue;
+			}
+			else if (child == 0)
+			{
+				handle_con(sock_d, sock_v, &head);
+				exit(0);
+			}
+
+			close(sock_v);
 		}
 
-		if (usec_diff(&now, &checked) > opts.interval)
+		if (fds[1].revents & POLLIN)
 		{
-			checked = now;
 
-			// cull those that have been nagged enough
-			addrss_list_cull
-				(&head, &now, opts.timeout,
-					opts.nags);
+			int result = pcap_next_ex(opts.l_handle,
+					&header, &frame);
+			switch (result)
+			{
+				case -2:
+					printf("End of savefile reached.\n");
+					goto end;
+				case -1:
+					pcap_perror(opts.l_handle,
+						"Reading packet: ");
+					continue;
+				case 0:
+					warn
+					("Packet buffer timeout expired.");
+					gettimeofday(&now, NULL);
+					break;
+				case 1:
+				{
+					addrss = get_addrss(opts.l_handle,
+							frame, header);
 
-			// and nag the survivors
-			addrss_list_nag
-				(&head, &now, opts.timeout,
-					&opts, &count);
-		}
+					// zero IP if not in the set subnet
+					// or use the host's subnet
+					subnet_filter   ( addrss.latest
+							? addrss.ipv6
+							: addrss.ipv4
+					, opts.cidr	? &opts.subnet
+							: &opts.host.subnet
+					, addrss.latest);
 
-		// output the list to a file
-		if (opts.print_interval
-				&& (opts.print_interval
-					< usec_diff(&now, &last_print
-						)))
-		{
-			last_print = now;
-			dump_state(opts.print_filename, head);
+					// go again if extraction failed
+					// mac and a timeval are required
+					if (!addrss_valid(&addrss)) continue;
+
+					if (verbosity > 4)
+					{
+						print_mac(addrss.mac);
+						print_ip( addrss.latest
+							? addrss.ipv6
+							: addrss.ipv4
+							, addrss.latest);
+					}
+
+					addrss_list_add(&head, &addrss);
+
+					// use arrival time to be consistent
+					// regardless of pcap to_ms
+					now = addrss.latest
+						? addrss.ipv6_t
+						: addrss.ipv4_t;
+					break;
+				}
+				default:
+					warn("Unexpected return value "
+						"from pcap_next_ex: %d",
+						result);
+					continue;
+			}
+
+			if (usec_diff(&now, &checked) > opts.interval)
+			{
+				checked = now;
+
+				// cull those that have been nagged enough
+				addrss_list_cull
+					(&head, &now, opts.timeout,
+						opts.nags);
+
+				// and nag the survivors
+				addrss_list_nag
+					(&head, &now, opts.timeout,
+						&opts, &count);
+			}
+
+			// output the list to a file
+			if (opts.print_interval
+					&& (opts.print_interval
+						< usec_diff(&now, &last_print
+							)))
+			{
+				last_print = now;
+				dump_state(opts.print_filename, head);
+			}
 		}
 	}
 
@@ -142,8 +257,8 @@ int main(int argc, char* argv[])
 
 // cleanup
 
-	// skip filename removal if EOF is reached
-	remove(opts.print_filename);
+	close(sock_d);
+	remove(opts.socket);
 end:
 	for (struct Addrss* tmp; head != NULL;)
 	{
@@ -172,6 +287,73 @@ end_header:
 	if (opts.l_dev) free(opts.l_dev);
 	if (opts.s_dev != opts.l_dev) free(opts.s_dev);
 	return 0;
+}
+
+int clar_cat(int argc, char* argv[])
+{
+	int s, t, len;
+	struct sockaddr_un remote;
+	char str[100];
+
+	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+	{
+		err(1, "Failed to create socket");
+	}
+
+	remote.sun_family = AF_UNIX;
+	if (argc > 1) strcpy(remote.sun_path, argv[1]);
+	len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+	if (connect(s, (struct sockaddr *)&remote, len) == -1)
+	{
+		err(1, "Failed to connect to socket");
+	}
+
+	while ((t=recv(s, str, sizeof(str), 0)) > 0)
+	{
+		if ( -1 == write(STDOUT_FILENO, str, t))
+		{
+			err(1, "Failed to write to socket, try again?");
+		}
+	}
+
+	close(s);
+	return 0;
+}
+
+// non blocking alternative to wait()
+void solve_zombies()
+{
+	struct sigaction action = { .sa_handler = SIG_IGN };
+	sigaction(SIGCHLD, &action, NULL);
+}
+
+void handle_con(const int sock_d, int sock_v, struct Addrss** head)
+{
+	struct sockaddr_un remote;
+	socklen_t size = sizeof(remote);
+	do
+	{
+		// send out the list
+		for (struct Addrss** current = head;
+				*current != NULL;
+				current = &((*current)->next))
+		{
+			char* string;
+			if (asprint_clar(&string, *current) == -1)
+			{
+				close(sock_v);
+				free(string);
+				warn("Broke output");
+				break;
+			}
+			send(sock_v, string, strlen(string), 0);
+
+			free(string);
+		}
+		close(sock_v);
+		sock_v = accept(sock_d, (struct sockaddr*)&remote, &size);
+	}
+	while (sock_v > 0);
 }
 
 void sig_handler(int signum)
@@ -246,14 +428,22 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"subnet",		required_argument, 0,	's'},
 			{"file", 		required_argument, 0,	'f'},
 			{"output_file", 	required_argument, 0,	'o'},
-			{"output_interval",	required_argument, 0,	'O'}
+			{"output_interval",	required_argument, 0,	'O'},
+			{"socket",		required_argument, 0,	'S'}
 		};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "uHVvi:pn:l:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, "S:uHVvi:pn:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
 		{
+			case 'S':
+				// save socket path name
+				if (asprintf(&opts->socket, "%s", optarg) == -1)
+				{
+					err(1, "Failed to save given socket path name");
+				}
+				break;
 			case 'u':
 				opts->immediate = true;
 				break;
@@ -365,13 +555,6 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		opts->interval =
 			opts->timeout / (opts->nags ? opts->nags : 1);
-	}
-
-	if (!opts->print_interval)
-	{
-		// TODO, find a coprime?
-		// this is not phase-locked with opts.interval?
-		opts->print_interval = opts->timeout / 2;
 	}
 
 	// can't listen on loopback
@@ -592,6 +775,19 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		}
 	}
 
+	if (!opts->socket)
+	{
+		char* ip;
+		// subnet.ip is IPv4 or mapped v4
+		asprint_ip(&ip, opts->host.subnet.ip, true);
+		if (asprintf(&opts->socket, "/run/clar/%s_%s-%i", opts->l_dev
+				, ip, opts->host.subnet.mask - 96) == -1)
+		{
+			err(1, "Failed to set the output socket path name");
+		}
+		free(ip);
+	}
+
 	free(auto_dev);
 }
 
@@ -656,6 +852,7 @@ void print_header(const struct Opts* opts)
 					printf("Output filename:\t%s\n", opts->print_filename);
 					printf("Output interval:\t%dms\n",opts->print_interval / 1000);
 				}
+				printf("Output socket:\t%s\n", opts->socket);
 				printf("\n");
 			}
 		}
