@@ -86,20 +86,16 @@ int clarissa(int argc, char* argv[])
 	}
 
 	// set up poll() (not select())
-	//pcap_fd = pcap_get_selectable_fd(opts.l_handle)
-	pcap_fd = sock_d;
-	//if (pcap_fd == PCAP_ERROR)
-	if (pcap_fd == -1)
+	pcap_fd = pcap_get_selectable_fd(opts.l_handle);
+	if (pcap_fd == PCAP_ERROR)
 	{
 		err(1, "Failed to get pcap selectable fd");
 	}
 
 	struct pollfd fds[POLL_N];
 	memset(fds, 0, sizeof(fds));
-	//fds[0] = { .fd = sock_d, .events = POLLIN };
 	fds[0].fd = sock_d;
 	fds[0].events = POLLIN;
-	//fds[1] = { .fd = pcap_fd, .events = POLLIN };
 	fds[1].fd = pcap_fd;
 	fds[1].events = POLLIN;
 
@@ -114,7 +110,7 @@ int clarissa(int argc, char* argv[])
 	for (;!sig;)
 	{
 		// POLL_* #defined in main.h
-		if (poll(fds, POLL_N, opts.interval / 2) < 1)
+		if (poll(fds, POLL_N, opts.interval / 2000) < 1)
 		{
 			if (verbosity > 4)
 				warn("poll() timed out or failed, retrying");
