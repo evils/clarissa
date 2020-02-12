@@ -108,6 +108,8 @@ int clarissa(int argc, char* argv[])
 	signal(SIGINT, &sig_handler);
 	signal(SIGTERM, &sig_handler);
 
+	int child = -1;
+
 	// capture, extract and update list of addresses
 	for (;!sig;)
 	{
@@ -132,7 +134,7 @@ int clarissa(int argc, char* argv[])
 				continue;
 			}
 
-			int child = fork();
+			child = fork();
 			if (child < 0)
 			{
 				warn("Failed to fork(), retrying");
@@ -266,7 +268,7 @@ end:
 		head = head->next;
 		free(tmp);
 	}
-	fprintf(stderr, "\nStopped by:\t\t");
+	if (child) fprintf(stderr, "\nStopped by:\t\t");
 	switch (sig)
 	{
 		case SIGINT:
@@ -276,7 +278,7 @@ end:
 			fprintf(stderr, "SIGTERM");
 			break;
 	}
-	printf("\n");
+	if (child) printf("\n");
 
 // and the stuff that's used by the header
 end_header:
