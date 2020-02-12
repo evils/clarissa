@@ -25,7 +25,7 @@ $c_cat "$1" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$mac" | tr -d ":-" | tr "a-f" "A-F" | awk '{print substr($1,1,6)}')"
-	vendor="$(grep -s "$vend_mac" $oui | awk -F ',' '{print $2}' | sed 's/"//g' )"
+	vendor="$(grep -s "$vend_mac" "$oui" | awk -F ',' '{print $2}' | sed 's/"//g' )"
 	if [ -z "$vendor" ]; then
 		vendor="(Unknown"
 		byte2="$(echo "$vend_mac" | cut -b 2)"
@@ -44,7 +44,7 @@ count=$(wc -l "$tmp" | awk '{print $1}')
 printf "\\nEnding, %s responded" "$count"
 clar=$($c_cat "$1" | wc -l | awk '{print $1}')
 diff=$(( clar - count ))
-if [ "$diff" ]; then
+if [ -n "$diff" ]; then
 	printf ", consider using \"clar show\", it has %s more result" "$diff"
 	if [ "$diff" -ne 1 ]; then
 		printf "s"
@@ -53,4 +53,4 @@ fi
 
 echo
 
-rm -f $tmp
+rm -f "$tmp"

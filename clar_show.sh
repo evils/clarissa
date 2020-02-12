@@ -3,9 +3,20 @@
 oui=clar_OUI.csv
 
 dir="$(pwd -P "$(dirname "$0")")"
-c_cat="$dir/clarissa cat"
+c_cat="${dir}/clarissa cat"
 
 echo
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+	echo "format is:"
+	# notices in parenthesis
+	# no spaces in individual strings
+	#   vendor string can't be helped
+	#   so put that on the end of a line!
+	printf "MAC\\tvendor\\n  IPv4\\t  domain\\t  IPv6\\n"
+	echo
+	shift 1
+fi
 
 if [ ! -f "$oui" ]; then
         echo "WARNING: No OUI file, try OUI_assemble.sh?"
@@ -14,18 +25,10 @@ fi
 if [ -z "$1" ]; then
 	# shellcheck disable=SC2086
 	set $1 "$(echo /run/clar/*)"
-	echo "No input socket specified."
+	echo "No source socket specified."
 	echo "Falling back on $1"
 	echo
 fi
-
-echo "format is:"
-# notices in parenthesis
-# no spaces in individual strings
-#   vendor string can't be helped
-#   so put that on the end of a line!
-printf "MAC\\tvendor\\n  IPv4\\t  domain\\t  IPv6\\n"
-echo
 
 printf "Interface: %s\\n" "$(echo "$1" | awk -F '[/_]' '{print $4}')"
 count=$($c_cat "$1" | wc -l | awk '{print $1}')
@@ -39,7 +42,7 @@ $c_cat "$1" | sort \
 	vend_mac="$(echo "$mac" | tr -d ":-" \
 		| tr "a-f" "A-F" \
 		| awk '{print substr($1,1,6)}')"
-	vendor="$(grep -s "$vend_mac" $oui \
+	vendor="$(grep -s "$vend_mac" "$oui" \
 		| awk -F ',' '{print $2}' | sed 's/"//g' )"
 	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	ipv6="$(echo "$REPLY" | awk '{print $4}')"
@@ -63,7 +66,7 @@ $c_cat "$1" | sort \
         fi
 	printf "%s\\t%s\\n" "$mac" "$vendor"
 	printf "  %s\\t\\t" "$ipv4"
-	if [ "$domain" ]; then
+	if [ -n "$domain" ]; then
 		printf "  %s" "$domain"
 		# shellcheck disable=SC2000
 		if [ "$(echo "$domain" | wc -c)" -le 12 ]; then
