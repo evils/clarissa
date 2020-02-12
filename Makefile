@@ -11,9 +11,9 @@ LDFLAGS += -lxnet		# socket etc functions ld errors
 endif
 
 .PHONY: all
-all: clean clarissad clar_OUI.csv
+all: clean clarissa clar_OUI.csv
 
-clarissad: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+clarissa: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $<
