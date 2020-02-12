@@ -11,7 +11,7 @@
 #include "time_tools.h"	// usec_diff()
 
 #define CAPLEN 74
-#define PERMS 0444
+#define PERMS 0666
 int verbosity;
 
 // extracted frame data

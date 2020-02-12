@@ -552,7 +552,7 @@ TQ_TEST("asprint_clar/pass/0")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01\t10.20.0.1\t1581412781\t2001:db8::27\t1581412782\n";
+"00:00:00:00:00:01   10.20.0.1         1581412781   2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -572,7 +572,7 @@ TQ_TEST("asprint_clar/pass/1")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01\t0.0.0.0\t\t1581412781\t2001:db8::27\t1581412782\n";
+"00:00:00:00:00:01   0.0.0.0           1581412781   2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -592,7 +592,7 @@ TQ_TEST("asprint_clar/pass/2")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01\t0.0.0.0\t\t0\t\t2001:db8::27\t1581412782\n";
+"00:00:00:00:00:01   0.0.0.0           0            2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -612,7 +612,7 @@ TQ_TEST("asprint_clar/pass/3")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01\t192.168.255.255\t1581412781\t2001:db8::27\t1581412782\n";
+"00:00:00:00:00:01   192.168.255.255   1581412781   2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -632,7 +632,7 @@ TQ_TEST("asprint_clar/pass/4")
 			.ipv6_t.tv_sec = 0
 		};
 	char* intent =
-"00:00:00:00:00:01\t192.168.255.255\t1581412782\t::\t0\n";
+"00:00:00:00:00:01   192.168.255.255   1581412782   ::                                        0\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -649,7 +649,7 @@ TQ_TEST("addrss_list_nag")
 
 TQ_TEST("get_addrss")
 {
-	this'll take some work, just run the thing...
+	// this'll take some work, just run the thing...
 	return 1;
 }
 */

@@ -1100,12 +1100,10 @@ int asprint_clar(char** dest, const struct Addrss* addrss)
 	asprint_ip(&ipv6, addrss->ipv6, true);
 
 	// v1.x output format
-	if (asprintf(dest, "%s\t%s%s\t%0li%s\t%s\t%0li\n"
+	if (asprintf(dest, "%-17s   %-15s   %-10li   %-39s   %0li\n"
 				, mac
 				, ipv4
-				, strlen(ipv4) < 8 ? "\t" : ""
 				, (long int)addrss->ipv4_t.tv_sec
-				, addrss->ipv4_t.tv_sec ? "" : "\t"
 				, ipv6
 				, (long int)addrss->ipv6_t.tv_sec) == -1)
 	{
