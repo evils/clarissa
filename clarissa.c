@@ -747,7 +747,7 @@ void dump_state(char* filename, struct Addrss *head)
 	fclose(stats_file);
 
 	if ((rename(tmp_filename, filename) < 0)
-			|| chmod(filename, PERMS))
+			|| chmod(filename, 0444))
 	{
 		warn("Failed to rename stats file");
 	}

@@ -75,7 +75,7 @@ int clarissa(int argc, char* argv[])
 		err(1, "Failed to bind socket");
 	}
 
-	if (chmod(opts.socket, PERMS) != 0)
+	if (chmod(opts.socket, 0666) != 0)
 	{
 		err(1, "Failed to set socket permissions");
 	}
