@@ -724,23 +724,15 @@ void dump_state(char* filename, struct Addrss *head)
 
 	flockfile(stats_file);
 
-	char* tmp_mac;
-	char* tmp_ipv4;
-	char* tmp_ipv6;
-
 	for (struct Addrss *link = head;
 		link != NULL; link = link->next)
 	{
-		asprint_mac(&tmp_mac, link->mac);
-		asprint_ip(&tmp_ipv4, link->ipv4, false);
-		asprint_ip(&tmp_ipv6, link->ipv6, true);
+		char* clar;
+		asprint_clar(&clar, link);
 
-		fprintf(stats_file, "%s\t%s \t%s\n",
-			tmp_mac, tmp_ipv4, tmp_ipv6);
+		fprintf(stats_file, "%s", clar);
 
-		free(tmp_mac);
-		free(tmp_ipv4);
-		free(tmp_ipv6);
+		free(clar);
 	}
 
 	funlockfile(stats_file);

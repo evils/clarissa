@@ -254,10 +254,18 @@ int clarissa(int argc, char* argv[])
 	}
 
 // cleanup
-
+end:
 	close(sock_d);
 	remove(opts.socket);
-end:
+
+	// leave will if this was requested
+	// or if the input is a file, or file output (interval) was set
+	if (child && (opts.will || opts.from_file || opts.print_interval))
+	{
+		dump_state(opts.print_filename, head);
+		printf("Left list in will file: %s\n", opts.print_filename);
+	}
+
 	for (struct Addrss* tmp; head != NULL;)
 	{
 		tmp = head;
@@ -363,9 +371,11 @@ void sig_handler(int signum)
 // print help header and options
 void help()
 {
+	printf("Usage: clarissa [-hHvVqpuw] [--interface I] [--listen l] [--interval i] [--nags n] [--timeout t] [--cidr c] [--file f] [--socket s] [--output_file o] [--output_interval O]\n");
+	printf("       clarissa cat <socket path>\n\n");
 	printf("Clarissa keeps a list of all connected devices on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = 0, Verbosity = 0, subnet = Interface's IPv4 subnet, output file = /tmp/clar_[dev]_[subnet]-[mask], file output interval = timeout / 2\n");
+	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = true, Verbosity = 0, cidr = Interface's IPv4 subnet, socket = /run/clar/[dev]_[subnet]-[mask]\n");
 
 	print_opts();
 }
@@ -381,16 +391,18 @@ void print_opts()
 	printf("--quiet\t\t-q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
 	printf("--promiscuous\t-p\n\tset the interface to Promiscuous mode\n");
 	printf("--unbuffered\t-u\n\tdon't buffer packets (use immediate mode)\n");
+	printf("--will\t\t-w\n\tleave a will file containing the list at exit\n");
 	printf("\nRequiring an argument:\n\n");
 	printf("--interface\t-I\n\tset the primary Interface\n");
 	printf("--listen\t-l\n\tset the Listening interface\n");
 	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
 	printf("--nags\t\t-n\n\tset the number of times to \"Nag\" a target\n");
 	printf("--timeout\t-t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
-	printf("--subnet\t-s\n\tget a Subnet to filter by (in CIDR notation)\n");
+	printf("--cidr\t-c\n\tset a CIDR subnet to which IPv4 activity is limited\n");
 	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n");
+	printf("--socket\t-s\t-S\n\tset the output socket name (incl. path)\n");
 	printf("--output_file\t-o\n\tset the output filename\n");
-	printf("--output_interval -O\n\tset the Output interval\n");
+	printf("--output_interval -O\n\tset the Output interval (in ms)\n");
 }
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
@@ -419,23 +431,28 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			{"promiscuous",		no_argument, 0,		'p'},
 			{"quiet",		no_argument, 0,		'q'},
 			{"unbuffered",		no_argument, 0,		'u'},
+			{"will",		no_argument, 0,		'w'},
 			{"listen",		required_argument, 0,	'l'},
 			{"interface",		required_argument, 0,	'I'},
 			{"interval",		required_argument, 0,	'i'},
 			{"nags", 		required_argument, 0,	'n'},
 			{"timeout", 		required_argument, 0,	't'},
-			{"subnet",		required_argument, 0,	's'},
+			{"cidr",		required_argument, 0,	'c'},
 			{"file", 		required_argument, 0,	'f'},
 			{"output_file", 	required_argument, 0,	'o'},
 			{"output_interval",	required_argument, 0,	'O'},
 			{"socket",		required_argument, 0,	'S'}
 		};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "S:uHVvi:pn:l:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, "wS:uHVvi:pn:l:t:qf:I:sho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
 		{
+			case 'w':
+				opts->will = true;
+				break;
+			case 's':
 			case 'S':
 				// save socket path name
 				if (asprintf(&opts->socket, "%s", optarg) == -1)
@@ -492,6 +509,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				{
 					err(1, "Failed to save given file name");
 				}
+				opts->from_file = true;
 				break;
 			case 'I':
 				// get the sending interface
@@ -500,11 +518,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 					err(1, "Failed to save given sending interface name");
 				}
 				break;
-			case 's':
+			case 'c':
 				if (opts->cidr)
 				{
 					err(1,
-				"Multiple subnets currently not supported");
+				"Multiple CIDR subnets currently not supported");
 				}
 				// parse provided CIDR notation
 				if (!get_cidr(&opts->subnet, optarg))
@@ -754,10 +772,10 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		// subnet.ip is IPv6 or mapped v4
 		asprint_ip(&ip, opts->host.subnet.ip, true);
 		if (asprintf(&opts->print_filename
-			// output to current directory (not removed)
 			// if reading from file
-			, !filename ? "/tmp/clar_%s_%s-%i"
-			: "clar_parsed_%s"
+			// output to current directory
+			, filename ? "clar_parsed-%s"
+			: "/run/clar/%s_%s-%i.clar"
 			, filename ? filename : opts->l_dev
 			, ip
 			, opts->host.subnet.mask - 96) == -1)
@@ -846,12 +864,15 @@ void print_header(const struct Opts* opts)
 				printf("Interval:\t\t%dms\n",
 					opts->interval / 1000);
 				printf("\n");
-				if (opts->print_interval)
+				printf("Output socket:\t\t%s\n",opts->socket);
+				if (opts->will || opts->from_file || opts->print_interval)
 				{
 					printf("Output filename:\t%s\n", opts->print_filename);
+				}
+				if (opts->print_interval)
+				{
 					printf("Output interval:\t%dms\n",opts->print_interval / 1000);
 				}
-				printf("Output socket:\t%s\n", opts->socket);
 				printf("\n");
 			}
 		}

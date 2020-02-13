@@ -75,6 +75,8 @@ struct Opts
 	bool run;		// whether to run, 0 if just printing the header
 	bool immediate;		// whether to pcap_set_immediate_mode
 	bool promiscuous;	// whether to pcap_set_promisc on the listening interface
+	bool will;		// whether to leave a will (file containing last list) at exit
+	bool from_file;		// whether the current session is reading from a file
 };
 
 // extraction

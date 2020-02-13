@@ -1,7 +1,7 @@
 #pragma once
 
 #define _GNU_SOURCE
-#define VERSION "v0.7"
+#define VERSION "v0.99"
 
 // number of things in the poll
 #define POLL_N 2
