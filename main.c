@@ -255,15 +255,33 @@ int clarissa(int argc, char* argv[])
 
 // cleanup
 end:
-	close(sock_d);
-	remove(opts.socket);
-
-	// leave will if this was requested
-	// or if the input is a file, or file output (interval) was set
-	if (child && (opts.will || opts.from_file || opts.print_interval))
+	if (child != 0)
 	{
-		dump_state(opts.print_filename, head);
-		printf("Left list in will file: %s\n", opts.print_filename);
+		close(sock_d);
+		remove(opts.socket);
+
+		// leave will if this was requested
+		// , if the input is a file
+		// or file output (interval) was set
+		if (opts.will || opts.from_file
+			|| opts.print_interval)
+		{
+			dump_state(opts.print_filename, head);
+			printf("Left list in will file: %s\n"
+					, opts.print_filename);
+		}
+
+		fprintf(stderr, "\nStopped by:\t\t");
+		switch (sig)
+		{
+			case SIGINT:
+				fprintf(stderr, "SIGINT");
+				break;
+			case SIGTERM:
+				fprintf(stderr, "SIGTERM");
+				break;
+		}
+		printf("\n");
 	}
 
 	for (struct Addrss* tmp; head != NULL;)
@@ -272,17 +290,6 @@ end:
 		head = head->next;
 		free(tmp);
 	}
-	if (child) fprintf(stderr, "\nStopped by:\t\t");
-	switch (sig)
-	{
-		case SIGINT:
-			fprintf(stderr, "SIGINT");
-			break;
-		case SIGTERM:
-			fprintf(stderr, "SIGTERM");
-			break;
-	}
-	if (child) printf("\n");
 
 // and the stuff that's used by the header
 end_header:
