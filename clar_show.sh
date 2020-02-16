@@ -24,7 +24,7 @@ fi
 
 if [ -z "$1" ]; then
 	# shellcheck disable=SC2086
-	set $1 "$(echo /run/clar/*)"
+	set $1 "$(echo /var/run/clar/*)"
 	echo "No source socket specified."
 	echo "Falling back on $1"
 	echo
