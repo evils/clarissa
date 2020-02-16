@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-dir="$(pwd -P "$(dirname "$0")")"
+dir="$(cd "$(dirname "$0")" && pwd -P)"
 
 # shellcheck disable=SC1091
 # shellcheck disable=SC1090

@@ -3,7 +3,7 @@
 oui=clar_OUI.csv
 tmp=".clar_scan_temp_file_delete_this.tmp"
 
-dir="$(pwd -P "$(dirname "$0")")"
+dir="$(cd "$(dirname "$0")" && pwd -P)"
 c_cat="$dir/clarissa cat"
 
 if [ -z "$1" ]; then
