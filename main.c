@@ -67,10 +67,7 @@ int clarissa(int argc, char* argv[])
 
 	unlink(local.sun_path);
 	local.sun_family = AF_UNIX;
-	if (bind(sock_d, (struct sockaddr*)&local,
-				strlen(local.sun_path)
-				+ sizeof(local.sun_family))
-			== -1)
+	if (bind(sock_d, (struct sockaddr*)&local, sizeof(local)) == -1)
 	{
 		err(1, "Failed to bind socket");
 	}
@@ -305,7 +302,7 @@ end_header:
 
 int clar_cat(int argc, char* argv[])
 {
-	int s, t, len;
+	int s, t;
 	struct sockaddr_un remote;
 	char str[100];
 
@@ -316,8 +313,7 @@ int clar_cat(int argc, char* argv[])
 
 	remote.sun_family = AF_UNIX;
 	if (argc > 1) strcpy(remote.sun_path, argv[1]);
-	len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-	if (connect(s, (struct sockaddr *)&remote, len) == -1)
+	if (connect(s, (struct sockaddr *)&remote, sizeof(remote)) == -1)
 	{
 		err(1, "Failed to connect to socket");
 	}
