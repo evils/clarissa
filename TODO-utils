@@ -1,0 +1,36 @@
+clar show
+	handle multiple file input?
+		probably better to just run show on each file
+			put the used input in the output header?
+		accept STDIN to E.G.: 'clar cat /tmp/clar_* | clar show'
+
+clar count
+	make sure log() doesn't lose data
+	find a place for macs.csv?
+
+OUI_assemble.sh
+	CSV handling with awk is flawed
+	make my own repo with versioned tab separated files from IEEE?
+		and a pre-made trimmed file?
+		need to figure out how to set up reliable automation for that
+
+packaging
+	utils and binary go to /usr/lib
+		/bin/clar[issa] -> /usr/lib/clar.sh
+			single entry point
+
+
+Cached Local Area Resources
+
+CLAR
+	clar|clarissa
+
+		cat
+		show
+		scan
+		count
+		[clarissa options]
+
+next util?
+	arp poisoning detection
+		alert / highlight, duplicate IP address entries
