@@ -1,24 +1,20 @@
 code
-	output
-		switch to domain socket
-			on read, fork, dump out the list, die
-			where to put this?
-				/run is preferred by FHS 3.0
-				/var/run works for freebsd
-					and is guaranteed to exist by FHS 3.0
-					both mention memory-backed storage
-				/var/run/clar/enp5s0_192.168.0.0-16
-
 	reconsider options
 		make capitalization more consistent?
 		add redundant options?
 		separate flags and options?
 		separate setup and algorithm options?
+	consider preload option (load will file)
+
+	cat
+		default to first item in /var/run/clar?
+		allow `clar cat /var/run/clar/*`
 
 packaging
 	daemonizing
 		figure out dealing with multiple instances
-			different options for each
+			managing different options for each
+			multiple instances can be started manually
 		procd for openwrt
 			started
 		systemd for everything else?
@@ -34,11 +30,9 @@ packaging
 tests
 	get_addrss()
 		assemble a publishable pcap file
+		--will option may help with this
 
 docs
-	document output
-		maybe after the domain socket thing?
-
-CLAR_COUNT
-		make sure log() doesn't lose data
-		find a place for macs.csv
+	write an unambiguous specification of the output line format
+	(re)write man pages in asciidoc(ter)
+		for commands and functions
