@@ -6,6 +6,9 @@
 // number of things in the poll
 #define POLL_N 2
 
+// output path where the socket is found
+#define PATH "/var/run/clar"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>

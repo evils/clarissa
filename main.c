@@ -47,6 +47,20 @@ int clarissa(int argc, char* argv[])
 		err(1, "Failed to create socket");
 	}
 
+	// socket directory setup
+	struct stat st = {0};
+	if (stat(PATH, &st) == -1)
+	{
+		if (mkdir(PATH, 0755) == -1)
+		{
+			err(1, "Failed to create output directory");
+		}
+		if (verbosity > 2)
+		{
+			warn("created "PATH);
+		}
+	}
+
 	int snl = snprintf(local.sun_path
 			, sizeof(local.sun_path)
 			, "%s", opts.socket);
@@ -378,7 +392,7 @@ void help()
 	printf("       clarissa cat <socket path>\n\n");
 	printf("Clarissa keeps a list of all connected devices on a network.\n");
 	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = true, Verbosity = 0, cidr = Interface's IPv4 subnet, socket = /run/clar/[dev]_[subnet]-[mask]\n");
+	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = true, Verbosity = 0, cidr = Interface's IPv4 subnet, socket = "PATH"/[dev]_[subnet]-[mask]\n");
 
 	print_opts();
 }
@@ -778,7 +792,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			// if reading from file
 			// output to current directory
 			, filename ? "clar_parsed-%s"
-			: "/run/clar/%s_%s-%i.clar"
+			: PATH"/%s_%s-%i.clar"
 			, filename ? filename : opts->l_dev
 			, ip
 			, opts->host.subnet.mask - 96) == -1)
@@ -789,7 +803,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	}
 	else
 	{
-		if (asprintf(&opts->print_filename, "%s", opts->print_filename) == -1)
+		if (asprintf(&opts->print_filename, "%s"
+				, opts->print_filename) == -1)
 		{
 			err(1, "Failed to set the output filename");
 		}
@@ -800,7 +815,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		char* ip;
 		// subnet.ip is IPv4 or mapped v4
 		asprint_ip(&ip, opts->host.subnet.ip, true);
-		if (asprintf(&opts->socket, "/run/clar/%s_%s-%i", opts->l_dev
+		if (asprintf(&opts->socket, PATH"/%s_%s-%i"
+				, opts->l_dev
 				, ip, opts->host.subnet.mask - 96) == -1)
 		{
 			err(1, "Failed to set the output socket path name");

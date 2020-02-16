@@ -3,7 +3,11 @@ code
 		switch to domain socket
 			on read, fork, dump out the list, die
 			where to put this?
-				/run/clar/192.168.0.0/16?
+				/run is preferred by FHS 3.0
+				/var/run works for freebsd
+					and is guaranteed to exist by FHS 3.0
+					both mention memory-backed storage
+				/var/run/clar/enp5s0_192.168.0.0-16
 
 	reconsider options
 		make capitalization more consistent?
@@ -15,8 +19,6 @@ packaging
 	daemonizing
 		figure out dealing with multiple instances
 			different options for each
-			and a better output location?
-				/tmp is a security issue?
 		procd for openwrt
 			started
 		systemd for everything else?
