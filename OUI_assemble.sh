@@ -1,15 +1,17 @@
 #!/usr/bin/env sh
 
-rev="e34197559bf9f307baeb2ef543cb9e5491c57d1b"
+rev="13521cab38d251b0dcf5caf7faa0fa90b2a95b5f"
 path="https://raw.githubusercontent.com/hdm/mac-ages/$rev/data/ieee/"
 tables="cid iab mam oui oui36"
 
 file="clar_OUI.csv"
 tmp=".tmp_$file"
+dir="$(cd "$(dirname "$0")" && pwd -P)"
+hashing="$dir/matcrc"
 
 # to ensure this script ran correctly
 # should get checked by nix regardless, but not elsewhere
-sha256="afb18362a357be377c42d4f46e86b7298b02d3f2058186ce404410a938b9980a  -"
+sum="734ba9e55194f4ba"
 tries=2
 
 if [ "$(type wget)" ]; then
@@ -39,10 +41,10 @@ while [ $count -le $tries ]; do
 		continue
 	fi
 
-	output=$(sha256sum < $tmp)
-	if [ "$output" != "$sha256" ]; then
+	output=$($hashing < $tmp)
+	if [ "$output" != "$sum" ]; then
 		echo "hash mismatch"
-		echo "wanted: $sha256"
+		echo "wanted: $sum"
 		echo "got:    $output"
 		count=$(( count + 1 ))
 		continue

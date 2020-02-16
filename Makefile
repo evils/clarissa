@@ -31,8 +31,10 @@ SYSDIR = /lib/systemd/system
 SYSDINST = true
 DOCDIR = docs
 GETOUI = true
-clar_OUI.csv:
+clar_OUI.csv: matcrc
 	if $(GETOUI); then ./OUI_assemble.sh; fi
+matcrc: matcrc64min.c
+	$(CC) $(CFLAGS) -o $@ matcrc64min.c
 .PHONY: install
 install: clarissa man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
@@ -104,4 +106,5 @@ clean:
 	rm -rf *.o $(OUTDIR)
 	rm -rf docs/*.[0-9] index.html
 	rm -rf clar_OUI.csv
+	rm -rf matcrc
 	rm -rf cflow*
