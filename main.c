@@ -4,6 +4,7 @@ int main(int argc, char* argv[])
 {
 	if (argc > 1 && !strncmp(argv[1], "cat", 3))
 	{
+		printf("catting\n");
 		return clar_cat(--argc, ++argv);
 	}
 	else return clarissa(argc, argv);
@@ -48,6 +49,8 @@ int clarissa(int argc, char* argv[])
 	}
 
 	// socket directory setup
+	// TODO move this to a separate function
+	// maybe move more around here away...
 	struct stat st = {0};
 	if (stat(PATH, &st) == -1)
 	{
@@ -128,6 +131,7 @@ int clarissa(int argc, char* argv[])
 			continue;
 		}
 
+		// socket
 		if (fds[0].revents & POLLIN)
 		{
 			socklen_t size = sizeof(remote);
@@ -156,6 +160,7 @@ int clarissa(int argc, char* argv[])
 			close(sock_v);
 		}
 
+		// pcap_fd
 		if (fds[1].revents & POLLIN)
 		{
 
@@ -217,31 +222,31 @@ int clarissa(int argc, char* argv[])
 						result);
 					continue;
 			}
+		}
 
-			if (usec_diff(&now, &checked) > opts.interval)
-			{
-				checked = now;
+		if (usec_diff(&now, &checked) > opts.interval)
+		{
+			checked = now;
 
-				// cull those that have been nagged enough
-				addrss_list_cull
-					(&head, &now, opts.timeout,
-						opts.nags);
+			// cull those that have been nagged enough
+			addrss_list_cull
+				(&head, &now, opts.timeout,
+					opts.nags);
 
-				// and nag the survivors
-				addrss_list_nag
-					(&head, &now, opts.timeout,
-						&opts, &count);
-			}
+			// and nag the survivors
+			addrss_list_nag
+				(&head, &now, opts.timeout,
+					&opts, &count);
+		}
 
-			// output the list to a file
-			if (opts.print_interval
-					&& (opts.print_interval
-						< usec_diff(&now, &last_print
-							)))
-			{
-				last_print = now;
-				dump_state(opts.print_filename, head);
-			}
+		// output the list to a file
+		if (opts.print_interval
+				&& (opts.print_interval
+					< usec_diff(&now, &last_print
+						)))
+		{
+			last_print = now;
+			dump_state(opts.print_filename, head);
 		}
 	}
 
@@ -307,14 +312,108 @@ end_header:
 
 	if (opts.l_handle) pcap_close(opts.l_handle);
 	if (opts.s_handle) pcap_close(opts.s_handle);
+
+	// these should all get asprintf'd
+	// can't copy optarg pointer because that can't be freed
 	free(opts.print_filename);
 	free(opts.socket);
-	if (opts.l_dev) free(opts.l_dev);
-	if (opts.s_dev != opts.l_dev) free(opts.s_dev);
+	free(opts.l_dev);
+	free(opts.s_dev);
 	return 0;
 }
 
 int clar_cat(int argc, char* argv[])
+{
+	// no argument, attempt to find something in PATH
+	if (argc <= 1)
+	{
+		printf("no argument\n");
+		DIR* dir_p = opendir(PATH);
+		if (dir_p == NULL)
+		{
+			err(1, "Failed to open "PATH", does it exist?");
+		}
+		for (struct dirent* dir_e = readdir(dir_p)
+			; dir_e != NULL; dir_e = readdir(dir_p))
+		{
+			if (dir_e->d_type != DT_SOCK) continue;
+			char* full_path;
+			if (asprintf(&full_path, "%s/%s"
+				, PATH, dir_e->d_name) == -1)
+			{
+				err(1, "Failed to save full path to socket");
+			}
+			fprintf(stderr, "clarissa cat: Found socket: %s\n"
+							, full_path);
+			int ret = s_cat(full_path);
+			free(full_path);
+			return ret;
+		}
+
+		err(1, "No socket found in "PATH);
+	}
+	// an argument given, may be multiple files or multiple sockets
+	else
+	{
+		printf("got an argument\n");
+		struct stat st;
+		int opt;
+
+		static struct option long_options[] =
+		{
+			{"file",		required_argument, 0,	'f'},
+			{"socket",		required_argument, 0,	's'}
+		};
+		int option_index = 0;
+		while ((opt = getopt_long(argc, argv, ":f:s",
+						long_options, &option_index)) != -1)
+		{
+			switch (opt)
+			{
+				case 'f':
+					printf("catting file\n");
+					stat(optarg, &st);
+					if (S_ISREG(st.st_mode))
+					{
+						fprintf(stderr, "clarissa cat: Found file: %s\n", optarg);
+						FILE* fd = fopen(optarg, "r");
+						if (fd == NULL)
+						{
+							err(1, "Failed to open %s", optarg);
+						}
+						char c = fgetc(fd);
+						while (c != EOF)
+						{
+							printf("%c", c);
+							c = fgetc(fd);
+						}
+						fclose(fd);
+					}
+					break;
+				case ':':
+					err(1, "That option needs an argument.");
+				case '?':
+					err(1, "Unknown option");
+				case 's':
+					printf("case 's', should fall through to default\n");
+					__attribute__ ((fallthrough));
+				default:
+					printf("catting socket\n");
+					stat(optarg, &st);
+					if (S_ISSOCK(st.st_mode))
+					{
+						fprintf(stderr, "clarissa cat: Found socket: %s\n", optarg);
+						s_cat(optarg);
+					}
+					break;
+			}
+		}
+		return 0;
+	}
+	return 1;
+}
+
+int s_cat(char* sock)
 {
 	int s, t;
 	struct sockaddr_un remote;
@@ -326,7 +425,7 @@ int clar_cat(int argc, char* argv[])
 	}
 
 	remote.sun_family = AF_UNIX;
-	if (argc > 1) strcpy(remote.sun_path, argv[1]);
+	strcpy(remote.sun_path, sock);
 	if (connect(s, (struct sockaddr *)&remote, sizeof(remote)) == -1)
 	{
 		err(1, "Failed to connect to socket");
@@ -415,7 +514,7 @@ void print_opts()
 	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
 	printf("--nags\t\t-n\n\tset the number of times to \"Nag\" a target\n");
 	printf("--timeout\t-t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
-	printf("--cidr\t-c\n\tset a CIDR subnet to which IPv4 activity is limited\n");
+	printf("--cidr\t\t-c\n\tset a CIDR subnet to which IPv4 activity is limited\n");
 	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n");
 	printf("--socket\t-s\t-S\n\tset the output socket name (incl. path)\n");
 	printf("--output_file\t-o\n\tset the output filename\n");
@@ -435,33 +534,34 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	bool version	= false;
 	bool nags_set 	= false;
 	char* auto_dev	= NULL;
+	char* auto_name	= NULL;
 	char* filename	= NULL;
 
 	int opt;
 
 	static struct option long_options[] =
-		{
-			{"version",		no_argument, 0,		'V'},
-			{"verbose",		no_argument, 0, 	'v'},
-			{"help",		no_argument, 0,		'h'},
-			{"header",		no_argument, 0,		'H'},
-			{"promiscuous",		no_argument, 0,		'p'},
-			{"quiet",		no_argument, 0,		'q'},
-			{"unbuffered",		no_argument, 0,		'u'},
-			{"will",		no_argument, 0,		'w'},
-			{"listen",		required_argument, 0,	'l'},
-			{"interface",		required_argument, 0,	'I'},
-			{"interval",		required_argument, 0,	'i'},
-			{"nags", 		required_argument, 0,	'n'},
-			{"timeout", 		required_argument, 0,	't'},
-			{"cidr",		required_argument, 0,	'c'},
-			{"file", 		required_argument, 0,	'f'},
-			{"output_file", 	required_argument, 0,	'o'},
-			{"output_interval",	required_argument, 0,	'O'},
-			{"socket",		required_argument, 0,	'S'}
-		};
+	{
+		{"version",		no_argument, 0,		'V'},
+		{"verbose",		no_argument, 0, 	'v'},
+		{"help",		no_argument, 0,		'h'},
+		{"header",		no_argument, 0,		'H'},
+		{"promiscuous",		no_argument, 0,		'p'},
+		{"quiet",		no_argument, 0,		'q'},
+		{"unbuffered",		no_argument, 0,		'u'},
+		{"will",		no_argument, 0,		'w'},
+		{"listen",		required_argument, 0,	'l'},
+		{"interface",		required_argument, 0,	'I'},
+		{"interval",		required_argument, 0,	'i'},
+		{"nags", 		required_argument, 0,	'n'},
+		{"timeout", 		required_argument, 0,	't'},
+		{"cidr",		required_argument, 0,	'c'},
+		{"file", 		required_argument, 0,	'f'},
+		{"output_file", 	required_argument, 0,	'o'},
+		{"output_interval",	required_argument, 0,	'O'},
+		{"socket",		required_argument, 0,	'S'}
+	};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "wS:uHVvi:pn:l:t:qf:I:sho:O:",
+	while ((opt = getopt_long(argc, argv, ":wc:S:uHVvi:pn:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
@@ -546,24 +646,16 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				{
 					err(1, "Failed to parse CIDR");
 				}
-				else
-				{
-					if (verbosity > 1)
-					{
-						printf("subset ip:\t\t");
-						// subnet.ip is v6 or mapped v4
-						print_ip(opts->subnet.ip, true);
-						printf("subset mask:\t\t%d\n",
-							opts->subnet.mask);
-					}
-					opts->cidr += 1;
-				}
+				else opts->cidr += 1;
 				break;
 			case 'h':
 				help();
 				exit(0);
 			case 'o':
-				opts->print_filename = optarg;
+				if (asprintf(&opts->print_filename, "%s", optarg) == -1)
+				{
+					err(1, "Failed to save given output filename");
+				}
 				break;
 			case 'O':
 				opts->print_interval = atoi(optarg) * 1000;
@@ -571,6 +663,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 					warn("Failed to parse print interval");
 				}
 				break;
+			case ':':
+				err(1, "%c\trequires an argument!", optopt);
 			default:
 				// usage
 				print_opts();
@@ -782,29 +876,34 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	get_if_ip(opts->host.ipv4, opts->s_dev, AF_INET, opts->errbuf);
 	get_if_ip(opts->host.ipv6, opts->s_dev, AF_INET6,opts->errbuf);
 
-	// print_filename needs host.subnet
-	if (!opts->print_filename)
+	// if auto_name is required
+	if (!opts->socket || opts->print_filename)
 	{
 		char* ip;
 		// subnet.ip is IPv6 or mapped v4
-		asprint_ip(&ip, opts->host.subnet.ip, true);
-		if (asprintf(&opts->print_filename
+		asprint_ip(&ip, opts->cidr ? opts->subnet.ip
+				: opts->host.subnet.ip, true);
+		if (asprintf(&auto_name
 			// if reading from file
 			// output to current directory
 			, filename ? "clar_parsed-%s"
-			: PATH"/%s_%s-%i.clar"
+			: PATH"/%s_%s-%i"
 			, filename ? filename : opts->l_dev
 			, ip
-			, opts->host.subnet.mask - 96) == -1)
+			, (opts->cidr
+				? opts->subnet.mask
+				: opts->host.subnet.mask) - 96)
+			== -1)
 		{
-			err(1, "Failed to set the output filename");
+			err(1, "Failed to set the auto_name");
 		}
 		free(ip);
 	}
-	else
+
+	if (!opts->print_filename)
 	{
-		if (asprintf(&opts->print_filename, "%s"
-				, opts->print_filename) == -1)
+		if (asprintf(&opts->print_filename, "%s.clar", auto_name)
+			== -1)
 		{
 			err(1, "Failed to set the output filename");
 		}
@@ -812,19 +911,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->socket)
 	{
-		char* ip;
-		// subnet.ip is IPv4 or mapped v4
-		asprint_ip(&ip, opts->host.subnet.ip, true);
-		if (asprintf(&opts->socket, PATH"/%s_%s-%i"
-				, opts->l_dev
-				, ip, opts->host.subnet.mask - 96) == -1)
+		if (asprintf(&opts->socket, "%s", auto_name) == -1)
 		{
 			err(1, "Failed to set the output socket path name");
 		}
-		free(ip);
 	}
 
-	free(auto_dev);
+	if (auto_dev)	free(auto_dev);
+	if (auto_name)	free(auto_name);
 }
 
 void print_header(const struct Opts* opts)
@@ -860,13 +954,24 @@ void print_header(const struct Opts* opts)
 
 		if (verbosity > 1)
 		{
-			// subnet block,
-			// mask minus 96 as this is mapped IPv4
 			char* ip;
-			// subnet.ip is IPv6 or mapped v4
-			asprint_ip(&ip, opts->host.subnet.ip, true);
-			printf("Host IPv4 subnet:\t%s/%d\n",
-				ip, opts->host.subnet.mask - 96);
+			if (is_zeros(opts->subnet.ip
+				, sizeof(opts->subnet.ip)))
+			{
+				// subnet block,
+				// mask minus 96 as this is mapped IPv4
+				// subnet.ip is IPv6 or mapped v4
+				asprint_ip(&ip, opts->host.subnet.ip, true);
+				printf("Host IPv4 subnet:\t%s/%d\n",
+					ip, opts->host.subnet.mask - 96);
+			}
+			else
+			{
+				asprint_ip(&ip, opts->subnet.ip, true);
+				printf("Subset filter:\t\t%s/%d\n"
+					, ip
+					, opts->subnet.mask - (is_mapped(opts->subnet.ip) ? 96 : 0));
+			}
 			free(ip);
 			printf("\n");
 

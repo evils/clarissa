@@ -30,8 +30,6 @@ int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss,
 		const uint16_t type);
 
 // helpers
-bool is_zeros(const uint8_t* target, int count);
-bool is_mapped(const uint8_t* ip);
 int bitcmp(const uint8_t* a, const uint8_t* b, int n);
 void asprint_ipv4(char** dest, const uint8_t* ip);
 

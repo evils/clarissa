@@ -24,6 +24,8 @@
 #include <sys/un.h>	// sockaddr_un
 #include <fcntl.h>	// fcntl()
 #include <poll.h>	// poll(), POLLIN
+#include <dirent.h>	// struct dirent, opendir(), readdir()
+#include <sys/stat.h>	// stat(), S_ISSOCK()
 
 #include "clarissa.h"
 
@@ -31,6 +33,7 @@ extern int verbosity;
 
 int clarissa(int argc, char* argv[]);
 int clar_cat(int argc, char* argv[]);
+int s_cat(char* sock);
 
 void help();
 void print_opts();
