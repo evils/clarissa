@@ -490,8 +490,7 @@ void help()
 	printf("Usage: clarissa [-hHvVqpuw] [--interface I] [--listen l] [--interval i] [--nags n] [--timeout t] [--cidr c] [--file f] [--socket s] [--output_file o] [--output_interval O]\n");
 	printf("       clarissa cat <socket path>\n\n");
 	printf("Clarissa keeps a list of all connected devices on a network.\n");
-	printf("It attempts to keep it as complete and up to date as possible.\n\n");
-	printf("Defaults: Interface = first, listen = Interface, Timeout = 5s, Nags = 4, interval = Timeout / Nags, Promiscuous = true, Verbosity = 0, cidr = Interface's IPv4 subnet, socket = "PATH"/[dev]_[subnet]-[mask]\n");
+	printf("It attempts to keep it as complete and up to date as possible.\n");
 
 	print_opts();
 }
@@ -499,26 +498,32 @@ void help()
 void print_opts()
 {
 	printf("\n%s\n", VERSION);
-	printf("\nOptions:\nLong\t\tShort\n\n");
-	printf("--help\t\t-h\n\tshow the help message\n");
+	printf("\nOptions:\nLong\t\tShort\tDefault\n\n");
+	printf("--help\t\t-h\n\tshow the help message and exit\n");
 	printf("--header\t-H\n\tshow the Header and exit\n");
-	printf("--verbose\t-v\n\tincrease verbosity (shows 0 = err & warn < MAC < IP < chatty < debug < vomit)\n");
+	printf("--verbose\t-v\n\tincrease verbosity\n"
+		"\tshows: err & warn < MAC < IP < chatty < debug < vomit\n");
 	printf("--version\t-V\n\tshow the Version\n");
-	printf("--quiet\t\t-q\n\tQuiet, send out no packets (equivalent to -n 0)\n");
-	printf("--promiscuous\t-p\n\tset the interface to Promiscuous mode\n");
-	printf("--unbuffered\t-u\n\tdon't buffer packets (use immediate mode)\n");
-	printf("--will\t\t-w\n\tleave a will file containing the list at exit\n");
+	printf("--quiet\t\t-q\tfalse\n\tQuiet, send out no packets (equivalent to -n 0)\n");
+	printf("--abstemious\t-a\tfalse\n\tdon't set the interface to promiscuous mode\n");
+	printf("--unbuffered\t-u\tfalse\n\tdon't buffer packets (use immediate mode)\n");
+	printf("--will\t\t-w\tfalse\n\tleave a will file containing the list at exit\n");
 	printf("\nRequiring an argument:\n\n");
-	printf("--interface\t-I\n\tset the primary Interface\n");
-	printf("--listen\t-l\n\tset the Listening interface\n");
-	printf("--interval\t-i\n\tset the interval (in milliseconds)\n");
-	printf("--nags\t\t-n\n\tset the number of times to \"Nag\" a target\n");
-	printf("--timeout\t-t\n\tset the Timeout for an entry (wait time for nags in ms)\n");
-	printf("--cidr\t\t-c\n\tset a CIDR subnet to which IPv4 activity is limited\n");
+	printf("--interface\t-I\tpcap auto select\n\tset the primary Interface\n");
+	printf("--listen\t-l\tInterface\n\tset the Listening interface\n");
+	printf("--interval\t-i\tTimeout / Nags\n\tset the interval (in milliseconds)\n");
+	//printf("--nags\t\t-n\t4\n\tset how many times to attempt to contact an entry before removing it from the list\n");
+	printf("--nags\t\t-n\t4\n\tset how many times an entry can time out\n"
+		"\tbefore being removed from the list (sends a frame on time out)\n");
+	// printf("--nags\t\t-n\t4\n\tset the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n");
+	//printf("--nags\t\t-n\t4\n\tset how many times a timed out entry gets send a frame before being removed from the list\n");
+	printf("--timeout\t-t\t5000\n\tset the Timeout for an entry (wait time for nags in ms)\n");
+	printf("--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n");
 	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n");
-	printf("--socket\t-s\t-S\n\tset the output socket name (incl. path)\n");
-	printf("--output_file\t-o\n\tset the output filename\n");
-	printf("--output_interval -O\n\tset the Output interval (in ms)\n");
+	printf("--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output Socket name (incl. path)\n");
+	// printf("--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing) (unimplemented)\n");
+	printf("--output_file\t-o\t[socket].clar\n\tset the output filename\n");
+	printf("--output_interval -O\t0\n\tset the Output interval (in ms) 0 = no periodic output\n");
 }
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
@@ -528,6 +533,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	opts->nags 	= 4;
 	opts->run	= true;
 	opts->immediate	= false;
+	opts->promiscuous = true;
 	verbosity 	= 0;
 
 	// local helpers
@@ -545,7 +551,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"verbose",		no_argument, 0, 	'v'},
 		{"help",		no_argument, 0,		'h'},
 		{"header",		no_argument, 0,		'H'},
-		{"promiscuous",		no_argument, 0,		'p'},
+		{"abstemious",		no_argument, 0,		'a'},
 		{"quiet",		no_argument, 0,		'q'},
 		{"unbuffered",		no_argument, 0,		'u'},
 		{"will",		no_argument, 0,		'w'},
@@ -561,7 +567,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"socket",		required_argument, 0,	'S'}
 	};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, ":wc:S:uHVvi:pn:l:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, ":wc:S:uHVvi:an:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
@@ -593,8 +599,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				// get interval in ms
 				opts->interval = (atoi(optarg) * 1000);
 				break;
-			case 'p':
-				opts->promiscuous = true;
+			case 'a':
+				opts->promiscuous = false;
 				break;
 			case 'n':
 				// get number times to nag an entry
@@ -943,10 +949,10 @@ void print_header(const struct Opts* opts)
 		printf("\n");
 
 		// mode block
-		if (opts->promiscuous) printf("Promiscuous\n");
-		if (opts->immediate) printf("Unbuffered\n");
-		if (!opts->nags) printf("Quiet\n");
-		if (opts->promiscuous || opts->immediate
+		if (!opts->promiscuous) printf("Interface not in promiscuous mode (abstemious)\n");
+		if (opts->immediate) printf("Capturing with immediate mode (unbuffered)\n");
+		if (!opts->nags) printf("Quiet (no frames will be sent)\n");
+		if (!opts->promiscuous || opts->immediate
 			|| !opts->nags)
 		{
 			printf("\n");
