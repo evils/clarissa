@@ -60,7 +60,7 @@ int clarissa(int argc, char* argv[])
 		}
 		if (verbosity > 2)
 		{
-			warn("created "PATH);
+			warnx("created "PATH);
 		}
 	}
 
@@ -80,6 +80,29 @@ int clarissa(int argc, char* argv[])
 	if (fcntl(sock_d, F_SETFL, flags | O_NONBLOCK) == -1)
 	{
 		err(1, "Failed to set O_NONBLOCK on socket");
+	}
+
+	// check if a socket by the local.sun_path name is already in use
+	int s;
+	struct sockaddr_un check;
+	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+	{
+		err(1, "Failed to create socket (check)");
+	}
+	check.sun_family = AF_UNIX;
+	strcpy(check.sun_path, local.sun_path);
+	if (connect(s, (struct sockaddr*)&check, sizeof(check)) == -1)
+	{
+		if (verbosity > 3)
+		{
+			warnx("Socket does not exist yet, creating %s"
+			, check.sun_path);
+		}
+	}
+	else
+	{
+		errx(1, "socket already in use: %s\n"
+		"change socket name with --socket, or disable socket output with -S (unimplemented)", check.sun_path);
 	}
 
 	unlink(local.sun_path);
@@ -127,7 +150,7 @@ int clarissa(int argc, char* argv[])
 		if (poll(fds, POLL_N, opts.interval / 2000) < 1)
 		{
 			if (verbosity > 4)
-				warn("poll() timed out or failed, retrying");
+				warnx("poll() timed out or failed, retrying");
 			continue;
 		}
 
@@ -141,14 +164,14 @@ int clarissa(int argc, char* argv[])
 
 			if (sock_v == -1)
 			{
-				warn("Parent's accept() failed, retrying");
+				warnx("Parent's accept() failed, retrying");
 				continue;
 			}
 
 			child = fork();
 			if (child < 0)
 			{
-				warn("Failed to fork(), retrying");
+				warnx("Failed to fork(), retrying");
 				continue;
 			}
 			else if (child == 0)
@@ -176,7 +199,7 @@ int clarissa(int argc, char* argv[])
 						"Reading packet: ");
 					continue;
 				case 0:
-					warn
+					warnx
 					("Packet buffer timeout expired.");
 					gettimeofday(&now, NULL);
 					break;
@@ -217,7 +240,7 @@ int clarissa(int argc, char* argv[])
 					break;
 				}
 				default:
-					warn("Unexpected return value "
+					warnx("Unexpected return value "
 						"from pcap_next_ex: %d",
 						result);
 					continue;
@@ -426,7 +449,7 @@ int s_cat(char* sock)
 
 	remote.sun_family = AF_UNIX;
 	strcpy(remote.sun_path, sock);
-	if (connect(s, (struct sockaddr *)&remote, sizeof(remote)) == -1)
+	if (connect(s, (struct sockaddr*)&remote, sizeof(remote)) == -1)
 	{
 		err(1, "Failed to connect to socket");
 	}
@@ -466,7 +489,7 @@ void handle_con(const int sock_d, int sock_v, struct Addrss** head)
 			{
 				close(sock_v);
 				free(string);
-				warn("Broke output");
+				warnx("Broke output");
 				break;
 			}
 			send(sock_v, string, strlen(string), 0);
@@ -487,43 +510,49 @@ void sig_handler(int signum)
 // print help header and options
 void help()
 {
-	printf("Usage: clarissa [-hHvVqpuw] [--interface I] [--listen l] [--interval i] [--nags n] [--timeout t] [--cidr c] [--file f] [--socket s] [--output_file o] [--output_interval O]\n");
-	printf("       clarissa cat <socket path>\n\n");
-	printf("Clarissa keeps a list of all connected devices on a network.\n");
-	printf("It attempts to keep it as complete and up to date as possible.\n");
+	printf(
+		"Usage: clarissa [-hHvVqauw] [--interface I] [--listen l] [--interval i]\n"
+		"                [--nags n] [--timeout t] [--cidr c] [--file f] [--socket s]\n"
+		"                [--output_file o] [--output_interval O]\n"
+		"       clarissa cat <socket path>\n\n"
+		"Clarissa keeps a list of all connected devices on a network.\n"
+		"It attempts to keep it as complete and up to date as possible.\n"
+	      );
 
 	print_opts();
 }
 
 void print_opts()
 {
-	printf("\n%s\n", VERSION);
-	printf("\nOptions:\nLong\t\tShort\tDefault\n\n");
-	printf("--help\t\t-h\n\tshow the help message and exit\n");
-	printf("--header\t-H\n\tshow the Header and exit\n");
-	printf("--verbose\t-v\n\tincrease verbosity\n"
-		"\tshows: err & warn < MAC < IP < chatty < debug < vomit\n");
-	printf("--version\t-V\n\tshow the Version\n");
-	printf("--quiet\t\t-q\tfalse\n\tQuiet, send out no packets (equivalent to -n 0)\n");
-	printf("--abstemious\t-a\tfalse\n\tdon't set the interface to promiscuous mode\n");
-	printf("--unbuffered\t-u\tfalse\n\tdon't buffer packets (use immediate mode)\n");
-	printf("--will\t\t-w\tfalse\n\tleave a will file containing the list at exit\n");
-	printf("\nRequiring an argument:\n\n");
-	printf("--interface\t-I\tpcap auto select\n\tset the primary Interface\n");
-	printf("--listen\t-l\tInterface\n\tset the Listening interface\n");
-	printf("--interval\t-i\tTimeout / Nags\n\tset the interval (in milliseconds)\n");
-	//printf("--nags\t\t-n\t4\n\tset how many times to attempt to contact an entry before removing it from the list\n");
-	printf("--nags\t\t-n\t4\n\tset how many times an entry can time out\n"
-		"\tbefore being removed from the list (sends a frame on time out)\n");
-	// printf("--nags\t\t-n\t4\n\tset the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n");
-	//printf("--nags\t\t-n\t4\n\tset how many times a timed out entry gets send a frame before being removed from the list\n");
-	printf("--timeout\t-t\t5000\n\tset the Timeout for an entry (wait time for nags in ms)\n");
-	printf("--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n");
-	printf("--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n");
-	printf("--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output Socket name (incl. path)\n");
-	// printf("--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing) (unimplemented)\n");
-	printf("--output_file\t-o\t[socket].clar\n\tset the output filename\n");
-	printf("--output_interval -O\t0\n\tset the Output interval (in ms) 0 = no periodic output\n");
+	printf(
+		"\n"VERSION"\n"
+		"\nOptions:\nLong\t\tShort\tDefault\n\n"
+		"--help\t\t-h\n\tshow the help message and exit\n"
+		"--header\t-H\n\tshow the Header and exit\n"
+		"--verbose\t-v\n\tincrease verbosity\n"
+		"\tshows: err & warn < MAC < IP < chatty < debug < vomit\n"
+		"--version\t-V\n\tshow the Version\n"
+		"--quiet\t\t-q\tfalse\n\tQuiet, send out no packets (equivalent to -n 0)\n"
+		"--abstemious\t-a\tfalse\n\tdon't set the interface to promiscuous mode\n"
+		"--unbuffered\t-u\tfalse\n\tdon't buffer packets (use immediate mode)\n"
+		"--will\t\t-w\tfalse\n\tleave a will file containing the list at exit\n"
+		"\nRequiring an argument:\n\n"
+		"--interface\t-I\tpcap auto select\n\tset the primary Interface\n"
+		"--listen\t-l\tInterface\n\tset the Listening interface\n"
+		"--interval\t-i\tTimeout / Nags\n\tset the interval (in milliseconds)\n"
+		//"--nags\t\t-n\t4\n\tset how many times to attempt to contact an entry before removing it from the list\n"
+		"--nags\t\t-n\t4\n\tset how many times an entry can time out\n"
+		"\tbefore being removed from the list (sends a frame on time out)\n"
+		//"--nags\t\t-n\t4\n\tset the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n"
+		//"--nags\t\t-n\t4\n\tset how many times a timed out entry gets send a frame before being removed from the list\n"
+		"--timeout\t-t\t5000\n\tset the Timeout for an entry (wait time for nags in ms)\n"
+		"--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n"
+		"--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n"
+		"--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output Socket name (incl. path)\n"
+		"--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing) (unimplemented)\n"
+		"--output_file\t-o\t[socket].clar\n\tset the output filename\n"
+		"--output_interval -O\t0\n\tset the Output interval (in ms), 0 = no periodic output\n"
+	      );
 }
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
@@ -666,7 +695,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 'O':
 				opts->print_interval = atoi(optarg) * 1000;
 				if (opts->print_interval < 0) {
-					warn("Failed to parse print interval");
+					warnx("Failed to parse print interval");
 				}
 				break;
 			case ':':
@@ -695,7 +724,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// set to NULL to allow fallback to s_dev or auto_dev
 	if (opts->l_dev && !strncmp(opts->l_dev, "lo", 2))
 	{
-		warn("Listening on loopback currently not supported"
+		warnx("Listening on loopback currently not supported"
 		", falling back on something else.");
 		free(opts->l_dev);
 		opts->l_dev = NULL;
@@ -705,7 +734,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// set to null to allow fallback to auto_dev
 	if (opts->s_dev && !strncmp(opts->s_dev, "any", 3))
 	{
-		warn("Sending to \"any\" currently not supported"
+		warnx("Sending to \"any\" currently not supported"
 		", falling back on the first available interface.");
 		free(opts->s_dev);
 		opts->s_dev = NULL;
@@ -787,13 +816,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		// CAPLEN is probably 74
 		if (pcap_set_snaplen(opts->l_handle, CAPLEN))
 		{
-			warn("Failed to set snapshot length");
+			warnx("Failed to set snapshot length");
 		}
 
 		if (pcap_set_promisc(opts->l_handle,
 			opts->promiscuous))
 		{
-			warn("Failed to set promiscuous mode");
+			warnx("Failed to set promiscuous mode");
 		}
 
 		// timeout shouldn't have an effect if immediate
@@ -801,13 +830,13 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		if (pcap_set_timeout(opts->l_handle,
 			opts->interval / 2000))
 		{
-			warn("Failed to set packet buffer timeout");
+			warnx("Failed to set packet buffer timeout");
 		}
 
 		if (pcap_set_immediate_mode
 			(opts->l_handle, opts->immediate))
 		{
-			warn("Failed to set immediate mode");
+			warnx("Failed to set immediate mode");
 		}
 
 		int result = pcap_activate(opts->l_handle);
@@ -817,11 +846,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case PCAP_WARNING_PROMISC_NOTSUP:
 				pcap_perror
 				(opts->l_handle, "Activation: ");
-				warn
+				warnx
 				("promiscuous mode not supported");
 				break;
 			case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
-				warn("set timestamp not supported");
+				warnx("set timestamp not supported");
 				break;
 			case PCAP_WARNING:
 				pcap_perror
