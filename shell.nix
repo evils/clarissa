@@ -1,7 +1,8 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
-  buildInputs = with pkgs; [ libpcap zsh ];
+  nativeBuildInputs = with pkgs; [ asciidoctor zsh ];
+  buildInputs = with pkgs; [ libpcap ];
   shellHook = ''
     exec zsh
   '';

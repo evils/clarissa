@@ -40,6 +40,13 @@
 #define MAXLINE 255	/* Max line length for input files */
 #define ETH_ALEN 6	/* Octets in one ethernet addr */
 
+/* OS/X defines these as macros, we want none of that. */
+#ifdef strlcat
+#undef strlcat
+#endif
+#ifdef strlcpy
+#undef strlcpy
+#endif
 
 void err_sys(const char* fmt,...);
 void err_msg(const char* fmt,...);

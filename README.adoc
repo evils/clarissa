@@ -26,9 +26,11 @@ It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC 
 === Confirmed
 * Linux
 ** 4.19
-** 5.3
+** 5.4
 * Unix
 ** FreeBSD 12.0-RELEASE
+* MacOS
+** Darwin 17.7
 
 === Unconfirmed
 * Solaris
@@ -37,7 +39,7 @@ It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC 
 * Windows
 
 === Broken
-* MacOS
+* Please report failures
 
 == Test
 The supplied test uses libpcap. +
