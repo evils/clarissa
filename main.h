@@ -6,6 +6,9 @@
 // number of things in the poll
 #define POLL_N 2
 
+#define DEFAULT_NAGS 4
+#define DEFAULT_TIMEOUT 5000
+
 // output path where the socket is found
 #define PATH "/var/run/clar"
 

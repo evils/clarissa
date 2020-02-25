@@ -42,84 +42,89 @@ int clarissa(int argc, char* argv[])
 
 	// socket setup
 	int sock_d, sock_v, pcap_fd;
-	struct sockaddr_un local, remote;
+	struct sockaddr_un remote;
+
+	// not in socket_output == true block so sock_d is initialized
 	if ((sock_d = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 	{
 		err(1, "Failed to create socket");
 	}
 
-	// socket directory setup
-	// TODO move this to a separate function
-	// maybe move more around here away...
-	struct stat st = {0};
-	if (stat(PATH, &st) == -1)
+	if (opts.socket_output == true)
 	{
-		if (mkdir(PATH, 0755) == -1)
+		struct sockaddr_un local;
+		// TODO move this to a separate function
+		// maybe move more around here away...
+		struct stat st = {0};
+		if (stat(PATH, &st) == -1)
 		{
-			err(1, "Failed to create output directory");
+			if (mkdir(PATH, 0755) == -1)
+			{
+				err(1, "Failed to create output directory");
+			}
+			if (verbosity > 2)
+			{
+				warnx("created "PATH);
+			}
 		}
-		if (verbosity > 2)
+
+		int snl = snprintf(local.sun_path
+				, sizeof(local.sun_path)
+				, "%s", opts.socket);
+		if (snl == sizeof(local.sun_path))
 		{
-			warnx("created "PATH);
+			err(1, "Socket path is too long");
 		}
-	}
 
-	int snl = snprintf(local.sun_path
-			, sizeof(local.sun_path)
-			, "%s", opts.socket);
-	if (snl == sizeof(local.sun_path))
-	{
-		err(1, "Socket path is too long");
-	}
-
-	int flags = fcntl(sock_d, F_GETFL, 0);
-	if (flags == -1)
-	{
-		err(1, "Failed to get socket flags");
-	}
-	if (fcntl(sock_d, F_SETFL, flags | O_NONBLOCK) == -1)
-	{
-		err(1, "Failed to set O_NONBLOCK on socket");
-	}
-
-	// check if a socket by the local.sun_path name is already in use
-	int s;
-	struct sockaddr_un check;
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-	{
-		err(1, "Failed to create socket (check)");
-	}
-	check.sun_family = AF_UNIX;
-	strcpy(check.sun_path, local.sun_path);
-	if (connect(s, (struct sockaddr*)&check, sizeof(check)) == -1)
-	{
-		if (verbosity > 3)
+		int flags = fcntl(sock_d, F_GETFL, 0);
+		if (flags == -1)
 		{
-			warnx("Socket does not exist yet, creating %s"
-			, check.sun_path);
+			err(1, "Failed to get socket flags");
 		}
-	}
-	else
-	{
-		errx(1, "socket already in use: %s\n"
-		"change socket name with --socket, or disable socket output with -S (unimplemented)", check.sun_path);
-	}
+		if (fcntl(sock_d, F_SETFL, flags | O_NONBLOCK) == -1)
+		{
+			err(1, "Failed to set O_NONBLOCK on socket");
+		}
 
-	unlink(local.sun_path);
-	local.sun_family = AF_UNIX;
-	if (bind(sock_d, (struct sockaddr*)&local, sizeof(local)) == -1)
-	{
-		err(1, "Failed to bind socket");
-	}
+		// check if local.sun_path is already in use
+		int s;
+		struct sockaddr_un check;
+		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+		{
+			err(1, "Failed to create socket (check)");
+		}
+		check.sun_family = AF_UNIX;
+		strcpy(check.sun_path, local.sun_path);
+		if (connect(s, (struct sockaddr*)&check, sizeof(check)) == -1)
+		{
+			if (verbosity > 3)
+			{
+				warnx("Socket does not exist yet, creating %s"
+				, check.sun_path);
+			}
+		}
+		else
+		{
+			errx(1, "socket already in use: %s\n"
+			"change socket name with --socket, or disable socket output with -S", check.sun_path);
+		}
 
-	if (chmod(opts.socket, 0666) != 0)
-	{
-		err(1, "Failed to set socket permissions");
-	}
+		unlink(local.sun_path);
+		local.sun_family = AF_UNIX;
+		if (bind(sock_d, (struct sockaddr*)&local, sizeof(local)) == -1)
+		{
+			err(1, "Failed to bind socket");
+		}
 
-	if (listen(sock_d, 5) == -1) // "5 is way more than enough"
-	{
-		err(1, "Failed to set socket to listening mode");
+		if (chmod(opts.socket, 0666) != 0)
+		{
+			err(1, "Failed to set socket permissions");
+		}
+
+		if (listen(sock_d, 5) == -1) // "5 is way more than enough"
+		{
+			err(1, "Failed to set socket to listening mode");
+		}
 	}
 
 	// set up poll() (not select())
@@ -131,10 +136,13 @@ int clarissa(int argc, char* argv[])
 
 	struct pollfd fds[POLL_N];
 	memset(fds, 0, sizeof(fds));
-	fds[0].fd = sock_d;
+	fds[0].fd = pcap_fd;
 	fds[0].events = POLLIN;
-	fds[1].fd = pcap_fd;
-	fds[1].events = POLLIN;
+	if (opts.socket_output == true)
+	{
+		fds[1].fd = sock_d;
+		fds[1].events = POLLIN;
+	}
 
 	solve_zombies();
 
@@ -154,37 +162,8 @@ int clarissa(int argc, char* argv[])
 			continue;
 		}
 
-		// socket
-		if (fds[0].revents & POLLIN)
-		{
-			socklen_t size = sizeof(remote);
-			sock_v = accept(sock_d
-					, (struct sockaddr*)&remote
-					, &size);
-
-			if (sock_v == -1)
-			{
-				warnx("Parent's accept() failed, retrying");
-				continue;
-			}
-
-			child = fork();
-			if (child < 0)
-			{
-				warnx("Failed to fork(), retrying");
-				continue;
-			}
-			else if (child == 0)
-			{
-				handle_con(sock_d, sock_v, &head);
-				goto end;
-			}
-
-			close(sock_v);
-		}
-
 		// pcap_fd
-		if (fds[1].revents & POLLIN)
+		if (fds[0].revents & POLLIN)
 		{
 
 			int result = pcap_next_ex(opts.l_handle,
@@ -245,6 +224,35 @@ int clarissa(int argc, char* argv[])
 						result);
 					continue;
 			}
+		}
+
+		// socket
+		if (fds[1].revents & POLLIN)
+		{
+			socklen_t size = sizeof(remote);
+			sock_v = accept(sock_d
+					, (struct sockaddr*)&remote
+					, &size);
+
+			if (sock_v == -1)
+			{
+				warnx("Parent's accept() failed, retrying");
+				continue;
+			}
+
+			child = fork();
+			if (child < 0)
+			{
+				warnx("Failed to fork(), retrying");
+				continue;
+			}
+			else if (child == 0)
+			{
+				handle_con(sock_d, sock_v, &head);
+				goto end;
+			}
+
+			close(sock_v);
 		}
 
 		if (usec_diff(&now, &checked) > opts.interval)
@@ -541,29 +549,31 @@ void print_opts()
 		"--listen\t-l\tInterface\n\tset the Listening interface\n"
 		"--interval\t-i\tTimeout / Nags\n\tset the interval (in milliseconds)\n"
 		//"--nags\t\t-n\t4\n\tset how many times to attempt to contact an entry before removing it from the list\n"
-		"--nags\t\t-n\t4\n\tset how many times an entry can time out\n"
+		"--nags\t\t-n\t%i\n\tset how many times an entry can time out\n"
 		"\tbefore being removed from the list (sends a frame on time out)\n"
 		//"--nags\t\t-n\t4\n\tset the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n"
 		//"--nags\t\t-n\t4\n\tset how many times a timed out entry gets send a frame before being removed from the list\n"
-		"--timeout\t-t\t5000\n\tset the Timeout for an entry (wait time for nags in ms)\n"
+		"--timeout\t-t\t%i\n\tset the Timeout for an entry (wait time for nags in ms)\n"
 		"--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n"
 		"--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n"
 		"--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output Socket name (incl. path)\n"
-		"--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing) (unimplemented)\n"
+		"--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing)\n"
 		"--output_file\t-o\t[socket].clar\n\tset the output filename\n"
 		"--output_interval -O\t0\n\tset the Output interval (in ms), 0 = no periodic output\n"
+		, DEFAULT_NAGS, DEFAULT_TIMEOUT
 	      );
 }
 
 void handle_opts(int argc, char* argv[], struct Opts* opts)
 {
 	// defaults
-	opts->timeout 	= 5000000;
-	opts->nags 	= 4;
-	opts->run	= true;
-	opts->immediate	= false;
-	opts->promiscuous = true;
-	verbosity 	= 0;
+	opts->nags 		= DEFAULT_NAGS;
+	opts->timeout 		= DEFAULT_TIMEOUT * 1000; // (ms to µs)
+	opts->run		= true;
+	opts->immediate		= false;
+	opts->promiscuous 	= true;
+	opts->socket_output	= true;
+	verbosity 		= 0;
 
 	// local helpers
 	bool version	= false;
@@ -584,6 +594,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"quiet",		no_argument, 0,		'q'},
 		{"unbuffered",		no_argument, 0,		'u'},
 		{"will",		no_argument, 0,		'w'},
+		{"stop_socket",		no_argument, 0,		'S'},
 		{"listen",		required_argument, 0,	'l'},
 		{"interface",		required_argument, 0,	'I'},
 		{"interval",		required_argument, 0,	'i'},
@@ -593,10 +604,10 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"file", 		required_argument, 0,	'f'},
 		{"output_file", 	required_argument, 0,	'o'},
 		{"output_interval",	required_argument, 0,	'O'},
-		{"socket",		required_argument, 0,	'S'}
+		{"socket",		required_argument, 0,	's'}
 	};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, ":wc:S:uHVvi:an:l:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, ":wc:SuHVvi:an:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
@@ -605,12 +616,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				opts->will = true;
 				break;
 			case 's':
-			case 'S':
 				// save socket path name
 				if (asprintf(&opts->socket, "%s", optarg) == -1)
 				{
 					err(1, "Failed to save given socket path name");
 				}
+				break;
+			case 'S':
+				opts->socket_output = false;
 				break;
 			case 'u':
 				opts->immediate = true;
@@ -960,11 +973,15 @@ void print_header(const struct Opts* opts)
 {
 	if (!verbosity)
 		fprintf(stderr, "Verbosity:\t%d\n\n", verbosity);
+
+// input block
 	if (!opts->l_dev) printf("Using file input\n\n");
 	if (verbosity && opts->s_dev)
 	{
-		// host block
-		printf("Listen interface:\t%s\n", opts->l_dev);
+		if (strcmp(opts->l_dev, opts->s_dev))
+		{
+			printf("Listen interface:\t%s\n", opts->l_dev);
+		}
 		printf("Host interface:\t\t%s\n", opts->s_dev);
 		printf("Host MAC address:\t");
 		print_mac(opts->host.mac);
@@ -977,7 +994,7 @@ void print_header(const struct Opts* opts)
 		}
 		printf("\n");
 
-		// mode block
+// mode block
 		if (!opts->promiscuous) printf("Interface not in promiscuous mode (abstemious)\n");
 		if (opts->immediate) printf("Capturing with immediate mode (unbuffered)\n");
 		if (!opts->nags) printf("Quiet (no frames will be sent)\n");
@@ -1023,17 +1040,32 @@ void print_header(const struct Opts* opts)
 				printf("Interval:\t\t%dms\n",
 					opts->interval / 1000);
 				printf("\n");
-				printf("Output socket:\t\t%s\n",opts->socket);
-				if (opts->will || opts->from_file || opts->print_interval)
-				{
-					printf("Output filename:\t%s\n", opts->print_filename);
-				}
-				if (opts->print_interval)
-				{
-					printf("Output interval:\t%dms\n",opts->print_interval / 1000);
-				}
-				printf("\n");
 			}
+		}
+
+// output block
+		if (verbosity)
+		{
+			printf("Output socket");
+			if (opts->socket_output == true)
+			{
+				printf(":\t\t%s",opts->socket);
+			}
+			else
+			{
+				printf(" disabled");
+			}
+			printf("\n");
+
+			if (opts->will || opts->from_file || opts->print_interval)
+			{
+				printf("Output filename:\t%s\n", opts->print_filename);
+			}
+			if (opts->print_interval)
+			{
+				printf("Output interval:\t%dms\n",opts->print_interval / 1000);
+			}
+			printf("\n");
 		}
 	}
 }

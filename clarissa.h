@@ -77,6 +77,7 @@ struct Opts
 	bool promiscuous;	// whether to pcap_set_promisc on the listening interface
 	bool will;		// whether to leave a will (file containing last list) at exit
 	bool from_file;		// whether the current session is reading from a file
+	bool socket_output;	// whether to output to a socket
 };
 
 // extraction
