@@ -6,6 +6,8 @@
 // number of things in the poll
 #define POLL_N 2
 
+// more defaults at handle_opts()
+// these are reused outside of that
 #define DEFAULT_NAGS 4
 #define DEFAULT_TIMEOUT 5000
 
@@ -36,7 +38,8 @@ extern int verbosity;
 
 int clarissa(int argc, char* argv[]);
 int clar_cat(int argc, char* argv[]);
-int s_cat(char* sock);
+int s_cat(char* sock, bool header);
+void cat_help();
 
 void help();
 void print_opts();

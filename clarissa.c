@@ -724,14 +724,17 @@ void dump_state(char* filename, struct Addrss *head)
 
 	flockfile(stats_file);
 
+	char* header;
+	asprint_clar_header(&header);
+	fprintf(stats_file, "%s", header);
+	free(header);
+
 	for (struct Addrss *link = head;
 		link != NULL; link = link->next)
 	{
 		char* clar;
 		asprint_clar(&clar, link);
-
 		fprintf(stats_file, "%s", clar);
-
 		free(clar);
 	}
 
@@ -1081,7 +1084,7 @@ bool addrss_valid(const struct Addrss* addrss)
 		);
 }
 
-// assemble a v1.x output string
+// assemble a FORMAT_VERSION output string
 int asprint_clar(char** dest, const struct Addrss* addrss)
 {
 	char* mac;
@@ -1108,5 +1111,28 @@ int asprint_clar(char** dest, const struct Addrss* addrss)
 	free(mac);
 	free(ipv4);
 	free(ipv6);
+	return 0;
+}
+
+// and a header for the same
+int asprint_clar_header(char** dest)
+{
+	if (asprintf(dest, "#   clarissa   "FORMAT_VERSION"\n") == -1)
+	{
+		warnx("Failed to asprint format header");
+		return -1;
+	}
+	return 0;
+}
+
+int asprint_cat_header(char** dest)
+{
+	if (asprintf(dest,
+"#   MAC address      IPv4 address    MAC|IPv4 time               IPv6 address                IPv6 time\n")
+		== -1)
+	{
+		warnx("Failed to asprint cat header");
+		return -1;
+	}
 	return 0;
 }

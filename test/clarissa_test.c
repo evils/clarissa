@@ -640,6 +640,28 @@ TQ_TEST("asprint_clar/pass/4")
 	return !diff;
 }
 
+TQ_TEST("asprint_clar_header")
+{
+	char* result;
+	// this should be manually updated as a barrier to accidental change
+	char* intent = "#   clarissa   v1.0\n";
+	asprint_clar_header(&result);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_cat_header")
+{
+	char* result;
+	char* intent =
+"#   MAC address      IPv4 address    MAC|IPv4 time               IPv6 address                IPv6 time\n";
+	asprint_cat_header(&result);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
 /*
 TQ_TEST("addrss_list_nag")
 {

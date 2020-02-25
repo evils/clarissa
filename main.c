@@ -4,7 +4,6 @@ int main(int argc, char* argv[])
 {
 	if (argc > 1 && !strncmp(argv[1], "cat", 3))
 	{
-		printf("catting\n");
 		return clar_cat(--argc, ++argv);
 	}
 	else return clarissa(argc, argv);
@@ -73,7 +72,7 @@ int clarissa(int argc, char* argv[])
 				, "%s", opts.socket);
 		if (snl == sizeof(local.sun_path))
 		{
-			err(1, "Socket path is too long");
+			err(1, "socket path is too long");
 		}
 
 		int flags = fcntl(sock_d, F_GETFL, 0);
@@ -99,7 +98,7 @@ int clarissa(int argc, char* argv[])
 		{
 			if (verbosity > 3)
 			{
-				warnx("Socket does not exist yet, creating %s"
+				warnx("socket does not exist yet, creating %s"
 				, check.sun_path);
 			}
 		}
@@ -358,7 +357,6 @@ int clar_cat(int argc, char* argv[])
 	// no argument, attempt to find something in PATH
 	if (argc <= 1)
 	{
-		printf("no argument\n");
 		DIR* dir_p = opendir(PATH);
 		if (dir_p == NULL)
 		{
@@ -374,9 +372,15 @@ int clar_cat(int argc, char* argv[])
 			{
 				err(1, "Failed to save full path to socket");
 			}
-			fprintf(stderr, "clarissa cat: Found socket: %s\n"
-							, full_path);
-			int ret = s_cat(full_path);
+
+			char* header;
+			if (asprint_cat_header(&header) == -1)
+			{
+				errx(1, "Giving up...");
+			}
+			free(header);
+
+			int ret = s_cat(full_path, true);
 			free(full_path);
 			return ret;
 		}
@@ -386,57 +390,98 @@ int clar_cat(int argc, char* argv[])
 	// an argument given, may be multiple files or multiple sockets
 	else
 	{
-		printf("got an argument\n");
 		struct stat st;
 		int opt;
 
+		bool file 	= false;
+		bool socket 	= true;
+		bool header	= true;
+
 		static struct option long_options[] =
 		{
-			{"file",		required_argument, 0,	'f'},
-			{"socket",		required_argument, 0,	's'}
+			{"file",	no_argument,	0,	'f'},
+			{"file_off",	no_argument,	0,	'F'},
+			{"socket",	no_argument,	0,	's'},
+			{"socket_off",	no_argument,	0,	'S'},
+			{"all",		no_argument,	0,	'a'},
+			{"all_off",	no_argument,	0,	'A'},
+			{"version",	no_argument,	0,	'v'},
+			{"help",	no_argument,	0,	'h'},
+			{"raw",		no_argument,	0,	'r'}
 		};
 		int option_index = 0;
-		while ((opt = getopt_long(argc, argv, ":f:s",
+		while ((opt = getopt_long(argc, argv, "-fFsSaAhr",
 						long_options, &option_index)) != -1)
 		{
 			switch (opt)
 			{
-				case 'f':
-					printf("catting file\n");
-					stat(optarg, &st);
-					if (S_ISREG(st.st_mode))
+				case 1:
+					if (file == true)
 					{
-						fprintf(stderr, "clarissa cat: Found file: %s\n", optarg);
-						FILE* fd = fopen(optarg, "r");
-						if (fd == NULL)
+						stat(optarg, &st);
+						if (S_ISREG(st.st_mode))
 						{
-							err(1, "Failed to open %s", optarg);
+							FILE* fd = fopen(optarg, "r");
+							if (fd == NULL)
+							{
+								err(1, "Failed to open %s", optarg);
+							}
+							if (header == true)
+							{
+								printf("#   from   file   %s\n", optarg);
+								char* header;
+								if (asprint_cat_header(&header) == -1)
+								{
+									errx(1, "Giving up...");
+								}
+								free(header);
+							}
+
+							char c = fgetc(fd);
+							while (c != EOF)
+							{
+								printf("%c", c);
+								c = fgetc(fd);
+							}
+							fclose(fd);
 						}
-						char c = fgetc(fd);
-						while (c != EOF)
-						{
-							printf("%c", c);
-							c = fgetc(fd);
-						}
-						fclose(fd);
 					}
+
+					if (socket == true)
+					{
+						stat(optarg, &st);
+						if (S_ISSOCK(st.st_mode))
+						{
+							s_cat(optarg, header);
+						}
+					}
+					break;
+				case 'f': file = true; break;
+				case 'F': file = false; break;
+				case 's': socket = true; break;
+				case 'S': socket = false; break;
+				case 'a': file = true; socket = true; break;
+				case 'A': file = false; socket = false; break;
+				case 'v':
+					fprintf(stderr, "Version:\t%s\n", VERSION);
+					break;
+				case 'h':
+					cat_help();
+					exit(0);
+				case 'r':
+					header = false;
 					break;
 				case ':':
-					err(1, "That option needs an argument.");
+					warnx("That option requires an argument.");
+					cat_help();
+					exit(1);
 				case '?':
-					err(1, "Unknown option");
-				case 's':
-					printf("case 's', should fall through to default\n");
-					__attribute__ ((fallthrough));
+					warnx("Unknown option");
+					cat_help();
+					exit(1);
 				default:
-					printf("catting socket\n");
-					stat(optarg, &st);
-					if (S_ISSOCK(st.st_mode))
-					{
-						fprintf(stderr, "clarissa cat: Found socket: %s\n", optarg);
-						s_cat(optarg);
-					}
-					break;
+					cat_help();
+					exit(1);
 			}
 		}
 		return 0;
@@ -444,7 +489,12 @@ int clar_cat(int argc, char* argv[])
 	return 1;
 }
 
-int s_cat(char* sock)
+void cat_help()
+{
+	printf("No help, no hope, read the code!\n");
+}
+
+int s_cat(char* sock, bool header)
 {
 	int s, t;
 	struct sockaddr_un remote;
@@ -462,11 +512,23 @@ int s_cat(char* sock)
 		err(1, "Failed to connect to socket");
 	}
 
+	if (header == true)
+	{
+		printf("#   from   socket   %s\n", sock);
+		char* header;
+		if (asprint_cat_header(&header) == -1)
+		{
+			errx(1, "Giving up...");
+		}
+		printf("%s", header);
+		free(header);
+	}
+
 	while ((t=recv(s, str, sizeof(str), 0)) > 0)
 	{
-		if ( -1 == write(STDOUT_FILENO, str, t))
+		if (write(STDOUT_FILENO, str, t) == -1)
 		{
-			err(1, "Failed to write to socket, try again?");
+			err(1, "Failed to line write to STDOUT");
 		}
 	}
 
@@ -487,17 +549,28 @@ void handle_con(const int sock_d, int sock_v, struct Addrss** head)
 	socklen_t size = sizeof(remote);
 	do
 	{
+		// send the header
+		char* string;
+		if (asprint_clar_header(&string) == -1)
+		{
+			warnx("Dropping socket connection");
+			close(sock_v);
+			free(string);
+			return;
+		}
+		send(sock_v, string, strlen(string), 0);
+		free(string);
+
 		// send out the list
 		for (struct Addrss** current = head;
 				*current != NULL;
 				current = &((*current)->next))
 		{
-			char* string;
 			if (asprint_clar(&string, *current) == -1)
 			{
+				warnx("Dropping socket connection");
 				close(sock_v);
 				free(string);
-				warnx("Broke output");
 				break;
 			}
 			send(sock_v, string, strlen(string), 0);
@@ -556,8 +629,8 @@ void print_opts()
 		"--timeout\t-t\t%i\n\tset the Timeout for an entry (wait time for nags in ms)\n"
 		"--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n"
 		"--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n"
-		"--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output Socket name (incl. path)\n"
-		"--stop_socket\t-S\n\tdon't output on a socket(useful for file parsing)\n"
+		"--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output socket name (incl. path)\n"
+		"--stop_socket\t-S\n\tdon't output via a Socket\n"
 		"--output_file\t-o\t[socket].clar\n\tset the output filename\n"
 		"--output_interval -O\t0\n\tset the Output interval (in ms), 0 = no periodic output\n"
 		, DEFAULT_NAGS, DEFAULT_TIMEOUT
