@@ -6,6 +6,8 @@
 
 #include "get_hardware_address.h"	// get_hardware_address()
 
+int is_zeros(const uint8_t* target, int count);
+
 int main(int argc, char* argv[])
 {
 	uint8_t mac[6] = {0};
@@ -46,8 +48,25 @@ int main(int argc, char* argv[])
 	}
 
 	get_hardware_address(dev, mac);
+	if (is_zeros(mac, sizeof(mac)))
+	{
+		errx(1, "Got an all zero MAC address\n"
+		"      is that a valid interface?\n"
+		"      and are you running this as root?"
+		    );
+	}
+
 	printf("With MAC address:\t");
 	printf("%02x:%02x:%02x:%02x:%02x:%02x\n",
 		mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
 	return 0;
+}
+
+int is_zeros(const uint8_t* target, int count)
+{
+        while (count--)
+        {
+                if (target[count]) return 0;
+        }
+        return 1;
 }
