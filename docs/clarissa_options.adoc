@@ -1,0 +1,47 @@
+== Options
+[%hardbreaks]
+   Long            Short
+--help              -h
+   show the help message and exit
+--header            -H
+   show the Header and exit
+--verbose           -v
+   increase verbosity
+   shows: err & warn < MAC < IP < chatty < debug < vomit
+--version           -V
+   show the Version
+--quiet             -q
+   don't send out packets (equivalent to -n 0)
+--abstemious        -a
+   don't set the interface to promiscuous mode
+--unbuffered        -u
+   don't buffer packets (use immediate mode)
+--stop_socket       -S
+   don't output use a Socket for output
+--will              -w
+   leave a Will file containing the list at exit
+
+=== Requiring an argument
+[%hardbreaks]
+   Long            Short       Default
+--interface         -I   pcap auto select
+   set the primary Interface
+--listen            -l   Interface
+   set the Listening interface
+--interval          -i   Timeout / Nags
+   set the interval (in milliseconds)
+--nags              -n   4
+   set how many times an entry can time out
+   before being removed from the list (sends a frame on time out)
+--timeout           -t   5000
+   set the Timeout for an entry (wait time for nags in ms)
+--cidr              -c   Interface's IPv4 subnet
+   set a CIDR subnet to which IPv4 activity is limited
+--file              -f   none
+   set an input File (pcap file, works with - (stdin))
+--socket            -s   /var/run/clar/[Interface]_[subnet]-[mask]
+   set the output socket name (incl. path)
+--output_file       -o   [socket].clar
+   set the output filename
+--output_interval   -O   0
+   set the Output interval (in ms), 0 = no periodic output

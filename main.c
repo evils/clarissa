@@ -403,14 +403,14 @@ int clar_cat(int argc, char* argv[])
 			{"file_off",	no_argument,	0,	'F'},
 			{"socket",	no_argument,	0,	's'},
 			{"socket_off",	no_argument,	0,	'S'},
-			{"all",		no_argument,	0,	'a'},
 			{"all_off",	no_argument,	0,	'A'},
-			{"version",	no_argument,	0,	'v'},
+			{"raw",		no_argument,	0,	'r'},
+			{"all",		no_argument,	0,	'a'},
 			{"help",	no_argument,	0,	'h'},
-			{"raw",		no_argument,	0,	'r'}
+			{"version",	no_argument,	0,	'v'}
 		};
 		int option_index = 0;
-		while ((opt = getopt_long(argc, argv, "-fFsSaAhr",
+		while ((opt = getopt_long(argc, argv, "-fFsSArahv",
 						long_options, &option_index)) != -1)
 		{
 			switch (opt)
@@ -491,7 +491,27 @@ int clar_cat(int argc, char* argv[])
 
 void cat_help()
 {
-	printf("No help, no hope, read the code!\n");
+	printf(
+		"    Long      Short   Note\n"
+		"--file         -f\n"
+		"   also print from regular files\n"
+		"--file_off     -F    default\n"
+		"   explicitly don't print from Files\n"
+		"--socket       -s    default\n"
+		"   explicitly print from sockets\n"
+		"--socket_off   -S\n"
+		"   don't print from Sockets\n"
+		"--all          -a\n"
+		"   print from all supported formats\n"
+		"--all_off      -A   for completeness\n"
+		"   print nothing\n"
+		"--raw          -r\n"
+		"   exclude the source and column name headers\n"
+		"--version      -v\n"
+		"   show the Version of this tool and exit\n"
+		"--help         -h\n"
+		"   show this Help message and exit\n"
+	      );
 }
 
 int s_cat(char* sock, bool header)
@@ -592,10 +612,12 @@ void sig_handler(int signum)
 void help()
 {
 	printf(
-		"Usage: clarissa [-hHvVqauw] [--interface I] [--listen l] [--interval i]\n"
-		"                [--nags n] [--timeout t] [--cidr c] [--file f] [--socket s]\n"
+		"Usage:\n"
+		"       clarissa [-hHvVqauw] [--interface I] [--listen l]\n"
+		"                [--interval i] [--nags n] [--timeout t] [--cidr c]\n"
 		"                [--output_file o] [--output_interval O]\n"
-		"       clarissa cat <socket path>\n\n"
+		"                [--file f] [--socket s]\n"
+		"       clarissa cat [-fFsSArahv] [file... socket...]\n\n"
 		"Clarissa keeps a list of all connected devices on a network.\n"
 		"It attempts to keep it as complete and up to date as possible.\n"
 	      );
@@ -606,33 +628,57 @@ void help()
 void print_opts()
 {
 	printf(
-		"\n"VERSION"\n"
-		"\nOptions:\nLong\t\tShort\tDefault\n\n"
-		"--help\t\t-h\n\tshow the help message and exit\n"
-		"--header\t-H\n\tshow the Header and exit\n"
-		"--verbose\t-v\n\tincrease verbosity\n"
-		"\tshows: err & warn < MAC < IP < chatty < debug < vomit\n"
-		"--version\t-V\n\tshow the Version\n"
-		"--quiet\t\t-q\tfalse\n\tQuiet, send out no packets (equivalent to -n 0)\n"
-		"--abstemious\t-a\tfalse\n\tdon't set the interface to promiscuous mode\n"
-		"--unbuffered\t-u\tfalse\n\tdon't buffer packets (use immediate mode)\n"
-		"--will\t\t-w\tfalse\n\tleave a will file containing the list at exit\n"
+		"\n"VERSION"\n\n"
+		"Options:\n"
+		"   Long            Short\n"
+		"--help              -h\n"
+		"   show the help message and exit\n"
+		"--header            -H\n"
+		"   show the Header and exit\n"
+		"--verbose           -v\n"
+		"   increase verbosity\n"
+		"   shows: err & warn < MAC < IP < chatty < debug < vomit\n"
+		"--version           -V\n"
+		"   show the Version\n"
+		"--quiet             -q\n"
+		"   don't send out packets (equivalent to -n 0)\n"
+		"--abstemious        -a\n"
+		"   don't set the interface to promiscuous mode\n"
+		"--unbuffered        -u\n"
+		"   don't buffer packets (use immediate mode)\n"
+		"--stop_socket       -S\n"
+		"   don't output use a Socket for output\n"
+		"--will              -w\n"
+		"   leave a Will file containing the list at exit\n"
 		"\nRequiring an argument:\n\n"
-		"--interface\t-I\tpcap auto select\n\tset the primary Interface\n"
-		"--listen\t-l\tInterface\n\tset the Listening interface\n"
-		"--interval\t-i\tTimeout / Nags\n\tset the interval (in milliseconds)\n"
-		//"--nags\t\t-n\t4\n\tset how many times to attempt to contact an entry before removing it from the list\n"
-		"--nags\t\t-n\t%i\n\tset how many times an entry can time out\n"
-		"\tbefore being removed from the list (sends a frame on time out)\n"
-		//"--nags\t\t-n\t4\n\tset the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n"
-		//"--nags\t\t-n\t4\n\tset how many times a timed out entry gets send a frame before being removed from the list\n"
-		"--timeout\t-t\t%i\n\tset the Timeout for an entry (wait time for nags in ms)\n"
-		"--cidr\t\t-c\tInterface's IPv4 subnet\n\tset a CIDR subnet to which IPv4 activity is limited\n"
-		"--file\t\t-f\n\tFile input (pcap file, works with - (stdin))\n"
-		"--socket\t-s\t"PATH"/[dev]_[subnet]-[mask]\n\tset the output socket name (incl. path)\n"
-		"--stop_socket\t-S\n\tdon't output via a Socket\n"
-		"--output_file\t-o\t[socket].clar\n\tset the output filename\n"
-		"--output_interval -O\t0\n\tset the Output interval (in ms), 0 = no periodic output\n"
+		"   Long            Short       Default\n"
+		"--interface         -I   pcap auto select\n"
+		"   set the primary Interface\n"
+		"--listen            -l   Interface\n"
+		"   set the Listening interface\n"
+		"--interval          -i   Timeout / Nags\n"
+		"   set the interval (in milliseconds)\n"
+		"--nags              -n   %i\n"
+		"   set how many times an entry can time out\n"
+		"   before being removed from the list (sends a frame on time out)\n"
+		//"--nags              -n   %i\n"
+		//"   set how many times to attempt to contact an entry before removing it from the list\n"
+		//"--nags              -n   %i\n"
+		//"   set the amount of frames to send to a timed out / unresponsive entry before removing it from the list\n"
+		//"--nags              -n   %i\n"
+		//"   set how many times a timed out entry gets send a frame before being removed from the list\n"
+		"--timeout           -t   %i\n"
+		"   set the Timeout for an entry (wait time for nags in ms)\n"
+		"--cidr              -c   Interface's IPv4 subnet\n"
+		"   set a CIDR subnet to which IPv4 activity is limited\n"
+		"--file              -f   none\n"
+		"   set an input File (pcap file, works with - (stdin))\n"
+		"--socket            -s   "PATH"/[Interface]_[subnet]-[mask]\n"
+		"   set the output socket name (incl. path)\n"
+		"--output_file       -o   [socket].clar\n"
+		"   set the output filename\n"
+		"--output_interval   -O   0\n"
+		"   set the Output interval (in ms), 0 = no periodic output\n"
 		, DEFAULT_NAGS, DEFAULT_TIMEOUT
 	      );
 }

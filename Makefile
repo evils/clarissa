@@ -21,6 +21,7 @@ DESTDIR =
 PREFIX = /usr
 SYSDIR = /lib/systemd/system
 SYSDINST = true
+DOCDIR = docs
 .PHONY: install
 install: clarissa
 	mkdir -p $(DESTDIR)$(PREFIX)/sbin $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
@@ -74,9 +75,20 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 
 
 # not tests
-index.html: README.md
-	markdown -f +fencedcode README.md > index.html
+.PHONY: index.html
+index.html: README.adoc
+	asciidoctor -o $@ $<
+
+.PHONY: man
+man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1
+
+$(DOCDIR)/clarissa.8: $(DOCDIR)/clarissa.adoc
+	asciidoctor -b manpage $<
+
+$(DOCDIR)/clarissa-cat.1: $(DOCDIR)/clarissa-cat.adoc
+	asciidoctor -b manpage $<
 
 .PHONY: clean
 clean:
-	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR)
+	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR) index.html
+	rm -rf docs/*.[0-9]
