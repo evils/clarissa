@@ -23,20 +23,17 @@ SYSDIR = /lib/systemd/system
 SYSDINST = true
 DOCDIR = docs
 .PHONY: install
-install: clarissa
+install: clarissa man
 	mkdir -p $(DESTDIR)$(PREFIX)/sbin $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
 	install clarissa $(DESTDIR)$(PREFIX)/sbin/clarissa
-	install clar_count.sh $(DESTDIR)$(PREFIX)/bin/clar_count
-	install clar_count.1 $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1
-	install clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
+	install $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
+	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
 	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && install clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 .PHONY: uninstall
 uninstall:
 	systemctl stop clarissa
 	rm -rf /tmp/clar_*
 	rm -rf $(DESTDIR)$(PREFIX)/sbin/clarissa
-	rm -rf $(DESTDIR)$(PREFIX)/bin/clar_count
-	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1.gz
 	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8.gz
 	if $(SYSDINST); then rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 
