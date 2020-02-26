@@ -1,7 +1,6 @@
 CODE
 	depreciate linux SIOCGIFHWADDR for netlink
 	review the necessity of the helper functions
-	fix darwin compilation
 	add windows
 META
 	test on each supported platform
