@@ -3,8 +3,10 @@
 oui=clar_OUI.csv
 tmp=".clar_scan_temp_file_delete_this.tmp"
 
-dir="$(cd "$(dirname "$0")" && pwd -P)"
-c_cat="$dir/clarissa cat"
+c_cat() {
+       dir="$(cd "$(dirname "$0")" && pwd -P)"
+       ${dir}/clarissa cat $1 | grep -v "#"
+}
 
 if [ -z "$1" ]; then
 	# shellcheck disable=SC2086
@@ -20,7 +22,7 @@ echo "Starting Clarissa output (https://gitlab.com/evils/clarissa)"
 
 count=0;
 
-$c_cat "$1" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
+c_cat | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 | while read -r "REPLY"; do
 	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
@@ -41,11 +43,11 @@ $c_cat "$1" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 done
 
 count=$(wc -l "$tmp" | awk '{print $1}')
-printf "\\nEnding, %s responded" "$count"
-clar=$($c_cat "$1" | wc -l | awk '{print $1}')
+printf "\\nEnding, %s responded, consider using \"clarissa show\"" "$count"
+clar=$(c_cat | wc -l | awk '{print $1}')
 diff=$(( clar - count ))
-if [ -n "$diff" ]; then
-	printf ", consider using \"clar show\", it has %s more result" "$diff"
+if [ "$diff" -gt 0 ]; then
+	printf ", it has %s more result" "$diff"
 	if [ "$diff" -ne 1 ]; then
 		printf "s"
 	fi

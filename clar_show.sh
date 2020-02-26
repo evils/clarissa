@@ -2,9 +2,6 @@
 
 oui=clar_OUI.csv
 
-dir="$(cd "$(dirname "$0")" && pwd -P)"
-c_cat="${dir}/clarissa cat"
-
 echo
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -22,21 +19,21 @@ if [ ! -f "$oui" ]; then
         echo "WARNING: No OUI file, try OUI_assemble.sh?"
 fi
 
-if [ -z "$1" ]; then
-	# shellcheck disable=SC2086
-	set $1 "$(echo /var/run/clar/*)"
-	echo "No source socket specified."
-	echo "Falling back on $1"
-	echo
-fi
+# cat outputs some headers starting with #
+# one of those is a version header
+# probably should check that for compatibility...
+c_cat() {
+	dir="$(cd "$(dirname "$0")" && pwd -P)"
+	${dir}/clarissa cat $1 | grep -v "#"
+}
 
 printf "Interface: %s\\n" "$(echo "$1" | awk -F '[/_]' '{print $4}')"
-count=$($c_cat "$1" | wc -l | awk '{print $1}')
+count=$(c_cat | wc -l | awk '{print $1}')
 printf "Clarissa found %s device" "$count"
 if [ "$count" -gt 1 ]; then printf "s"; fi
 printf "\\n\\n"
 
-$c_cat "$1" | sort \
+c_cat | sort \
 | while read -r "REPLY"; do
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$mac" | tr -d ":-" \

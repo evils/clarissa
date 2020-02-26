@@ -17,8 +17,10 @@
 # maybe set this to measurement's location? (useful for influxdb)
 NAME="clarissa"
 
-dir="$(cd "$(dirname "$0")" && pwd -P)"
-c_cat="${dir}/clarissa cat"
+c_cat() {
+        dir="$(cd "$(dirname "$0")" && pwd -P)"
+        ${dir}/clarissa cat $1 | grep -v "#"
+}
 
 # show correct usage if used incorrectly
 if [ -z "$3" ]; then
@@ -31,10 +33,6 @@ fi
 NAMES=()
 TALLY=0
 
-tmp=".clar_count_temp_file_delete_this.tmp"
-
-$c_cat "$2" > "$tmp"
-
 while read -r "REPLY"; do
 	LINE="$(grep -i "$(echo "$REPLY" | awk '{print $1}')" "$1")"
 	if [ -n "$LINE" ]; then
@@ -42,9 +40,8 @@ while read -r "REPLY"; do
 	else
 		(( TALLY++ ))
 	fi
-done < "$tmp"
-
-rm -rf "$tmp"
+# can't pipe in from the front because of TALLY's scope
+done <<< $(c_cat)
 
 COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort | uniq | wc -l)"
 
