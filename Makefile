@@ -24,7 +24,7 @@ SYSDINST = true
 DOCDIR = docs
 .PHONY: install
 install: clarissa man
-	mkdir -p $(DESTDIR)$(PREFIX)/sbin $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
+	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
 	install clarissa $(DESTDIR)$(PREFIX)/bin/clarissa
 	install $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
 	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
@@ -33,8 +33,9 @@ install: clarissa man
 uninstall:
 	systemctl stop clarissa
 	rm -rf /tmp/clar_*
-	rm -rf $(DESTDIR)$(PREFIX)/sbin/clarissa
-	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8.gz
+	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1*
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8*
 	if $(SYSDINST); then rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 
 # uses pycflow2dot (from pip)
