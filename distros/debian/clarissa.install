@@ -1,5 +1,0 @@
-#!/usr/bin/dh-exec
-
-clarissa usr/sbin
-clar_count.sh => usr/bin/clar_count
-clarissa.service lib/systemd/system
