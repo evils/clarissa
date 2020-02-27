@@ -6,11 +6,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/clarissa -p
+ExecStart=/usr/bin/clarissa
 Restart=always
 RestartSec=1
 StartLimitBurst=10
-ExecStopPost=/bin/sh -c 'rm -f /tmp/clar_*'
+TimeoutStopSec=7
 
 [Install]
 WantedBy=multi-user.target
