@@ -458,12 +458,6 @@ void asprint_ip(char** dest, const uint8_t* ip, const bool v6)
 	}
 	else
 	{
-		if (is_mapped(ip))
-		{
-			asprint_ipv4(dest, ip + 12);
-			return;
-		}
-
 		// this is surprisingly complicated...
 		*dest = malloc(INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, ip,
