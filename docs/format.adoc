@@ -1,11 +1,11 @@
 == v1.0 format
-* Any output using this format, should precede zero or more lines of output with a version header.
-** The version header consists of an octothorpe, three spaces, the string `clarissa`, three spaces and a format version string.
-*** example: `#{nbsp}{nbsp}{nbsp}clarissa{nbsp}{nbsp}{nbsp}v1.0`
-* The v1.0 output line format consists of a MAC address followed by an IPv4 and v6 address (`0.0.0.0` and `::` if absent) both IP addresses are followed by a unix timestamp (`0` if absent).
-** The timestamp following the IPv4 address doubles as the MAC address timestamp in case the most recent frame from this MAC address did yield an IP address.
-** the column fields are `MAC{nbsp}{nbsp}{nbsp}IPv4{nbsp}{nbsp}{nbsp}timestamp{nbsp}{nbsp}{nbsp}IPv6{nbsp}{nbsp}{nbsp}timestamp`
-*** these fields start at offsets, `0{nbsp}{nbsp}{nbsp}20{nbsp}{nbsp}{nbsp}38{nbsp}{nbsp}{nbsp}51{nbsp}{nbsp}{nbsp}93`
-*** and are separated by at least 3 spaces
-** Such lines must be lower case.
-** Any line starting with an octothorpe (`#`), whitespace, line or file ending or otherwise determinably not starting with a MAC address is not a valid output line.
+* The clarissa v1.0 format consists of a version header followed by zero or more lines.
+** The version header format consists of an octothorpe, three spaces, the string `clarissa`, three spaces, and a format version string.
+*** Example: `#{nbsp}{nbsp}{nbsp}clarissa{nbsp}{nbsp}{nbsp}v1.0`
+** The line format consists of a MAC address followed by an IPv4 (`0.0.0.0` if absent) and an IPv6 address (`::` if absent) both IP addresses are followed by a unix timestamp (`0` if absent).
+*** The column fields are `MAC{nbsp}{nbsp}{nbsp}IPv4{nbsp}{nbsp}{nbsp}timestamp{nbsp}{nbsp}{nbsp}IPv6{nbsp}{nbsp}{nbsp}timestamp`
+**** These fields must start at offsets, `0{nbsp}{nbsp}{nbsp}20{nbsp}{nbsp}{nbsp}38{nbsp}{nbsp}{nbsp}51{nbsp}{nbsp}{nbsp}93`
+**** These fields must be lower case.
+**** These fields must be separated by at least 3 spaces.
+*** Any line starting with an octothorpe (`#`), whitespace, line or file ending, or otherwise determinably not starting with a MAC address is not valid.
+*** The timestamp following the IPv4 address doubles as the MAC address timestamp in the case where the most recent frame that did not yield an IPv6 address, also did not yield an IPv4 address.
