@@ -19,7 +19,7 @@ NAME="clarissa"
 
 c_cat() {
         dir="$(cd "$(dirname "$0")" && pwd -P)"
-        ${dir}/clarissa cat $1 | grep -v "#"
+        "${dir}"/clarissa cat "$@" | grep -v "#"
 }
 
 # show correct usage if used incorrectly
@@ -41,7 +41,7 @@ while read -r "REPLY"; do
 		(( TALLY++ ))
 	fi
 # can't pipe in from the front because of TALLY's scope
-done <<< $(c_cat)
+done <<< "$(c_cat "@")"
 
 COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort | uniq | wc -l)"
 

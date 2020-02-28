@@ -5,7 +5,7 @@ tmp=".clar_scan_temp_file_delete_this.tmp"
 
 c_cat() {
        dir="$(cd "$(dirname "$0")" && pwd -P)"
-       ${dir}/clarissa cat $1 | grep -v "#"
+       "${dir}"/clarissa cat "$@" | grep -v "#"
 }
 
 if [ -z "$1" ]; then
@@ -22,7 +22,7 @@ echo "Starting Clarissa output (https://gitlab.com/evils/clarissa)"
 
 count=0;
 
-c_cat | sort | grep -sv "0.0.0.0" | tee "$tmp" \
+c_cat "$@" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 | while read -r "REPLY"; do
 	ipv4="$(echo "$REPLY" | awk '{print $2}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
@@ -44,7 +44,7 @@ done
 
 count=$(wc -l "$tmp" | awk '{print $1}')
 printf "\\nEnding, %s responded, consider using \"clarissa show\"" "$count"
-clar=$(c_cat | wc -l | awk '{print $1}')
+clar=$(c_cat "$@" | wc -l | awk '{print $1}')
 diff=$(( clar - count ))
 if [ "$diff" -gt 0 ]; then
 	printf ", it has %s more result" "$diff"

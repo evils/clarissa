@@ -24,16 +24,16 @@ fi
 # probably should check that for compatibility...
 c_cat() {
 	dir="$(cd "$(dirname "$0")" && pwd -P)"
-	${dir}/clarissa cat $1 | grep -v "#"
+	"${dir}"/clarissa cat "$@" | grep -v "#"
 }
 
 printf "Interface: %s\\n" "$(echo "$1" | awk -F '[/_]' '{print $4}')"
-count=$(c_cat | wc -l | awk '{print $1}')
+count=$(c_cat "$@" | wc -l | awk '{print $1}')
 printf "Clarissa found %s device" "$count"
 if [ "$count" -gt 1 ]; then printf "s"; fi
 printf "\\n\\n"
 
-c_cat | sort \
+c_cat "$@" | sort \
 | while read -r "REPLY"; do
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$mac" | tr -d ":-" \
@@ -54,7 +54,7 @@ c_cat | sort \
 	if [ -z "$domain" ]; then domain="(no_domain_found)"; fi
         if [ -z "$vendor" ]; then
                 byte2="$(echo "$vend_mac" | cut -b 2)"
-                result="$(( ( "$byte2" / 2 ) % 2 ))"
+                result="$(( ( byte2 / 2 ) % 2 ))"
                 if [ "$result" -eq 1 ]; then
                         vendor="$(printf "(Locally_Administered_Address)")"
 		else
