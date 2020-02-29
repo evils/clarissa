@@ -18,8 +18,8 @@ check: test
 index.html:
 	asciidoctor README.adoc -o index.html
 
-.PHONY: manual
-manual:
+.PHONY: man
+man:
 	asciidoctor -b manpage README.adoc
 
 .PHONY: clean

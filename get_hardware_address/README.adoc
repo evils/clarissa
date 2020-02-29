@@ -56,4 +56,5 @@ This is an adaption of https://github.com/royhills/arp-scan[arp-scan]'s `get_har
 It is relicensed with https://github.com/royhills/arp-scan/issues/43[permission], for ease of reuse in https://gitlab.com/evils/clarissa[clarissa].
 
 == See Also
+*clarissa*(8)
 {url-project}
