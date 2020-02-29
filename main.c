@@ -188,33 +188,34 @@ int clarissa(int argc, char* argv[])
 
 					// zero IP if not in the set subnet
 					// or use the host's subnet
-					subnet_filter   ( addrss.latest
+					if (addrss.ip)
+					subnet_filter   ( addrss.v6
 							? addrss.ipv6
 							: addrss.ipv4
 					, opts.cidr	? &opts.subnet
 							: &opts.host.subnet
-					, addrss.latest);
+					, addrss.v6);
 
 					// go again if extraction failed
-					// mac and a timeval are required
+					// a non-zero MAC address is required
 					if (!addrss_valid(&addrss)) continue;
 
 					if (verbosity > 4)
 					{
 						print_mac(addrss.mac);
-						print_ip( addrss.latest
+
+						if (addrss.ip)
+						print_ip( addrss.v6
 							? addrss.ipv6
 							: addrss.ipv4
-							, addrss.latest);
+							, addrss.v6);
 					}
 
 					addrss_list_add(&head, &addrss);
 
 					// use arrival time to be consistent
 					// regardless of pcap to_ms
-					now = addrss.latest
-						? addrss.ipv6_t
-						: addrss.ipv4_t;
+					now = addrss.ts;
 					break;
 				}
 				default:
@@ -586,7 +587,7 @@ void handle_con(const int sock_d, int sock_v, struct Addrss** head)
 				*current != NULL;
 				current = &((*current)->next))
 		{
-			if (asprint_clar(&string, *current) == -1)
+			if (asprint_clar(&string, *current) != 0)
 			{
 				warnx("Dropping socket connection");
 				close(sock_v);
@@ -1048,8 +1049,10 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		char* ip;
 		// subnet.ip is IPv6 or mapped v4
+		// but asprint_ip correctly does mapped handling
+		// i want just the dotted quad
 		asprint_ip(&ip, opts->cidr ? opts->subnet.ip
-				: opts->host.subnet.ip, true);
+				: opts->host.subnet.ip + 12, false);
 		if (asprintf(&auto_name
 			// if reading from file
 			// output to current directory

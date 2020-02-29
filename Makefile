@@ -31,12 +31,10 @@ install: clarissa man
 	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && cp clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 .PHONY: uninstall
 uninstall:
-	systemctl stop clarissa
-	rm -rf /tmp/clar_*
 	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
 	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1*
 	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8*
-	if $(SYSDINST); then rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+	if $(SYSDINST); then systemctl stop clarissa; rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 
 # uses pycflow2dot (from pip)
 .PHONY: graph
@@ -80,13 +78,17 @@ index.html: README.adoc
 .PHONY: man
 man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1
 
+.PHONY: $(DOCDIR)/clarissa.adoc
 $(DOCDIR)/clarissa.8: $(DOCDIR)/clarissa.adoc
 	asciidoctor -b manpage $<
 
+.PHONY: $(DOCDIR)/clarissa-cat.adoc
 $(DOCDIR)/clarissa-cat.1: $(DOCDIR)/clarissa-cat.adoc
 	asciidoctor -b manpage $<
 
 .PHONY: clean
 clean:
-	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR) index.html
-	rm -rf docs/*.[0-9]
+	rm -rf clarissa clarissa_static
+	rm -rf *.o $(OUTDIR)
+	rm -rf docs/*.[0-9] index.html
+	rm -rf cflow*

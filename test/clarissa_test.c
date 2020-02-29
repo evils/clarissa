@@ -515,35 +515,26 @@ TQ_TEST("addrss_list_cull")
 
 TQ_TEST("addrss_valid")
 {
-	// all zero, invalid
-	struct Addrss addrss = {0};
-	// non-zero MAC and timeval, valid
+	// an all zero MAC address is the best indication of a bad extraction
+	// an all zero timestamp may also be a fair indication
+	// but i'm not sure that couldn't occur in synthetic pcap files
+	// and with a zero timestamp an entry will get culled within a timeout * nags
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 0 },
+		};
 	struct Addrss bddrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4_t.tv_sec = 1
 		};
 
-	// either zero, invalid
-	struct Addrss cddrss = {
-			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4_t.tv_sec = 0
-		};
-	struct Addrss dddrss = {
-			.mac = { 0, 0, 0, 0, 0, 0 },
-			.ipv4_t.tv_sec = 1
-		};
-
-	// non-zero MAC and IPv4_t should be valid
-	return !addrss_valid(&addrss)
-	    &&  addrss_valid(&bddrss)
-	    && !addrss_valid(&cddrss)
-	    && !addrss_valid(&dddrss);
+	// non-zero MAC addresses should be valid
+	return !addrss_valid(&addrss) && addrss_valid(&bddrss);
 }
 
-TQ_TEST("asprint_clar/pass/0")
+TQ_TEST("asprint_clar/pass/simple")
 {
 	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
 			.ipv4 = { 10, 20, 0, 1 },
 			.ipv4_t.tv_sec = 1581412781,
 			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
@@ -552,7 +543,7 @@ TQ_TEST("asprint_clar/pass/0")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01   10.20.0.1         1581412781   2001:db8::27                              1581412782\n";
+"00:00:00:00:00:01   1582928932   10.20.0.1         1581412781   2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -560,30 +551,11 @@ TQ_TEST("asprint_clar/pass/0")
 	return !diff;
 }
 
-TQ_TEST("asprint_clar/pass/1")
+TQ_TEST("asprint_clar/pass/zero_IPv4")
 {
 	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4 = { 0, 0, 0, 0 },
-			.ipv4_t.tv_sec = 1581412781,
-			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
-				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-				, 0x00, 0x27 },
-			.ipv6_t.tv_sec = 1581412782
-		};
-	char* intent =
-"00:00:00:00:00:01   0.0.0.0           1581412781   2001:db8::27                              1581412782\n";
-	char* result;
-	asprint_clar(&result, &addrss);
-	int diff = strncmp(intent, result, strlen(intent));
-	free(result);
-	return !diff;
-}
-
-TQ_TEST("asprint_clar/pass/2")
-{
-	struct Addrss addrss = {
-			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
 			.ipv4 = { 0, 0, 0, 0 },
 			.ipv4_t.tv_sec = 0,
 			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
@@ -592,7 +564,7 @@ TQ_TEST("asprint_clar/pass/2")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01   0.0.0.0           0            2001:db8::27                              1581412782\n";
+"00:00:00:00:00:01   1582928932   0.0.0.0           0            2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -600,10 +572,11 @@ TQ_TEST("asprint_clar/pass/2")
 	return !diff;
 }
 
-TQ_TEST("asprint_clar/pass/3")
+TQ_TEST("asprint_clar/pass/max_IPv4_width")
 {
 	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
 			.ipv4 = { 192, 168, 255, 255 },
 			.ipv4_t.tv_sec = 1581412781,
 			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
@@ -612,7 +585,7 @@ TQ_TEST("asprint_clar/pass/3")
 			.ipv6_t.tv_sec = 1581412782
 		};
 	char* intent =
-"00:00:00:00:00:01   192.168.255.255   1581412781   2001:db8::27                              1581412782\n";
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412781   2001:db8::27                              1581412782\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -620,10 +593,11 @@ TQ_TEST("asprint_clar/pass/3")
 	return !diff;
 }
 
-TQ_TEST("asprint_clar/pass/4")
+TQ_TEST("asprint_clar/pass/zero_IPv6")
 {
 	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
 			.ipv4 = { 192, 168, 255, 255 },
 			.ipv4_t.tv_sec = 1581412782,
 			.ipv6 = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -632,7 +606,7 @@ TQ_TEST("asprint_clar/pass/4")
 			.ipv6_t.tv_sec = 0
 		};
 	char* intent =
-"00:00:00:00:00:01   192.168.255.255   1581412782   ::                                        0\n";
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412782   ::                                        0\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -640,19 +614,20 @@ TQ_TEST("asprint_clar/pass/4")
 	return !diff;
 }
 
-TQ_TEST("asprint_clar/pass/5")
+TQ_TEST("asprint_clar/pass/max_IPv6_width")
 {
 	struct Addrss addrss = {
-			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4 = { 192, 168, 255, 255 },
-			.ipv4_t.tv_sec = 1581412782,
-			.ipv6 = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-				, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+			.mac = { 0xbe, 0x69, 0x27, 0xde, 0xc3, 0xbe },
+			.ts.tv_sec = 1582924127,
+			.ipv4 = { 192, 168, 242, 127 },
+			.ipv4_t.tv_sec = 1582924125,
+			.ipv6 = { 0xfd, 0xe8, 0x83, 0x38, 0xbc, 0x3a, 0xd6
+				, 0x6a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 				, 0xff, 0xff },
-			.ipv6_t.tv_sec = 1582923679
+			.ipv6_t.tv_sec = 1582924126
 		};
 	char* intent =
-"00:00:00:00:00:01   192.168.255.255   1581412782   ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff   1582923679\n";
+"be:69:27:de:c3:be   1582924127   192.168.242.127   1582924125   fde8:8338:bc3a:d66a:ffff:ffff:ffff:ffff   1582924126\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -660,10 +635,11 @@ TQ_TEST("asprint_clar/pass/5")
 	return !diff;
 }
 
-TQ_TEST("asprint_clar/pass/6")
+TQ_TEST("asprint_clar/pass/mapped_IPv4")
 {
 	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
 			.ipv4 = { 192, 168, 255, 255 },
 			.ipv4_t.tv_sec = 1581412782,
 			.ipv6 = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -672,7 +648,7 @@ TQ_TEST("asprint_clar/pass/6")
 			.ipv6_t.tv_sec = 1582923679
 		};
 	char* intent =
-"00:00:00:00:00:01   192.168.255.255   1581412782   ::ffff:192.168.1.0                        1582923679\n";
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412782   ::ffff:192.168.1.0                        1582923679\n";
 	char* result;
 	asprint_clar(&result, &addrss);
 	int diff = strncmp(intent, result, strlen(intent));
@@ -695,7 +671,7 @@ TQ_TEST("asprint_cat_header")
 {
 	char* result;
 	char* intent =
-"#   MAC address      IPv4 address    MAC|IPv4 time               IPv6 address                IPv6 time\n";
+"#   MAC_address       MAC_time     IPv4_address     IPv4_time                 IPv6_address                 IPv6_time\n";
 	asprint_cat_header(&result);
 	int diff = strncmp(intent, result, strlen(intent));
 	free(result);

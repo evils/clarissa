@@ -18,12 +18,13 @@
 int verbosity;
 
 // extracted frame data
+// this struct must be initialized to all zeros
 struct Addrss
 {
-	// the detected MAC address, and the
-	// latest timestamp is ipv4_t or ipv6_t, indicated by a flag
-	// these are the only required fields
-	uint8_t 		mac[6];	// source MAC
+	// the found MAC address, and the time of capture
+	// .mac is the only member that cannot remain all zeros
+	uint8_t 	mac[6];	// source MAC address
+	struct timeval	ts;	// MAC capture timestamp
 
 	// save the latest v4 and v6 address
 	// and the capture time of each
@@ -31,8 +32,10 @@ struct Addrss
 	uint8_t 	ipv4[4];// latest IPv4 address
 	struct timeval	ipv6_t;	// IPv6 capture time
 	uint8_t 	ipv6[16];// latest IPv6 address
-	bool		latest;	// true if IPv6* are the latest
 
+	// meta block, not present in the output
+	bool		ip;	// true if an IP address was found
+	bool		v6;	// true if that's an IPv6 address
 	uint64_t	tags;	// packed VLAN tags (up to 5)
 	uint16_t	tried;	// packets sent to this MAC
 	struct Addrss*	next;	// pointer to next list entry

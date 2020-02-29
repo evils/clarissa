@@ -1,11 +1,15 @@
-== v1.0 format
+== v1.0 format specification
 * The clarissa v1.0 format consists of a version header followed by zero or more lines.
 ** The version header format consists of an octothorpe, three spaces, the string `clarissa`, three spaces, and a format version string.
 *** Example: `#{nbsp}{nbsp}{nbsp}clarissa{nbsp}{nbsp}{nbsp}v1.0`
-** The line format consists of a MAC address followed by an IPv4 (`0.0.0.0` if absent) and an IPv6 address (`::` if absent) both IP addresses are followed by a unix timestamp (`0` if absent).
-*** The column fields are `MAC{nbsp}{nbsp}{nbsp}IPv4{nbsp}{nbsp}{nbsp}timestamp{nbsp}{nbsp}{nbsp}IPv6{nbsp}{nbsp}{nbsp}timestamp`
-**** These fields must start at offsets, `0{nbsp}{nbsp}{nbsp}20{nbsp}{nbsp}{nbsp}38{nbsp}{nbsp}{nbsp}51{nbsp}{nbsp}{nbsp}93`
-**** These fields must be lower case.
-**** These fields must be separated by at least 3 spaces.
-*** Any line starting with an octothorpe (`#`), whitespace, line or file ending, or otherwise determinably not starting with a MAC address is not valid.
-*** The timestamp following the IPv4 address doubles as the MAC address timestamp in the case where the most recent frame that did not yield an IPv6 address, also did not yield an IPv4 address.
+** The line format consists of 6 fields: a MAC address, an IPv4 address and an IPv6 address, each followed by a unix timestamp. This is terminated by a line ending.
+*** All fields must be present and must start at offsets: `0{nbsp}{nbsp}{nbsp}20{nbsp}{nbsp}{nbsp}33{nbsp}{nbsp}{nbsp}51{nbsp}{nbsp}{nbsp}64{nbsp}{nbsp}{nbsp}106`
+*** These fields must be lower case.
+*** These fields are separated by at least 3 spaces.
+*** Visual aid: `[0]-mac{nbsp}{nbsp}{nbsp}[20]-timestamp{nbsp}{nbsp}{nbsp}[33]-ipv4{nbsp}{nbsp}{nbsp}[51]-timestamp{nbsp}{nbsp}{nbsp}[64]-ipv6{nbsp}{nbsp}{nbsp}[106]-timestamp`
+*** The MAC address must be represented as 6 hexadecimal octets separated by colons.
+*** The IPv4 address must be in dotted-decimal notation (`0.0.0.0` if absent).
+*** The IPv6 address must follow IETF RFC5952 sections 4 and 5 (`::` if absent).
+*** The timestamps must be single positive integer decimal numbers without leading zeros and at most 10 characters wide (`0` if absent).
+*** Any line starting with an octothorpe (`#`), whitespace, line or file ending, or otherwise determinably not starting with a valid MAC address, is explicitly not of the line format.
+*** Example: `be:69:27:de:c3:be{nbsp}{nbsp}{nbsp}1582924127{nbsp}{nbsp}{nbsp}192.168.242.127{nbsp}{nbsp}{nbsp}1582924125{nbsp}{nbsp}{nbsp}fde8:8338:bc3a:d66a:ffff:ffff:ffff:ffff{nbsp}{nbsp}{nbsp}1582924126`

@@ -14,19 +14,17 @@ struct Addrss get_addrss
 
 	intptr_t max = (intptr_t)frame + header->caplen;
 
-	// internally, only 1 timestamp is available, held in ipv4_t
-	// if addrss.latest (IPv6 is the latest address)
-	// this timestamp gets moved to ipv6_t and ipv4_t gets nulled
-	// at the label "end"
-	// everything that uses the returned addresses,
-	// must check addrss.latest before using ipv*_t
-	// and should check if the MAC or ipv*_t is non-zero
-	addrss.ipv4_t = header->ts;
+	addrss.ts = header->ts;
 
 	// assume a packet is correct
 	// an invalid MAC will be unreachable and get purged
 	// IP may go through subnet_filter() later
-	// and an empty result may be caught by addrss_valid()
+	// and an empty result should get caught by addrss_valid()
+
+	// if an IP is extracted, addrss.ip is set to true
+	// if that IP is v6, addrss.v6 is set to true
+	// the capture time for this is saved
+	// at the label "end"
 
 	// link type is separately stored metadata
 	switch (pcap_datalink(handle))
@@ -150,10 +148,16 @@ fail:
 	}
 	return (struct Addrss){0};
 end:
-	if (addrss.latest == true)
+	if (addrss.ip)
 	{
-		addrss.ipv6_t = addrss.ipv4_t;
-		memset(&addrss.ipv4_t, 0, sizeof(addrss.ipv4_t));
+		if (addrss.v6 == true)
+		{
+			addrss.ipv6_t = addrss.ts;
+		}
+		else
+		{
+			addrss.ipv4_t = addrss.ts;
+		}
 	}
 	return addrss;
 }
@@ -206,20 +210,21 @@ int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss, uint16
 		case IPv4:
 			if ((intptr_t)frame + (12 + 4) > max) return -1;
 			memcpy(addrss->ipv4, frame + 12, 4);
-			addrss->latest = false;
+			addrss->ip = true;
 			return 1;
 
 		case ARP:
 			if ((intptr_t)frame + (14 + 4) > max) return -1;
 			memcpy(addrss->ipv4, frame + 14, 4);
-			addrss->latest = false;
+			addrss->ip = true;
 			return 1;
 
 		case IPv6:
 			if ((intptr_t)frame + (8 + 16) > max) return -1;
 			// copy IPv6 address to addrss
 			memcpy(addrss->ipv6, frame + 8, 16);
-			addrss->latest = true;
+			addrss->ip = true;
+			addrss->v6 = true;
 			return 1;
 
 		case ETH_SIZE:
@@ -280,40 +285,47 @@ void addrss_list_add(struct Addrss** head
 		{
 			found = true;
 
-			(*current)->latest = new_addrss->latest;
-
-			// update IP and time for latest pair
-			if ((*current)->latest == true)
-			{
-				// ipv6 is going to be set if latest
-				// but may actually have been zero?
-				if (!is_zeros(new_addrss->ipv6
-					, sizeof(new_addrss->ipv6)))
-				{
-					memcpy((*current)->ipv6
-						, new_addrss->ipv6
-					, sizeof((*current)->ipv6));
-				}
-
-				(*current)->ipv6_t =
-					new_addrss->ipv6_t;
-			}
-			else
-			{
-				// ipv4 may be zero if no IP was seen
-				// the intent is to keep the latest
-				if (!is_zeros(new_addrss->ipv4
-					, sizeof(new_addrss->ipv4)))
-				{
-					memcpy((*current)->ipv4
-						, new_addrss->ipv4
-					, sizeof((*current)->ipv4));
-				}
-
-				(*current)->ipv4_t =
-						new_addrss->ipv4_t;
-			}
 			(*current)->tried = 0;
+
+			(*current)->ts = new_addrss->ts;
+			(*current)->ip = new_addrss->ip;
+			(*current)->v6 = new_addrss->v6;
+
+			// if an IP was found
+			if ((*current)->ip == true)
+			{
+				// update IP and time for latest pair
+				if ((*current)->v6 == true)
+				{
+					// copy the IP
+					if (!is_zeros(new_addrss->ipv6
+						, sizeof(new_addrss->ipv6)))
+					{
+						memcpy((*current)->ipv6
+							, new_addrss->ipv6
+						, sizeof((*current)->ipv6));
+					}
+
+					// copy the timestamp
+					// not in the !is_zeros() block
+					// in case an actual all zeros IP was seen
+					(*current)->ipv6_t =
+						new_addrss->ipv6_t;
+				}
+				else
+				{
+					if (!is_zeros(new_addrss->ipv4
+						, sizeof(new_addrss->ipv4)))
+					{
+						memcpy((*current)->ipv4
+							, new_addrss->ipv4
+						, sizeof((*current)->ipv4));
+					}
+
+					(*current)->ipv4_t =
+						new_addrss->ipv4_t;
+				}
+			}
 
 			// move it to the start of the list
 			if (current != head) {
@@ -336,10 +348,13 @@ void addrss_list_add(struct Addrss** head
 		*head = new_head;
 
 		if (verbosity) print_mac(new_addrss->mac);
-		if (verbosity > 2) print_ip(new_addrss->latest
-					  ? new_addrss->ipv6
-					  : new_addrss->ipv4
-					  , new_addrss->latest);
+		if (new_addrss->ip && verbosity > 2)
+		{
+			print_ip( new_addrss->v6
+				? new_addrss->ipv6
+				: new_addrss->ipv4
+				, new_addrss->v6);
+		}
 	}
 }
 
@@ -354,10 +369,7 @@ void addrss_list_cull
 	{
 top_of_loop:
 		if (((*current)->tried >= nags)
-			&& (usec_diff(ts,  (*current)->latest
-					? &(*current)->ipv6_t
-					: &(*current)->ipv4_t)
-				> timeout))
+			&& (usec_diff(ts, &(*current)->ts) > timeout))
 		{
 			// remove the struct from the list
 			if (verbosity > 1)
@@ -386,10 +398,7 @@ void addrss_list_nag
 		*current != NULL;
 		current = &((*current)->next))
 	{
-		if (usec_diff(ts,  (*current)->latest
-				? &(*current)->ipv6_t
-				: &(*current)->ipv4_t)
-			> timeout)
+		if (usec_diff(ts, &(*current)->ts) > timeout)
 		{
 			nag(*current, opts, count);
 			(*current)->tried++;
@@ -401,18 +410,18 @@ void addrss_list_nag
 void nag(const struct Addrss* addrss,
 	 const struct Opts* opts, uint64_t* count)
 {
-	// assumes non-subnet addresses have been zero'd (subnet check)
-	if (!is_zeros(addrss->latest
+	// assumes non-subnet addresses have been zero'd (subnet_filter())
+	if (!is_zeros(addrss->v6
 			? addrss->ipv6
 			: addrss->ipv4
-			, sizeof( addrss->latest
+			, sizeof( addrss->v6
 				? addrss->ipv6
 				: addrss->ipv4)))
 	{
 		// increment count of packets sent
 		*count += 1;
 
-		if (addrss->latest == true)
+		if (addrss->v6 == true)
 		{
 			send_ndp(addrss, opts);
 		}
@@ -727,7 +736,11 @@ void dump_state(char* filename, struct Addrss *head)
 		link != NULL; link = link->next)
 	{
 		char* clar;
-		asprint_clar(&clar, link);
+		if (asprint_clar(&clar, link) != 0)
+		{
+			warnx("Prematurely stopping file output");
+			break;
+		}
 		fprintf(stats_file, "%s", clar);
 		free(clar);
 	}
@@ -1071,11 +1084,7 @@ void print_addrss(const struct Addrss* addrss)
 // quick check for mac and timeval
 bool addrss_valid(const struct Addrss* addrss)
 {
-	return !(is_zeros(addrss->mac, 6)
-		|| 0 == ( addrss->latest
-			? addrss->ipv6_t.tv_sec
-			: addrss->ipv4_t.tv_sec)
-		);
+	return !is_zeros(addrss->mac, 6);
 }
 
 // assemble a FORMAT_VERSION output string
@@ -1084,13 +1093,22 @@ int asprint_clar(char** dest, const struct Addrss* addrss)
 	char* mac;
 	char* ipv4;
 	char* ipv6;
+	if (is_zeros(addrss->mac, sizeof(addrss->mac)))
+	{
+		if (verbosity)
+		{
+			warnx("Refusing to print a all zeros MAC address");
+		}
+		return 1;
+	}
 	asprint_mac(&mac, addrss->mac);
 	asprint_ip(&ipv4, addrss->ipv4, false);
 	asprint_ip(&ipv6, addrss->ipv6, true);
 
 	// v1.x output format
-	if (asprintf(dest, "%-17s   %-15s   %-10li   %-39s   %0li\n"
+	if (asprintf(dest, "%-17s   %-10li   %-15s   %-10li   %-39s   %0li\n"
 				, mac
+				, (long int)addrss->ts.tv_sec
 				, ipv4
 				, (long int)addrss->ipv4_t.tv_sec
 				, ipv6
@@ -1122,7 +1140,7 @@ int asprint_clar_header(char** dest)
 int asprint_cat_header(char** dest)
 {
 	if (asprintf(dest,
-"#   MAC address      IPv4 address    MAC|IPv4 time               IPv6 address                IPv6 time\n")
+"#   MAC_address       MAC_time     IPv4_address     IPv4_time                 IPv6_address                 IPv6_time\n")
 		== -1)
 	{
 		warnx("Failed to asprint cat header");

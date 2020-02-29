@@ -9,9 +9,6 @@ output
 		separate program translates list and makes available on LAN?
 			these are currently in the utils branch
 
-preload
-	if output is persistent and includes the IP address, load
-
 bitcmp()
 	allow starting at an offset
 		for example: check 10 bits at byte pointer with a 2 bit offset
