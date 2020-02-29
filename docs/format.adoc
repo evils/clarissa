@@ -11,5 +11,5 @@
 *** The IPv4 address must be in dotted-decimal notation (`0.0.0.0` if absent).
 *** The IPv6 address must follow IETF RFC5952 sections 4 and 5 (`::` if absent).
 *** The timestamps must be single positive integer decimal numbers without leading zeros and at most 10 characters wide (`0` if absent).
-*** Any line starting with an octothorpe (`#`), whitespace, line or file ending, or otherwise determinably not starting with a valid MAC address, is explicitly not of the line format.
 *** Example: `be:69:27:de:c3:be{nbsp}{nbsp}{nbsp}1582924127{nbsp}{nbsp}{nbsp}192.168.242.127{nbsp}{nbsp}{nbsp}1582924125{nbsp}{nbsp}{nbsp}fde8:8338:bc3a:d66a:ffff:ffff:ffff:ffff{nbsp}{nbsp}{nbsp}1582924126`
+** Any line not following this format should not be parsed as such.
