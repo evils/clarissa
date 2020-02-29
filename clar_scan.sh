@@ -24,7 +24,7 @@ count=0;
 
 c_cat "$@" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 | while read -r "REPLY"; do
-	ipv4="$(echo "$REPLY" | awk '{print $2}')"
+	ipv4="$(echo "$REPLY" | awk '{print $3}')"
 	mac="$(echo "$REPLY" | awk '{print $1}')"
 	vend_mac="$(echo "$mac" | tr -d ":-" | tr "a-f" "A-F" | awk '{print substr($1,1,6)}')"
 	vendor="$(grep -s "$vend_mac" "$oui" | awk -F ',' '{print $2}' | sed 's/"//g' )"

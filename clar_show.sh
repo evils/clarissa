@@ -16,7 +16,7 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
 fi
 
 if [ ! -f "$oui" ]; then
-        echo "WARNING: No OUI file, try OUI_assemble.sh?"
+	echo "WARNING: No OUI file, try OUI_assemble.sh?"
 fi
 
 # cat outputs some headers starting with #
@@ -41,8 +41,8 @@ c_cat "$@" | sort \
 		| awk '{print substr($1,1,6)}')"
 	vendor="$(grep -s "$vend_mac" "$oui" \
 		| awk -F ',' '{print $2}' | sed 's/"//g' )"
-	ipv4="$(echo "$REPLY" | awk '{print $2}')"
-	ipv6="$(echo "$REPLY" | awk '{print $4}')"
+	ipv4="$(echo "$REPLY" | awk '{print $3}')"
+	ipv6="$(echo "$REPLY" | awk '{print $5}')"
 	domain="$(dig -x "$ipv4" | grep "ANSWER SECTION" -A 1 \
 		| awk '{print substr($5, 1, length($5)-1)}' \
 		| sed '/^\s*$/d')"
@@ -52,15 +52,15 @@ c_cat "$@" | sort \
 			| sed '/^\s*$/d')"
 	fi
 	if [ -z "$domain" ]; then domain="(no_domain_found)"; fi
-        if [ -z "$vendor" ]; then
-                byte2="$(echo "$vend_mac" | cut -b 2)"
-                result="$(( ( byte2 / 2 ) % 2 ))"
-                if [ "$result" -eq 1 ]; then
-                        vendor="$(printf "(Locally_Administered_Address)")"
+	if [ -z "$vendor" ]; then
+		byte2="$(echo "$vend_mac" | cut -b 2)"
+		result="$(( ( byte2 / 2 ) % 2 ))"
+		if [ "$result" -eq 1 ]; then
+			vendor="$(printf "(Locally_Administered_Address)")"
 		else
-                        vendor="$(printf "(vendor_not_listed_(UAA))")"
-                fi
-        fi
+			vendor="$(printf "(vendor_not_listed_(UAA))")"
+		fi
+	fi
 	printf "%s\\t%s\\n" "$mac" "$vendor"
 	printf "  %s\\t\\t" "$ipv4"
 	if [ -n "$domain" ]; then

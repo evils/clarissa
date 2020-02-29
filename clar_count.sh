@@ -17,11 +17,6 @@
 # maybe set this to measurement's location? (useful for influxdb)
 NAME="clarissa"
 
-c_cat() {
-        dir="$(cd "$(dirname "$0")" && pwd -P)"
-        "${dir}"/clarissa cat "$@" | grep -v "#"
-}
-
 # show correct usage if used incorrectly
 if [ -z "$3" ]; then
 echo "Please use the following format:"
@@ -41,7 +36,7 @@ while read -r "REPLY"; do
 		(( TALLY++ ))
 	fi
 # can't pipe in from the front because of TALLY's scope
-done <<< "$(c_cat "@")"
+done <<< "$(clarissa cat "$@" | grep -v '#')"
 
 COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort | uniq | wc -l)"
 
