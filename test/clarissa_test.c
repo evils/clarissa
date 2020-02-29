@@ -105,7 +105,7 @@ TQ_TEST("bitcmp/fail/1")
 	return bitcmp(a, b, n);
 }
 
-TQ_TEST("subnet_filter/ipv6/pass0")
+TQ_TEST("subnet_filter/ipv6/pass/0")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -125,7 +125,7 @@ TQ_TEST("subnet_filter/ipv6/pass0")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/pass1")
+TQ_TEST("subnet_filter/ipv6/pass/1")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -145,7 +145,7 @@ TQ_TEST("subnet_filter/ipv6/pass1")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/fail0")
+TQ_TEST("subnet_filter/ipv6/fail/0")
 {
 	uint8_t ip[16] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -166,7 +166,7 @@ TQ_TEST("subnet_filter/ipv6/fail0")
 	return !memcmp(&ip, &start, sizeof(ip));
 }
 
-TQ_TEST("subnet_filter/ipv6/fail1")
+TQ_TEST("subnet_filter/ipv6/fail/1")
 {
 	uint8_t ip[16] =
 		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -379,7 +379,7 @@ TQ_TEST("asprint_ip/ipv6_mapped_ipv4_null")
 		  0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 };
 	char* ip_string;
 	asprint_ip(&ip_string, ip, true);
-	char* intent = "0.0.0.0";
+	char* intent = "::ffff:0.0.0.0";
 	int ret = !strncmp(ip_string, intent, INET6_ADDRSTRLEN);
 	free(ip_string);
 	return ret;
@@ -515,29 +515,167 @@ TQ_TEST("addrss_list_cull")
 
 TQ_TEST("addrss_valid")
 {
-	// all zero, invalid
-	struct Addrss addrss = {0};
-	// non-zero MAC and timeval, valid
+	// an all zero MAC address is the best indication of a bad extraction
+	// an all zero timestamp may also be a fair indication
+	// but i'm not sure that couldn't occur in synthetic pcap files
+	// and with a zero timestamp an entry will get culled within a timeout * nags
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 0 },
+		};
 	struct Addrss bddrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4_t.tv_sec = 1
 		};
 
-	// either zero, invalid
-	struct Addrss cddrss = {
+	// non-zero MAC addresses should be valid
+	return !addrss_valid(&addrss) && addrss_valid(&bddrss);
+}
+
+TQ_TEST("asprint_clar/pass/simple")
+{
+	struct Addrss addrss = {
 			.mac = { 0, 0, 0, 0, 0, 1 },
-			.ipv4_t.tv_sec = 0
+			.ts.tv_sec = 1582928932,
+			.ipv4 = { 10, 20, 0, 1 },
+			.ipv4_t.tv_sec = 1581412781,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
 		};
-	struct Addrss dddrss = {
-			.mac = { 0, 0, 0, 0, 0, 0 },
-			.ipv4_t.tv_sec = 1
-		};
+	char* intent =
+"00:00:00:00:00:01   1582928932   10.20.0.1         1581412781   2001:db8::27                              1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
 
-	// non-zero MAC and IPv4_t should be valid
-	return !addrss_valid(&addrss)
-	    &&  addrss_valid(&bddrss)
-	    && !addrss_valid(&cddrss)
-	    && !addrss_valid(&dddrss);
+TQ_TEST("asprint_clar/pass/zero_IPv4")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
+			.ipv4 = { 0, 0, 0, 0 },
+			.ipv4_t.tv_sec = 0,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01   1582928932   0.0.0.0           0            2001:db8::27                              1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/max_IPv4_width")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
+			.ipv4 = { 192, 168, 255, 255 },
+			.ipv4_t.tv_sec = 1581412781,
+			.ipv6 = { 0x20, 0x01, 0x0D, 0xB8, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x27 },
+			.ipv6_t.tv_sec = 1581412782
+		};
+	char* intent =
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412781   2001:db8::27                              1581412782\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/zero_IPv6")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
+			.ipv4 = { 192, 168, 255, 255 },
+			.ipv4_t.tv_sec = 1581412782,
+			.ipv6 = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x00 },
+			.ipv6_t.tv_sec = 0
+		};
+	char* intent =
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412782   ::                                        0\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/max_IPv6_width")
+{
+	struct Addrss addrss = {
+			.mac = { 0xbe, 0x69, 0x27, 0xde, 0xc3, 0xbe },
+			.ts.tv_sec = 1582924127,
+			.ipv4 = { 192, 168, 242, 127 },
+			.ipv4_t.tv_sec = 1582924125,
+			.ipv6 = { 0xfd, 0xe8, 0x83, 0x38, 0xbc, 0x3a, 0xd6
+				, 0x6a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+				, 0xff, 0xff },
+			.ipv6_t.tv_sec = 1582924126
+		};
+	char* intent =
+"be:69:27:de:c3:be   1582924127   192.168.242.127   1582924125   fde8:8338:bc3a:d66a:ffff:ffff:ffff:ffff   1582924126\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar/pass/mapped_IPv4")
+{
+	struct Addrss addrss = {
+			.mac = { 0, 0, 0, 0, 0, 1 },
+			.ts.tv_sec = 1582928932,
+			.ipv4 = { 192, 168, 255, 255 },
+			.ipv4_t.tv_sec = 1581412782,
+			.ipv6 = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+				, 0x00, 0x00, 0x00, 0xFF, 0xFF
+				, 192, 168, 1, 0 },
+			.ipv6_t.tv_sec = 1582923679
+		};
+	char* intent =
+"00:00:00:00:00:01   1582928932   192.168.255.255   1581412782   ::ffff:192.168.1.0                        1582923679\n";
+	char* result;
+	asprint_clar(&result, &addrss);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_clar_header")
+{
+	char* result;
+	// this should be manually updated as a barrier to accidental change
+	char* intent = "#   clarissa   v1.0\n";
+	asprint_clar_header(&result);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
+}
+
+TQ_TEST("asprint_cat_header")
+{
+	char* result;
+	char* intent =
+"#   MAC_address       MAC_time     IPv4_address     IPv4_time                 IPv6_address                 IPv6_time\n";
+	asprint_cat_header(&result);
+	int diff = strncmp(intent, result, strlen(intent));
+	free(result);
+	return !diff;
 }
 
 /*
@@ -549,7 +687,7 @@ TQ_TEST("addrss_list_nag")
 
 TQ_TEST("get_addrss")
 {
-	this'll take some work, just run the thing...
+	// this'll take some work, just run the thing...
 	return 1;
 }
 */

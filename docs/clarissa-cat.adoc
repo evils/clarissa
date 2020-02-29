@@ -1,0 +1,49 @@
+= clarissa-cat(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clarissa-cat - get output from clarissa's socket, optionally accepts files
+
+== Synopsis
+*clarissa cat* [-fFsSArahv] [file... socket...]
+
+== Description
+*clarissa* is a deamon which collects MAC and IP addresses. It provides a unix domain socket for output. +
+*clarissa cat* prints the output of such sockets and optionally files.
+
+== Defaults
+When no argument is given, *clarissa cat* will cat the first socket found in /var/run/clar +
+If a non-option argument is given, *clarissa cat* will cat all sockets given but not files. +
+The *options* can be used to change that behaviour. +
+Note: when conflicting flags are given, the rightmost overwrites the other(s). +
+
+Unless *--raw* is set *clarissa cat* will include headers describing the source and the columns of the output. +
+All headers start with an octothorpe: `#` +
+Note: *clarissa*'s output includes a version header, see *clarissa*(8). +
+
+== Options
+[%hardbreaks]
+    Long      Short   Note
+--file         -f
+   also print from regular files
+--file_off     -F    default
+   explicitly don't print from Files
+--socket       -s    default
+   explicitly print from sockets
+--socket_off   -S
+   don't print from Sockets
+--all          -a
+   print from all supported formats
+--all_off      -A   for completeness
+   print nothing
+--raw          -r
+   exclude the source and column name headers
+--version      -v
+   show the Version of this tool and exit
+--help         -h
+   show this Help message and exit
+
+== See Also
+*clarissa*(8), *socat*(1), *cat*(1) +
+{url-project}

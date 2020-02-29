@@ -31,22 +31,50 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <pcap.h>
+/* #include <pcap.h> */
 #include <sys/ioctl.h>
-//#include <sys/bufmod.h>
+/* #include <sys/bufmod.h> */
 #include <search.h>
 
 
 #define MAXLINE 255	/* Max line length for input files */
 #define ETH_ALEN 6	/* Octets in one ethernet addr */
 
+/* OS/X defines these as macros, we want none of that. */
+#ifdef strlcat
+#undef strlcat
+#endif
+#ifdef strlcpy
+#undef strlcpy
+#endif
 
+void err_sys(const char* fmt,...);
+void err_msg(const char* fmt,...);
+void warn_msg(const char* fmt,...);
+void err_print(int errnoflag, const char* fmt, va_list ap);
+void* Malloc(size_t size);
 size_t strlcat(char* dst, const char* src, size_t siz);
 size_t strlcpy(char* dst, const char* src, size_t siz);
 
-void err_print(int errnoflag, const char* fmt, va_list ap);
-void err_sys(const char* fmt,...);
-void warn_msg(const char* fmt,...);
+void err_sys(const char* fmt,...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	err_print(1, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
+
+void err_msg(const char* fmt,...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	err_print(0, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
 
 void warn_msg(const char* fmt,...)
 {
@@ -55,6 +83,20 @@ void warn_msg(const char* fmt,...)
 	va_start(ap, fmt);
 	err_print(0, fmt, ap);
 	va_end(ap);
+}
+
+void* Malloc(size_t size)
+{
+	void* result;
+
+	result = malloc(size);
+
+	if (result == NULL)
+	{
+		err_sys("malloc");
+	}
+
+	return result;
 }
 
 void err_print(int errnoflag, const char* fmt, va_list ap)
@@ -77,49 +119,6 @@ void err_print(int errnoflag, const char* fmt, va_list ap)
 	fputs(buf, stderr);
 	fflush(stderr);
 }
-
-void err_sys(const char* fmt,...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	err_print(1, fmt, ap);
-	va_end(ap);
-	exit(EXIT_FAILURE);
-}
-
-void err_msg(const char* fmt,...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	err_print(0, fmt, ap);
-	va_end(ap);
-	exit(EXIT_FAILURE);
-}
-
-void* Malloc(size_t size)
-{
-	void* result;
-
-	result = malloc(size);
-
-	if (result == NULL)
-	{
-		err_sys("malloc");
-	}
-
-	return result;
-}
-
-// most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/
-#if defined(__linux__) || defined(__linux) || defined(__gnu_linux__) || defined(linux) || defined(__ANDROID__) || defined(__GNU__) || defined(__gnu_hurd__)
-
-#include <linux/if_packet.h>	// struct sockaddr_ll sll
-#include <net/if.h>		// struct ifreq, IFNAMSIZ
-
-size_t strlcat(char* dst, const char* src, size_t siz);
-size_t strlcpy(char* dst, const char* src, size_t siz);
 
 size_t strlcat(char* dst, const char* src, size_t siz)
 {
@@ -177,13 +176,12 @@ size_t strlcpy(char* dst, const char* src, size_t siz)
 	return(s - src - 1);	/* count does not include NUL */
 }
 
-#ifdef HAVE_NETPACKET_PACKET_H
-#include <netpacket/packet.h>
-#endif
 
-#ifdef HAVE_NET_IF_H
-#include <net/if.h>
-#endif
+/* most definitions from https://sourceforge.net/p/predef/wiki/OperatingSystems/ */
+#if defined(__linux__) || defined(__linux) || defined(__gnu_linux__) || defined(linux) || defined(__ANDROID__) || defined(__GNU__) || defined(__gnu_hurd__)
+
+#include <linux/if_packet.h>	/* struct sockaddr_ll sll */
+#include <net/if.h>		/* struct ifreq, IFNAMSIZ */
 
 /*
  *	Link layer handle structure for packet socket.
@@ -583,12 +581,13 @@ void get_hardware_address
 
 
 #elif defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(TOS_WIN__) || defined(__WINDOWS__) || defined(OS_Windows)
-// TODO
-// placeholder
+/* TODO
+ * placeholder
+*/
 #include <err.h>
 void get_hardware_address
 (const char* if_name, unsigned char hw_address[])
 {
-	errx(1, "Cannot get interface hardware address (MAC) on windows.");
+	err(1, "Cannot get interface hardware address (MAC) on windows.");
 }
 #endif

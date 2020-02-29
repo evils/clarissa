@@ -21,23 +21,20 @@ DESTDIR =
 PREFIX = /usr
 SYSDIR = /lib/systemd/system
 SYSDINST = true
+DOCDIR = docs
 .PHONY: install
-install: clarissa
-	mkdir -p $(DESTDIR)$(PREFIX)/sbin $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
-	install clarissa $(DESTDIR)$(PREFIX)/sbin/clarissa
-	install clar_count.sh $(DESTDIR)$(PREFIX)/bin/clar_count
-	install clar_count.1 $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1
-	install clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
-	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && install clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+install: clarissa man
+	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
+	install clarissa $(DESTDIR)$(PREFIX)/bin/clarissa
+	install $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
+	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
+	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && cp clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 .PHONY: uninstall
 uninstall:
-	systemctl stop clarissa
-	rm -rf /tmp/clar_*
-	rm -rf $(DESTDIR)$(PREFIX)/sbin/clarissa
-	rm -rf $(DESTDIR)$(PREFIX)/bin/clar_count
-	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clar_count.1.gz
-	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8.gz
-	if $(SYSDINST); then rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1*
+	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8*
+	if $(SYSDINST); then systemctl stop clarissa; rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 
 # uses pycflow2dot (from pip)
 .PHONY: graph
@@ -74,9 +71,24 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 
 
 # not tests
-index.html: README.md
-	markdown -f +fencedcode README.md > index.html
+.PHONY: index.html
+index.html: README.adoc
+	asciidoctor -o $@ $<
+
+.PHONY: man
+man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1
+
+.PHONY: $(DOCDIR)/clarissa.adoc
+$(DOCDIR)/clarissa.8: $(DOCDIR)/clarissa.adoc
+	asciidoctor -b manpage $<
+
+.PHONY: $(DOCDIR)/clarissa-cat.adoc
+$(DOCDIR)/clarissa-cat.1: $(DOCDIR)/clarissa-cat.adoc
+	asciidoctor -b manpage $<
 
 .PHONY: clean
 clean:
-	rm -rf clarissa clarissa_static *.o cflow* $(OUTDIR)
+	rm -rf clarissa clarissa_static
+	rm -rf *.o $(OUTDIR)
+	rm -rf docs/*.[0-9] index.html
+	rm -rf cflow*

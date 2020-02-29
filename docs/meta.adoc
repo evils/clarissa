@@ -1,0 +1,10 @@
+Evils <evils.devils@protonmail.com>
+v1.0
+:description: clarissa is a daemon that logs MAC and IP addresses
+:keywords: MAC, mac, address, clarissa, arp-scan, arp, scan, network, LAN, lan, IPv4, ipv4, IPv6, ipv6
+:license: BSD-3-Clause
+:url-project: https://gitlab.com/evils/clarissa
+
+// asciidoctor only
+:sectanchors:
+:sectlinks:

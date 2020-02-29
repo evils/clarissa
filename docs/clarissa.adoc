@@ -1,0 +1,29 @@
+= clarissa(8)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clarissa - near-real-time network census daemon
+
+== Synopsis
+// {zwsp} to not remove leading whitespace
+[%hardbreaks]
+*clarissa* [-hHvVqauw] [--interface I] [--listen l]
+{zwsp}         [--interval i] [--nags n] [--timeout t] [--cidr c]
+{zwsp}         [--output_file o] [--output_interval O]
+{zwsp}         [--file f] [--socket s]
+*clarissa cat* [-fFsSArahv] [file... socket...]
+
+== Description
+*clarissa* is a daemon which keeps a list of all connected devices on a network. +
+It can keep this with sub-second resolution and can monitor passively. +
+By default, it outputs these via a unix domain socket at /var/run/clar +
+Use *clarissa cat* to extract them.
+
+include::clarissa_options.adoc[]
+
+include::format.adoc[]
+
+== See Also
+*clarissa-cat*(1), *arp-scan*(1) +
+{url-project}

@@ -1,22 +1,11 @@
 code
-	output
-		switch to domain socket
-			on read, fork, dump out the list, die
-			where to put this?
-				/run/clar/192.168.0.0/16?
-
-	reconsider options
-		make capitalization more consistent?
-		add redundant options?
-		separate flags and options?
-		separate setup and algorithm options?
+	implement --preload (load will file)
 
 packaging
 	daemonizing
 		figure out dealing with multiple instances
-			different options for each
-			and a better output location?
-				/tmp is a security issue?
+			managing different options for each
+			multiple instances can be started manually
 		procd for openwrt
 			started
 		systemd for everything else?
@@ -30,13 +19,9 @@ packaging
 				works from Makefile now
 
 tests
-	get_addrss()
+	end-end test
 		assemble a publishable pcap file
+		--will option may help with this
 
 docs
-	document output
-		maybe after the domain socket thing?
-
-CLAR_COUNT
-		make sure log() doesn't lose data
-		find a place for macs.csv
+	add tab completion for bash/zsh/fish

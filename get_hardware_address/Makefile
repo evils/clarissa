@@ -10,12 +10,17 @@ test: $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-.PHONY: manual
-manual:
-	asciidoctor -b manpage README.adoc
+.PHONY: check
+check: test
+	sudo ./test
+
 .PHONY: index.html
 index.html:
 	asciidoctor README.adoc -o index.html
+
+.PHONY: man
+man:
+	asciidoctor -b manpage README.adoc
 
 .PHONY: clean
 clean:

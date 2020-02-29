@@ -16,4 +16,7 @@ debian/*.debhelper
 debian/files
 debian/clarissa.substvars
 index.html
-oui.txt
+clar_OUI.csv
+matcrc
+*.html
+*.[0-9]

@@ -1,0 +1,25 @@
+= clarissa(8)
+include::docs/meta.adoc[]
+
+== Values
+Clarissa is an attempt at replacing https://github.com/sandb/pamela[Pamela]'s scanner with something that does not rely on scanning the entire network every so often.
+
+The design goals are an ability to run *quietly* (without sending out packets at all), have better time resolution (arp-scan can trigger rate limiting) and make the output available locally.
+
+* Running *quietly* imposes a practical minimum *timeout* of the longest time between packets from any device you want to keep track of.
+* Better time resolution can be obtained by *nagging* devices.
+* The output is a unix domain *socket* (`/var/run/clar/[interface]_[subnet]-[mask]` by default).
+
+== Concept
+* When a MAC address is found in a frame on the *listen* interface, it is saved along with a timestamp as an entry in an internal list.
+** If this entry is already on the list, the timestamp is updated.
+* Clarissa uses their timestamp and a set *timeout* to determine when to *nag* entries.
+** When an entry has been *nagged* a set number of times, it is removed from the list on the next *interval*.
+** If an IPv4 or v6 address was found, an entry gets *nagged* via ARP or NDP respectively.
+
+include::docs/clarissa_options.adoc[]
+
+include::docs/format.adoc[]
+
+== Packages
+The latest packages may be found https://evils.eu/clarissa/packages[here].
