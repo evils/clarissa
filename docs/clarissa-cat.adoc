@@ -45,5 +45,5 @@ Note: *clarissa*'s output includes a version header, see *clarissa*(8). +
    show this Help message and exit
 
 == See Also
-*clarissa*(8), *socat*(1), *cat*(1) +
+*clarissa*(8), *nc*(1), *socat*(1), *cat*(1) +
 {url-project}

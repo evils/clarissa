@@ -17,8 +17,8 @@ clarissa - near-real-time network census daemon
 == Description
 *clarissa* is a daemon which keeps a list of all connected devices on a network. +
 It can keep this with sub-second resolution and can monitor passively. +
-By default, it outputs these via a unix domain socket at /var/run/clar +
-Use *clarissa cat* to extract them.
+By default, it outputs this via a unix domain socket in */var/run/clar/* +
+This can be extracted with *clarissa cat*
 
 include::clarissa_options.adoc[]
 

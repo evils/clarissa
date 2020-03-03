@@ -1,6 +1,6 @@
 output
 	raw list available on the machine as a socket
-		accessible via `clarissa cat` or socat [mysterious incantation]
+		accessible via `clarissa cat`, nc -U or socat [mysterious incantation]
 			this is part of the clarissa binary as to always be available
 			more requests == more dead time
 				fork() on request, die after replying
