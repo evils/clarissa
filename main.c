@@ -1057,7 +1057,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		// subnet.ip is IPv6 or mapped v4
 		// but asprint_ip correctly does mapped handling
 		// i want just the dotted quad
-		asprint_ip(&ip, opts->cidr ? opts->subnet.ip
+		asprint_ip(&ip, opts->cidr ? opts->subnet.ip + 12
 				: opts->host.subnet.ip + 12, false);
 		if (asprintf(&auto_name
 			// if reading from file
@@ -1135,22 +1135,22 @@ void print_header(const struct Opts* opts)
 		if (verbosity > 1)
 		{
 			char* ip;
-			if (is_zeros(opts->subnet.ip
-				, sizeof(opts->subnet.ip)))
+			if (is_zeros(opts->subnet.ip, sizeof(opts->subnet.ip)))
 			{
 				// subnet block,
-				// mask minus 96 as this is mapped IPv4
 				// subnet.ip is IPv6 or mapped v4
-				asprint_ip(&ip, opts->host.subnet.ip, true);
-				printf("Host IPv4 subnet:\t%s/%d\n",
-					ip, opts->host.subnet.mask - 96);
+				// if mapped, print it as IPv4
+				bool m = is_mapped(opts->host.subnet.ip);
+				asprint_ip(&ip, opts->host.subnet.ip + (m ? 12 : 0), !m);
+				printf("Host IPv%d subnet:\t%s/%d\n", m ? 4 : 6,
+					ip, opts->host.subnet.mask - (m ? 96 : 0));
 			}
 			else
 			{
-				asprint_ip(&ip, opts->subnet.ip, true);
-				printf("Subset filter:\t\t%s/%d\n"
-					, ip
-					, opts->subnet.mask - (is_mapped(opts->subnet.ip) ? 96 : 0));
+				bool m = is_mapped(opts->subnet.ip);
+				asprint_ip(&ip, opts->subnet.ip + (m ? 12 : 0), !m);
+				printf("Subnet filter:\t\t%s/%d\n",
+					ip, opts->subnet.mask - (m ? 96 : 0));
 			}
 			free(ip);
 			printf("\n");
