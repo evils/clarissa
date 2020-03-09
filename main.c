@@ -59,6 +59,7 @@ int clarissa(int argc, char* argv[])
 		{
 			if (mkdir(PATH, 0755) == -1)
 			{
+				// not sure if mkdir sets errno
 				err(1, "Failed to create output directory");
 			}
 			if (verbosity > 2)
@@ -72,7 +73,7 @@ int clarissa(int argc, char* argv[])
 				, "%s", opts.socket);
 		if (snl == sizeof(local.sun_path))
 		{
-			err(1, "socket path is too long");
+			errx(1, "socket path is too long");
 		}
 
 		int flags = fcntl(sock_d, F_GETFL, 0);
@@ -130,7 +131,8 @@ int clarissa(int argc, char* argv[])
 	pcap_fd = pcap_get_selectable_fd(opts.l_handle);
 	if (pcap_fd == PCAP_ERROR)
 	{
-		err(1, "Failed to get pcap selectable fd");
+		pcap_perror(opts.l_handle, "pcap_fd setup: ");
+		exit(1);
 	}
 
 	struct pollfd fds[POLL_N];
@@ -371,7 +373,7 @@ int clar_cat(int argc, char* argv[])
 			if (asprintf(&full_path, "%s/%s"
 				, PATH, dir_e->d_name) == -1)
 			{
-				err(1, "Failed to save full path to socket");
+				errx(1, "Failed to save full path to socket");
 			}
 
 			char* header;
@@ -386,7 +388,7 @@ int clar_cat(int argc, char* argv[])
 			return ret;
 		}
 
-		err(1, "No socket found in "PATH);
+		errx(1, "No socket found in "PATH);
 	}
 	// an argument given, may be multiple files or multiple sockets
 	else
@@ -739,7 +741,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				// save socket path name
 				if (asprintf(&opts->socket, "%s", optarg) == -1)
 				{
-					err(1, "Failed to save given socket path name");
+					errx(1, "Failed to save given socket path name");
 				}
 				break;
 			case 'S':
@@ -776,7 +778,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				// get the listen interface
 				if (asprintf(&opts->l_dev, "%s", optarg) == -1)
 				{
-					err(1, "Failed to save given listening interface name");
+					errx(1, "Failed to save given listening interface name");
 				}
 				break;
 			case 't':
@@ -792,7 +794,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				// save filename
 				if (asprintf(&filename, "%s", optarg) == -1)
 				{
-					err(1, "Failed to save given file name");
+					errx(1, "Failed to save given file name");
 				}
 				opts->from_file = true;
 				break;
@@ -800,18 +802,19 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				// get the sending interface
 				if (asprintf(&opts->s_dev, "%s", optarg) == -1)
 				{
-					err(1, "Failed to save given sending interface name");
+					errx(1, "Failed to save given sending interface name");
 				}
 				break;
 			case 'c':
 				if (opts->cidr)
 				{
-					err(1,
+					errx(1,
 				"Multiple CIDR subnets currently not supported");
 				}
 				// parse provided CIDR notation
 				if (!get_cidr(&opts->subnet, optarg))
 				{
+					// get_cidr uses inet_pton, which may set errno
 					err(1, "Failed to parse CIDR");
 				}
 				else opts->cidr += 1;
@@ -822,7 +825,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 'o':
 				if (asprintf(&opts->print_filename, "%s", optarg) == -1)
 				{
-					err(1, "Failed to save given output filename");
+					errx(1, "Failed to save given output filename");
 				}
 				break;
 			case 'O':
@@ -832,7 +835,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				}
 				break;
 			case ':':
-				err(1, "%c\trequires an argument!", optopt);
+				errx(1, "%c\trequires an argument!", optopt);
 			default:
 				// usage
 				print_opts();
@@ -881,7 +884,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		if (pcap_findalldevs(&devs, opts->errbuf)
 			|| devs == NULL)
 		{
-			err(1, "Failed to find an interface\n");
+			errx(1, "Failed to find an interface\n");
 		}
 
 		if (devs->description != NULL && verbosity > 2)
@@ -891,7 +894,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 		if (asprintf(&auto_dev, "%s", devs->name) == -1)
 		{
-			err(1, "Failed to save found listen interface name");
+			errx(1, "Failed to save found listen interface name");
 		}
 
 		pcap_freealldevs(devs);
@@ -905,7 +908,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			if (asprintf(&opts->l_dev, "%s", opts->s_dev)
 				== -1)
 			{
-				err(1, "Failed to write s_dev to l_dev");
+				errx(1, "Failed to write s_dev to l_dev");
 			}
 		}
 		else
@@ -913,7 +916,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			if (asprintf(&opts->l_dev, "%s", auto_dev)
 				== -1)
 			{
-				err(1, "Failed to write auto_dev to l_dev");
+				errx(1, "Failed to write auto_dev to l_dev");
 			}
 		}
 	}
@@ -923,7 +926,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		if (asprintf(&opts->s_dev, "%s", auto_dev) == -1)
 		{
-			err(1, "Failed to save auto_dev to s_dev");
+			errx(1, "Failed to save auto_dev to s_dev");
 		}
 	}
 
@@ -932,7 +935,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// this would involve no devices...
 	if (!(opts->l_dev && opts->s_dev))
 	{
-		err(1, "Failed to set up device(s)");
+		errx(1, "Failed to set up device(s)");
 	}
 
 	// make l_handle
@@ -942,7 +945,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			opts->errbuf);
 		if (opts->l_handle == NULL)
 		{
-			err(1, "pcap failed to create l_handle: %s",
+			errx(1, "pcap failed to create l_handle: %s",
 				opts->errbuf);
 		}
 
@@ -976,14 +979,15 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		switch (result)
 		{
 			// warnings
+			case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
+				warnx("set timestamp not supported");
+				break;
+			// warnings supported by pcap_perror()
 			case PCAP_WARNING_PROMISC_NOTSUP:
 				pcap_perror
 				(opts->l_handle, "Activation: ");
 				warnx
 				("promiscuous mode not supported");
-				break;
-			case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
-				warnx("set timestamp not supported");
 				break;
 			case PCAP_WARNING:
 				pcap_perror
@@ -991,26 +995,28 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				break;
 			// errors
 			case PCAP_ERROR_ACTIVATED:
-				err(1, "l_handle already active");
+				errx(1, "l_handle already active");
+			case PCAP_ERROR_PROMISC_PERM_DENIED:
+				errx
+				(1, "no permission for promiscuous");
+			case PCAP_ERROR_RFMON_NOTSUP:
+				errx(1, "can't use monitor mode");
+			case PCAP_ERROR_IFACE_NOT_UP:
+				errx(1, "capture source is not up");
+			// errors supported by pcap_perror()
 			case PCAP_ERROR_NO_SUCH_DEVICE:
 				pcap_perror
 				(opts->l_handle, "Activation: ");
-				err(1, "no such capture source");
+				errx(1, "no such capture source");
 			case PCAP_ERROR_PERM_DENIED:
 				pcap_perror
 				(opts->l_handle, "Activation: ");
-				err
+				errx
 				(1, "no permission to open source");
-			case PCAP_ERROR_PROMISC_PERM_DENIED:
-				err
-				(1, "no permission for promiscuous");
-			case PCAP_ERROR_RFMON_NOTSUP:
-				err(1, "can't use monitor mode");
-			case PCAP_ERROR_IFACE_NOT_UP:
-				err(1, "capture source is not up");
 			case PCAP_ERROR:
 				pcap_perror
 				(opts->l_handle, "Activation: ");
+				exit(1);
 		}
 	}
 
@@ -1021,7 +1027,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			opts->errbuf);
 		if (opts->s_handle == NULL)
 		{
-			err(1, "pcap failed to create s_handle: %s",
+			errx(1, "pcap failed to create s_handle: %s",
 				opts->errbuf);
 		}
 	};
@@ -1065,7 +1071,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 				: opts->host.subnet.mask) - 96)
 			== -1)
 		{
-			err(1, "Failed to set the auto_name");
+			errx(1, "Failed to set the auto_name");
 		}
 		free(ip);
 	}
@@ -1075,7 +1081,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		if (asprintf(&opts->print_filename, "%s.clar", auto_name)
 			== -1)
 		{
-			err(1, "Failed to set the output filename");
+			errx(1, "Failed to set the output filename");
 		}
 	}
 
@@ -1083,7 +1089,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	{
 		if (asprintf(&opts->socket, "%s", auto_name) == -1)
 		{
-			err(1, "Failed to set the output socket path name");
+			errx(1, "Failed to set the output socket path name");
 		}
 	}
 
