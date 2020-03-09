@@ -6,7 +6,7 @@ TQ_TEST("is this thing on?")
 {
 	// a test should return 1 on success (0 for failure)
 	// and nothing to stdout
-	warn("Example returned 1 for 'success'");
+	warnx("Example returned 1 for 'success'");
 	return 1;
 }
 

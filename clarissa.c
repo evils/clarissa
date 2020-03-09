@@ -7,7 +7,7 @@ struct Addrss get_addrss
 {
 	if (header->len < header->caplen)
 	{
-		warn("Frame is shorter than required");
+		warnx("Frame is shorter than required");
 		goto fail;
 	}
 	struct Addrss addrss = {0};
@@ -38,7 +38,7 @@ struct Addrss get_addrss
 			if ((intptr_t)frame + (6 + 6) > max
 				|| is_zeros(frame + 6, 6))
 			{
-				warn("Exceeded capture length or MAC is zeros");
+				warnx("Exceeded capture length or MAC is zeros");
 				goto fail;
 			}
 			memcpy(addrss.mac, frame += 6, 6);
@@ -48,7 +48,7 @@ struct Addrss get_addrss
 			else
 			{
 				if (verbosity > 3)
-				warn("Failed to extract ethernet frame");
+				warnx("Failed to extract ethernet frame");
 
 				goto fail;
 			}
@@ -59,7 +59,7 @@ struct Addrss get_addrss
 			bool bail = false;
 			if ((intptr_t)frame + 2 > max)
 			{
-				warn("Exceeded frame length at DLT_LINUX_SLL, 0");
+				warnx("Exceeded frame length at DLT_LINUX_SLL, 0");
 				goto fail;
 			}
 			switch (net_get_u16(frame += 2))
@@ -71,7 +71,7 @@ struct Addrss get_addrss
 					// if DLT_IEEE802_11 gets support,
 					// go there?
 					if (verbosity > 4)
-						warn
+						warnx
 					("Unknown ARPHRD_ type found");
 
 					bail = true;
@@ -83,19 +83,19 @@ struct Addrss get_addrss
 			net_put_u16(len, mac_len);
 			if ((intptr_t)frame + 2 > max)
 			{
-				warn("Exceeded frame length at DLT_LINUX_SLL, 1");
+				warnx("Exceeded frame length at DLT_LINUX_SLL, 1");
 				goto fail;
 			}
 			if (memcmp(len, frame += 2, 2))
 			{
 				if (verbosity > 3)
-					warn
+					warnx
 		("Unsupported link-layer address length on \"any\" device");
 				goto fail;
 			}
 			if ((intptr_t)frame + (2 + 6) > max)
 			{
-				warn("Exceeded frame length at DLT_LINUX_SLL, 2");
+				warnx("Exceeded frame length at DLT_LINUX_SLL, 2");
 				goto fail;
 			}
 			memcpy(addrss.mac, frame += 2, 6);
@@ -123,7 +123,7 @@ struct Addrss get_addrss
 			else
 			{
 				if (verbosity > 3)
-					warn
+					warnx
 				("Failed to extract \"any\" ethernet frame");
 
 				goto fail;
@@ -132,11 +132,11 @@ struct Addrss get_addrss
 
 		case DLT_IEEE802_11:
 
-			warn("WLAN is not yet supported");
+			warnx("WLAN is not yet supported");
 			goto fail;
 
 		default:
-			warn("Unsupported link type: %i",
+			warnx("Unsupported link type: %i",
 				pcap_datalink(handle));
 			goto fail;
 	}
@@ -144,7 +144,7 @@ struct Addrss get_addrss
 fail:
 	if (verbosity > 4)
 	{
-		warn("Failed to extract a frame");
+		warnx("Failed to extract a frame");
 	}
 	return (struct Addrss){0};
 end:
@@ -177,7 +177,7 @@ int get_tag(const uint8_t* frame, intptr_t max, struct Addrss* addrss)
 
 			if ((addrss->tags >> 60) >= 5)
 			{
-				warn("Exceeded VLAN tag depth!");
+				warnx("Exceeded VLAN tag depth!");
 				return -1;
 			}
 
@@ -233,31 +233,31 @@ int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss, uint16
 
 			// continue without IP
 			if (verbosity > 3)
-			warn("ETH_SIZE frame found");
+			warnx("ETH_SIZE frame found");
 			return 0;
 
 		case ARUBA_AP_BC:
 
 			if (verbosity)
-			warn("Aruba Instant AP broadcast packet found");
+			warnx("Aruba Instant AP broadcast packet found");
 			return 0;
 
 		case EAPOL:
 
 			if (verbosity)
-			warn("EAP over LAN packet found");
+			warnx("EAP over LAN packet found");
 			return 0;
 
 		case DOT11R:
 
 			if (verbosity)
-			warn("Fast BSS Transition (802.11r) packet found");
+			warnx("Fast BSS Transition (802.11r) packet found");
 			return 0;
 
 		default:
 			if (verbosity)
 			{
-				warn("unsupported EtherType: 0x%04X", type);
+				warnx("unsupported EtherType: 0x%04X", type);
 				printf("From: ");
 				print_mac(addrss->mac);
 			}
@@ -584,7 +584,7 @@ void get_if_mac(uint8_t* dest, const char* dev)
 	// get_hardware_address brings it all down on failure
 	if (!strncmp(dev, "any", 3))
 	{
-		warn("Can't get MAC address for \"any\" device");
+		warnx("Can't get MAC address for \"any\" device");
 		return;
 	}
 	// separate project
@@ -849,7 +849,7 @@ void send_arp(const struct Addrss* addrss, const struct Opts* opts)
 	// send the frame
 	if (pcap_inject(opts->s_handle, &frame, count) != count)
 	{
-		warn("Failed to inject ARP frame");
+		warnx("Failed to inject ARP frame");
 	}
 	else if (verbosity > 2)
 	{
@@ -1003,7 +1003,7 @@ void send_ndp(const struct Addrss* addrss, const struct Opts* opts)
 	// send the frame
 	if (pcap_inject(opts->s_handle, &frame, count) != count)
 	{
-		warn("Failed to inject NDP frame");
+		warnx("Failed to inject NDP frame");
 	}
 	else if (verbosity > 2)
 	{
@@ -1114,7 +1114,7 @@ int asprint_clar(char** dest, const struct Addrss* addrss)
 				, ipv6
 				, (long int)addrss->ipv6_t.tv_sec) == -1)
 	{
-		warn("Failed to asprintf output string");
+		warnx("Failed to asprintf output string");
 		free(mac);
 		free(ipv4);
 		free(ipv6);
