@@ -4,7 +4,8 @@ int main(int argc, char* argv[])
 {
 	if (argc > 1 && !strncmp(argv[1], "cat", 3))
 	{
-		return clar_cat(--argc, ++argv);
+		clar_cat(--argc, ++argv);
+		return 0;
 	}
 	else return clarissa(argc, argv);
 }
@@ -355,10 +356,71 @@ end_header:
 	return 0;
 }
 
-int clar_cat(int argc, char* argv[])
+void clar_cat(int argc, char* argv[])
 {
+	// handle options and arguments
+	// if no arguments were given,
+	// default to the first item in PATH
+	int opt;
+
+	bool socket 	= true;
+	bool file 	= false;
+	bool header	= true;
+	int args	= 0;
+
+	static struct option long_options[] =
+	{
+		{"file",	no_argument,	0,	'f'},
+		{"file_off",	no_argument,	0,	'F'},
+		{"socket",	no_argument,	0,	's'},
+		{"socket_off",	no_argument,	0,	'S'},
+		{"all_off",	no_argument,	0,	'A'},
+		{"raw",		no_argument,	0,	'r'},
+		{"all",		no_argument,	0,	'a'},
+		{"help",	no_argument,	0,	'h'},
+		{"version",	no_argument,	0,	'v'}
+	};
+	int option_index = 0;
+	while ((opt = getopt_long(argc, argv, "-fFsSArahv",
+					long_options, &option_index)) != -1)
+	{
+		switch (opt)
+		{
+			case 'f': file = true; break;
+			case 'F': file = false; break;
+			case 's': socket = true; break;
+			case 'S': socket = false; break;
+			case 'a': file = true; socket = true; break;
+			case 'A': file = false; socket = false; break;
+			case 'v':
+				fprintf(stderr, "Version:\t%s\n", VERSION);
+				break;
+			case 'h':
+				cat_help();
+				exit(0);
+			case 'r':
+				header = false;
+				break;
+			case 1:
+				args++;
+				cat_cat(optarg, socket, file, header);
+				break;
+			case ':':
+				warnx("That option requires an argument.");
+				cat_help();
+				exit(1);
+			case '?':
+				warnx("Unknown option");
+				cat_help();
+				exit(1);
+			default:
+				cat_help();
+				exit(1);
+		}
+	}
+
 	// no argument, attempt to find something in PATH
-	if (argc <= 1)
+	if (args <= 0)
 	{
 		DIR* dir_p = opendir(PATH);
 		if (dir_p == NULL)
@@ -368,128 +430,113 @@ int clar_cat(int argc, char* argv[])
 		for (struct dirent* dir_e = readdir(dir_p)
 			; dir_e != NULL; dir_e = readdir(dir_p))
 		{
-			if (dir_e->d_type != DT_SOCK) continue;
+			if ((dir_e->d_type != DT_SOCK)
+			&& (dir_e->d_type != DT_REG))
+				continue;
+
 			char* full_path;
 			if (asprintf(&full_path, "%s/%s"
 				, PATH, dir_e->d_name) == -1)
 			{
-				errx(1, "Failed to save full path to socket");
+				errx(1, "Failed to save full path");
 			}
 
-			char* header;
-			if (asprint_cat_header(&header) == -1)
-			{
-				errx(1, "Giving up...");
-			}
-			free(header);
-
-			int ret = s_cat(full_path, true);
-			free(full_path);
-			return ret;
+			cat_cat(full_path, socket, file, header);
+			exit(0);
 		}
 
 		errx(1, "No socket found in "PATH);
 	}
-	// an argument given, may be multiple files or multiple sockets
-	else
+}
+
+void cat_cat(char* path, bool sock, bool file, bool header)
+{
+	struct stat st;
+
+	if (sock == true)
 	{
-		struct stat st;
-		int opt;
-
-		bool file 	= false;
-		bool socket 	= true;
-		bool header	= true;
-
-		static struct option long_options[] =
+		stat(path, &st);
+		if (S_ISSOCK(st.st_mode))
 		{
-			{"file",	no_argument,	0,	'f'},
-			{"file_off",	no_argument,	0,	'F'},
-			{"socket",	no_argument,	0,	's'},
-			{"socket_off",	no_argument,	0,	'S'},
-			{"all_off",	no_argument,	0,	'A'},
-			{"raw",		no_argument,	0,	'r'},
-			{"all",		no_argument,	0,	'a'},
-			{"help",	no_argument,	0,	'h'},
-			{"version",	no_argument,	0,	'v'}
-		};
-		int option_index = 0;
-		while ((opt = getopt_long(argc, argv, "-fFsSArahv",
-						long_options, &option_index)) != -1)
-		{
-			switch (opt)
-			{
-				case 1:
-					if (file == true)
-					{
-						stat(optarg, &st);
-						if (S_ISREG(st.st_mode))
-						{
-							FILE* fd = fopen(optarg, "r");
-							if (fd == NULL)
-							{
-								err(1, "Failed to open %s", optarg);
-							}
-							if (header == true)
-							{
-								printf("#   from   file   %s\n", optarg);
-								char* header;
-								if (asprint_cat_header(&header) == -1)
-								{
-									errx(1, "Giving up...");
-								}
-								free(header);
-							}
-
-							char c = fgetc(fd);
-							while (c != EOF)
-							{
-								printf("%c", c);
-								c = fgetc(fd);
-							}
-							fclose(fd);
-						}
-					}
-
-					if (socket == true)
-					{
-						stat(optarg, &st);
-						if (S_ISSOCK(st.st_mode))
-						{
-							s_cat(optarg, header);
-						}
-					}
-					break;
-				case 'f': file = true; break;
-				case 'F': file = false; break;
-				case 's': socket = true; break;
-				case 'S': socket = false; break;
-				case 'a': file = true; socket = true; break;
-				case 'A': file = false; socket = false; break;
-				case 'v':
-					fprintf(stderr, "Version:\t%s\n", VERSION);
-					break;
-				case 'h':
-					cat_help();
-					exit(0);
-				case 'r':
-					header = false;
-					break;
-				case ':':
-					warnx("That option requires an argument.");
-					cat_help();
-					exit(1);
-				case '?':
-					warnx("Unknown option");
-					cat_help();
-					exit(1);
-				default:
-					cat_help();
-					exit(1);
-			}
+			s_cat(path, header);
 		}
-		return 0;
 	}
-	return 1;
+
+	if (file == true)
+	{
+		stat(path, &st);
+		if (S_ISREG(st.st_mode))
+		{
+			f_cat(path, header);
+		}
+	}
+}
+
+void s_cat(char* path, bool header)
+{
+	int s, t;
+	struct sockaddr_un remote;
+	char str[137];
+
+	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+	{
+		err(1, "Failed to create socket");
+	}
+
+	remote.sun_family = AF_UNIX;
+	strcpy(remote.sun_path, path);
+	if (connect(s, (struct sockaddr*)&remote, sizeof(remote)) == -1)
+	{
+		err(1, "Failed to connect to socket");
+	}
+
+	cat_header(path, true, header);
+
+	while ((t=recv(s, str, sizeof(str), 0)) > 0)
+	{
+		if (fwrite(str, 1, t, stdout) != (size_t)t)
+		{
+			errx(1, "Failed to write line to STDOUT");
+		}
+	}
+
+	close(s);
+}
+
+void f_cat(char* path, bool header)
+{
+	FILE* fd = fopen(path, "r");
+	if (fd == NULL)
+	{
+		err(1, "Failed to open %s", path);
+	}
+
+	cat_header(path, false, header);
+
+	char c;
+	while ((c = fgetc(fd)) != EOF)
+	{
+		putchar(c);
+	}
+
+	fclose(fd);
+}
+
+void cat_header(char* path, bool sock, bool header)
+{
+	if (header == true)
+	{
+		printf("#   from   %s   %s\n"
+			, sock ? "socket" : "file"
+			, path);
+		char* header;
+		if (asprint_cat_header(&header) == -1)
+		{
+			errx(1, "Giving up...");
+		}
+		printf("%s", header);
+		free(header);
+	}
 }
 
 void cat_help()
@@ -515,48 +562,6 @@ void cat_help()
 		"--help         -h\n"
 		"   show this Help message and exit\n"
 	      );
-}
-
-int s_cat(char* sock, bool header)
-{
-	int s, t;
-	struct sockaddr_un remote;
-	char str[100];
-
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-	{
-		err(1, "Failed to create socket");
-	}
-
-	remote.sun_family = AF_UNIX;
-	strcpy(remote.sun_path, sock);
-	if (connect(s, (struct sockaddr*)&remote, sizeof(remote)) == -1)
-	{
-		err(1, "Failed to connect to socket");
-	}
-
-	if (header == true)
-	{
-		printf("#   from   socket   %s\n", sock);
-		char* header;
-		if (asprint_cat_header(&header) == -1)
-		{
-			errx(1, "Giving up...");
-		}
-		printf("%s", header);
-		free(header);
-	}
-
-	while ((t=recv(s, str, sizeof(str), 0)) > 0)
-	{
-		if (write(STDOUT_FILENO, str, t) == -1)
-		{
-			err(1, "Failed to line write to STDOUT");
-		}
-	}
-
-	close(s);
-	return 0;
 }
 
 // non blocking alternative to wait()

@@ -37,8 +37,11 @@
 extern int verbosity;
 
 int clarissa(int argc, char* argv[]);
-int clar_cat(int argc, char* argv[]);
-int s_cat(char* sock, bool header);
+void clar_cat(int argc, char* argv[]);
+void cat_cat(char* path, bool sock, bool file, bool header);
+void s_cat(char* path, bool header);
+void f_cat(char* path, bool header);
+void cat_header(char* path, bool sock, bool header);
 void cat_help();
 
 void help();
