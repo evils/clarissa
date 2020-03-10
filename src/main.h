@@ -1,18 +1,8 @@
 #pragma once
 
-#define _GNU_SOURCE
-#define VERSION "v1.0"
-
-// number of things in the poll
-#define POLL_N 2
-
-// more defaults at handle_opts()
-// these are reused outside of that
-#define DEFAULT_NAGS 4
-#define DEFAULT_TIMEOUT 5000
-
-// output path where the socket is found
-#define PATH "/var/run/clar"
+#include "clarissa.h"
+#include "clarissa_cat.h"
+#include "clarissa_defines.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -21,7 +11,7 @@
 #include <err.h>
 #include <pcap.h>
 #include <unistd.h>
-#include <getopt.h>
+#include <getopt.h>	// getopt_long()
 #include <signal.h>
 #include <string.h>
 #include <sys/socket.h> // AF_INET, AF_INET6, freebsd
@@ -30,19 +20,11 @@
 #include <fcntl.h>	// fcntl()
 #include <poll.h>	// poll(), POLLIN
 #include <dirent.h>	// struct dirent, opendir(), readdir()
-#include <sys/stat.h>	// stat(), S_ISSOCK()
-
-#include "clarissa.h"
+#include <sys/stat.h>	// stat(), S_ISSOCK(), S_ISREG()
 
 extern int verbosity;
 
 int clarissa(int argc, char* argv[]);
-void clar_cat(int argc, char* argv[]);
-void cat_cat(char* path, bool sock, bool file, bool header);
-void s_cat(char* path, bool header);
-void f_cat(char* path, bool header);
-void cat_header(char* path, bool sock, bool header);
-void cat_help();
 
 void help();
 void print_opts();

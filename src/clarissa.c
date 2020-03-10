@@ -1,5 +1,40 @@
 #include "clarissa.h"
-#include "clarissa_internal.h"
+
+#include <stdlib.h>	// free(), strtol()
+#include <err.h>	// warn()
+#include <string.h>	// mem*(), strn*()
+#include <arpa/inet.h>	// inet_pton(), struct sockaddr_in
+#include <sys/ioctl.h>	// ioctl(), SIOCGIFADDR
+#include <net/if.h>	// struct ifreq, IFNAMSIZ
+#include <unistd.h>	// close()
+#include <net/if_arp.h>	// ARPHRD_*
+#include <stdio.h>	// asprintf()
+
+#include "../get_hardware_address/get_hardware_address.h"
+
+// extraction
+int get_tag(const uint8_t* frame, intptr_t max, struct Addrss* addrss);
+int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss,
+		const uint16_t type);
+
+// helpers
+int bitcmp(const uint8_t* a, const uint8_t* b, int n);
+void asprint_ipv4(char** dest, const uint8_t* ip);
+
+// network output
+void nag(const struct Addrss* addrss,
+	 const struct Opts* opts, uint64_t* count);
+void send_arp(const struct Addrss* addrss, const struct Opts* opts);
+void send_ndp(const struct Addrss* addrss, const struct Opts* opts);
+// helpers
+void fill_eth_hdr
+(uint8_t* frame, int* ptr, const struct Addrss* addrss,
+	const struct Opts* opts);
+void net_put_u16(uint8_t* target, const uint16_t source);
+void net_put_u32(uint8_t* target, const uint32_t source);
+uint16_t net_get_u16(const uint8_t* source);
+uint32_t net_get_u32(const uint8_t* source);
+uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start);
 
 // Save the source addresses and receive time from a packet in a struct.
 struct Addrss get_addrss
@@ -1019,35 +1054,35 @@ void fill_eth_hdr
 (uint8_t* frame, int* ptr,
 	const struct Addrss* addrss, const struct Opts* opts)
 {
-        // fill in destination & source MAC addresses
-        memcpy(&frame[*ptr], addrss->mac, 6);
-        *ptr += 6;
-        memcpy(&frame[*ptr], opts->host.mac, 6);
-        *ptr += 6;
+	// fill in destination & source MAC addresses
+	memcpy(&frame[*ptr], addrss->mac, 6);
+	*ptr += 6;
+	memcpy(&frame[*ptr], opts->host.mac, 6);
+	*ptr += 6;
 
-        // reassemble VLAN tags in the right order
-        for (int i = addrss->tags >> 60; i; i--)
-        {
-                // tag protocol identifier
-                // TODO figure out QinQ or drop at capture
-                if (i == 1) net_put_u16(&frame[*ptr], DOT1Q);
-                else net_put_u16(&frame[*ptr], DOT1AD);
-                *ptr += 2;
+	// reassemble VLAN tags in the right order
+	for (int i = addrss->tags >> 60; i; i--)
+	{
+		// tag protocol identifier
+		// TODO figure out QinQ or drop at capture
+		if (i == 1) net_put_u16(&frame[*ptr], DOT1Q);
+		else net_put_u16(&frame[*ptr], DOT1AD);
+		*ptr += 2;
 
-                // Priority Code Point = 1 (background)
-                uint16_t tag = 16384;
+		// Priority Code Point = 1 (background)
+		uint16_t tag = 16384;
 
-                // drop eligible
-                tag += 8192;
+		// drop eligible
+		tag += 8192;
 
-                // unpack VLAN identifier
-                tag += (addrss->tags >> (i * 12))
-                        & (uint64_t)((1 << i) -1);
+		// unpack VLAN identifier
+		tag += (addrss->tags >> (i * 12))
+			& (uint64_t)((1 << i) -1);
 
-                // add the tag control info
-                net_put_u16(&frame[*ptr], tag);
-                *ptr += 2;
-        }
+		// add the tag control info
+		net_put_u16(&frame[*ptr], tag);
+		*ptr += 2;
+	}
 }
 
 // 16 bit one's compliment checksum, per RFC1071
@@ -1075,10 +1110,10 @@ uint16_t inet_csum_16(uint8_t* addr, int count, uint16_t start)
 // for debugging
 void print_addrss(const struct Addrss* addrss)
 {
-        print_mac(addrss->mac);
-        print_ip(addrss->ipv4, false);
-        print_ip(addrss->ipv6, true);
-        printf("\n");
+	print_mac(addrss->mac);
+	print_ip(addrss->ipv4, false);
+	print_ip(addrss->ipv6, true);
+	printf("\n");
 }
 
 // quick check for mac and timeval
@@ -1132,18 +1167,6 @@ int asprint_clar_header(char** dest)
 	if (asprintf(dest, "#   clarissa   "FORMAT_VERSION"\n") == -1)
 	{
 		warnx("Failed to asprint format header");
-		return -1;
-	}
-	return 0;
-}
-
-int asprint_cat_header(char** dest)
-{
-	if (asprintf(dest,
-"#   MAC_address       MAC_time     IPv4_address     IPv4_time                 IPv6_address                 IPv6_time\n")
-		== -1)
-	{
-		warnx("Failed to asprint cat header");
 		return -1;
 	}
 	return 0;

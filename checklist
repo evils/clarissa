@@ -1,5 +1,4 @@
-clarissa.service ExecStopPost is still allowed to remove everything everything?
-update main.h #DEFINE VERSION
+update src/clarissa_defines.h #define VERSION
 --help and docs/options.adoc match?
 update debian/changelog (including dch --release)
 debuild succeeds and package installs correctly?

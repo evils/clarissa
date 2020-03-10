@@ -1,5 +1,6 @@
 #include <libtq/test.h>
-#include "../time_tools.h"
+#include "../src/time_tools.c"
+#include "../src/time_tools.h"
 
 TQ_TEST("usec_diff/same")
 {

@@ -1,14 +1,15 @@
 SHELL = /usr/bin/env sh
 CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS = -lpcap
-OBJS = main.o clarissa.o time_tools.o get_hardware_address.o
+SRCDIR = src
+OBJS = main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
 
 .PHONY: all
 all: clean clarissa
 
 clarissa: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
-%.o: %.c
+%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $<
 get_hardware_address.o: get_hardware_address/get_hardware_address.c
 	$(CC) $(CFLAGS) -c $<

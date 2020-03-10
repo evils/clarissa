@@ -1,6 +1,10 @@
+#define _GNU_SOURCE
 #include <libtq/test.h>
-#include "../clarissa.h"
-#include "../clarissa_internal.h"
+#include "../src/clarissa.c"
+#include "../src/clarissa.h"
+#include "../src/clarissa_cat.c"
+#include "../src/clarissa_cat.h"
+#include "../src/clarissa_defines.h"
 
 TQ_TEST("net_put_u16")
 {
