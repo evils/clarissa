@@ -444,8 +444,8 @@ void print_opts()
 		"   don't send out packets (equivalent to -n 0)\n"
 		"--abstemious        -a\n"
 		"   don't set the interface to promiscuous mode\n"
-		"--unbuffered        -u\n"
-		"   don't buffer packets (use immediate mode)\n"
+		"--buffer            -b\n"
+		"   Buffer packets (don't use immediate mode)\n"
 		"--stop_socket       -S\n"
 		"   don't output use a Socket for output\n"
 		"--will              -w\n"
@@ -489,7 +489,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	opts->nags 		= DEFAULT_NAGS;
 	opts->timeout 		= DEFAULT_TIMEOUT * 1000; // (ms to µs)
 	opts->run		= true;
-	opts->immediate		= false;
+	opts->immediate		= true;
 	opts->promiscuous 	= true;
 	opts->socket_output	= true;
 	verbosity 		= 0;
@@ -511,7 +511,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"header",		no_argument, 0,		'H'},
 		{"abstemious",		no_argument, 0,		'a'},
 		{"quiet",		no_argument, 0,		'q'},
-		{"unbuffered",		no_argument, 0,		'u'},
+		{"buffer",		no_argument, 0,		'b'},
 		{"will",		no_argument, 0,		'w'},
 		{"stop_socket",		no_argument, 0,		'S'},
 		{"listen",		required_argument, 0,	'l'},
@@ -526,7 +526,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 		{"socket",		required_argument, 0,	's'}
 	};
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, ":wc:SuHVvi:an:l:t:qf:I:s:ho:O:",
+	while ((opt = getopt_long(argc, argv, ":wc:SbHVvi:an:l:t:qf:I:s:ho:O:",
 				long_options, &option_index)) != -1)
 	{
 		switch (opt)
@@ -544,8 +544,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			case 'S':
 				opts->socket_output = false;
 				break;
-			case 'u':
-				opts->immediate = true;
+			case 'b':
+				opts->immediate = false;
 				break;
 			case 'H':
 				opts->run = false;
@@ -921,9 +921,9 @@ void print_header(const struct Opts* opts)
 
 // mode block
 		if (!opts->promiscuous) printf("Interface not in promiscuous mode (abstemious)\n");
-		if (opts->immediate) printf("Capturing with immediate mode (unbuffered)\n");
+		if (!opts->immediate) printf("Captured packets are being buffered\n");
 		if (!opts->nags) printf("Quiet (no frames will be sent)\n");
-		if (!opts->promiscuous || opts->immediate
+		if (!opts->promiscuous || !opts->immediate
 			|| !opts->nags)
 		{
 			printf("\n");

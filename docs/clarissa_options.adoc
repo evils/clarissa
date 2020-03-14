@@ -14,8 +14,8 @@
    don't send out packets (equivalent to -n 0)
 --abstemious        -a
    don't set the interface to promiscuous mode
---unbuffered        -u
-   don't buffer packets (use immediate mode)
+--buffer            -b
+   Buffer packets (don't use immediate mode)
 --stop_socket       -S
    don't output use a Socket for output
 --will              -w
