@@ -1,0 +1,28 @@
+image: gcc
+
+stages:
+  - test
+  - debuild
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq libpcap-dev
+
+test:
+  stage: test
+  script:
+    - apt-get install -y -qq gcovr
+    - make clean test 'CFLAGS += -fprofile-arcs -ftest-coverage -fPIC'
+    - gcovr
+
+debuild:
+  stage: debuild
+#  only:
+#    - tags
+  script:
+    - apt-get install -y -qq debhelper devscripts dh-exec build-essential asciidoctor
+    - cp -r distros/debian .
+    - debuild -us -uc
+    - mv ../clarissa*.deb ./clarissa_$(git describe)_$(dpkg --print-architecture).deb
+  artifacts:
+    paths:
+      - clarissa*.deb
