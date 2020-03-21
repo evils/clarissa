@@ -8,8 +8,8 @@
 *** These fields are separated by at least 3 spaces.
 *** Visual aid: `[0]-mac{nbsp}{nbsp}{nbsp}[20]-timestamp{nbsp}{nbsp}{nbsp}[33]-ipv4{nbsp}{nbsp}{nbsp}[51]-timestamp{nbsp}{nbsp}{nbsp}[64]-ipv6{nbsp}{nbsp}{nbsp}[106]-timestamp`
 *** The MAC address must be represented as 6 hexadecimal octets separated by colons.
-*** The IPv4 address must be in dotted-decimal notation (`0.0.0.0` if absent).
-*** The IPv6 address must follow IETF RFC5952 sections 4 and 5 (`::` if absent).
-*** The timestamps must be single positive integer decimal numbers without leading zeros and at most 10 characters wide (`0` if absent).
+*** The IPv4 address must be in dotted-decimal notation. (`0.0.0.0` if absent)
+*** The IPv6 address must follow IETF RFC5952 sections 4 and 5. (`::` if absent)
+*** Each timestamp must take the form of a single positive integer decimal number representing the number of seconds since 1970-01-01T00:00:00Z as reported by the system clock at the time of its respective capture. They are at most 10 characters wide and without leading zeros. (`0` if absent)
 *** Example: `be:69:27:de:c3:be{nbsp}{nbsp}{nbsp}1582924127{nbsp}{nbsp}{nbsp}192.168.42.127{nbsp}{nbsp}{nbsp}{nbsp}1582924125{nbsp}{nbsp}{nbsp}2001:db8:bc3a:d23a::666{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}{nbsp}1582924126`
 ** Any line not following this format should not be parsed as such.
