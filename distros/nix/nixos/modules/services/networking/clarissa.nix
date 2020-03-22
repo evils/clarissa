@@ -99,7 +99,7 @@ in {
   config = mkIf cfg.enable {
     systemd.services.clarissa = {
       description = "the network census daemon";
-      documentation = [ "https://gitlab.com/evils/clarissa" ];
+      documentation = [ "man:clarissa(8)" ];
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
