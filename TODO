@@ -1,5 +1,7 @@
 code
 	implement --preload (load will file)
+	add stats subcommand
+		do iproute2 style subcommand substring matching?
 
 packaging
 	daemonizing
@@ -9,6 +11,11 @@ packaging
 		procd for openwrt
 			started
 		systemd for everything else?
+			prefer $RUNTIME_DIRECTORY if available?
+				default will to $STATE_DIRECTORY and/or /var/lib/clarissa/?
+				may require checking both the env var path and default path?
+			wants time-sync.target?
+
 			figure out how to avoid the "any" and "lo" devices being picked
 				current approach
 					require network-online.target (no "any")
