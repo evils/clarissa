@@ -11,6 +11,7 @@
 #include <sys/un.h>     // sockaddr_un
 #include <sys/stat.h>   // stat(), S_ISSOCK(), S_ISREG()
 #include <sys/socket.h> // socket(), connect()
+#include <string.h>	// strcpy() on omnios
 
 void cat_cat(char* path, bool sock, bool file, bool header);
 void s_cat(char* path, bool header);
@@ -90,24 +91,38 @@ void clar_cat(int argc, char* argv[])
 		{
 			err(1, "Failed to open "PATH", does it exist?");
 		}
+
+		struct stat st;
+		char* full_path;
 		for (struct dirent* dir_e = readdir(dir_p)
 			; dir_e != NULL; dir_e = readdir(dir_p))
 		{
-			if ((dir_e->d_type != DT_SOCK)
-			&& (dir_e->d_type != DT_REG))
-				continue;
-
-			char* full_path;
 			if (asprintf(&full_path, "%s/%s"
 				, PATH, dir_e->d_name) == -1)
 			{
 				errx(1, "Failed to save full path");
 			}
 
+			// check if this is a socket or regular file
+			// cannot use d_type for sake of portability
+			stat(full_path, &st);
+			// TODO make `-f` use a file if available
+			if (
+				(socket && (! S_ISSOCK(st.st_mode)))
+				|| (file && (! S_ISREG(st.st_mode)))
+			   )
+			{
+				free(full_path);
+				continue;
+			};
+
 			cat_cat(full_path, socket, file, header);
+			free(full_path);
+			free(dir_p);
 			exit(0);
 		}
 
+		free(dir_p);
 		errx(1, "No socket found in "PATH);
 	}
 }

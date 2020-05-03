@@ -1,4 +1,5 @@
 code
+	fix `clarissa cat -f` not using an available file
 	implement --preload (load will file)
 	add stats subcommand
 		do iproute2 style subcommand substring matching?

@@ -1,28 +1,36 @@
-SHELL = /usr/bin/env sh
+SHELL = /bin/sh
+# this Makefile only works with GNU Make!
+
 CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS = -lpcap
 SRCDIR = src
-OBJS = main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+
+ifeq '$(shell uname -s)' 'SunOS'
+CFLAGS += -D__EXTENSIONS__	# funlockfile etc warnings
+LDFLAGS += -lxnet		# socket etc functions ld errors
+endif
 
 .PHONY: all
 all: clean clarissa
 
-clarissa: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+clarissa: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 %.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $<
 get_hardware_address.o: get_hardware_address/get_hardware_address.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $^
 
 .PHONY: static
-static: $(OBJS)
-	$(CC) $(CFLAGS) -static -o clarissa_static $(OBJS) $(LDFLAGS)
+static: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
+
 
 DESTDIR =
 PREFIX = /usr
 SYSDIR = /lib/systemd/system
 SYSDINST = true
 DOCDIR = docs
+
 .PHONY: install
 install: clarissa man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
