@@ -285,7 +285,7 @@ void get_hardware_address
 }
 
 
-#elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(macintosh) || defined (Macintosh) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(DragonFly__) || defined(__bsdi__) || defined(_SYSTYPE_BSD) || defined(__FreeBSD_kernel__)
+#elif ( defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(macintosh) || defined (Macintosh) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(DragonFly__) || defined(__bsdi__) || defined(_SYSTYPE_BSD) || defined(__FreeBSD_kernel__) ) && ! ( defined(__sun) || defined(sun) || defined(sunos) || defined (__sun__) )
 
 #include <net/if.h>
 #include <net/route.h>
@@ -349,13 +349,12 @@ void get_hardware_address
 }
 
 
-#elif defined(__sun) || defined(sun)
+#elif defined(sun) || defined(__sun) || defined (__sun__) || defined (sunos)
 
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stropts.h>
 #include <sys/dlpi.h>
-#include <sys/dlpihdr.h>
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <net/if.h>
