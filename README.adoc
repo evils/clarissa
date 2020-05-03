@@ -32,9 +32,8 @@ It uses an interface name `if_name` to fill `hw_address[]` with an IEEE 802 MAC 
 * MacOS
 ** Darwin 17.7
 ** Darwin 19.2
-
-=== Unconfirmed
-* Solaris
+* illumos
+** SunOS omniosce 5.11
 
 === Planned
 * Windows
