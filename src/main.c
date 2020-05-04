@@ -293,7 +293,7 @@ int clarissa(int argc, char* argv[])
 		if (!pcap_stats(opts.l_handle, &ps))
 		{
 			printf
-			("\nclarissa sent\t\t%lu\n", count);
+			("\nclarissa sent\t\t%"PRIu64"\n", count);
 			printf
 			("clarissa received\t%i\n", ps.ps_recv);
 			printf
