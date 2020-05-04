@@ -103,14 +103,12 @@ void clar_cat(int argc, char* argv[])
 				errx(1, "Failed to save full path");
 			}
 
-			// check if this is a socket or regular file
-			// cannot use d_type for sake of portability
 			stat(full_path, &st);
-			// TODO make `-f` use a file if available
-			if (
-				(socket && (! S_ISSOCK(st.st_mode)))
-				|| (file && (! S_ISREG(st.st_mode)))
-			   )
+			// check if this is a socket or regular file
+			// only when we are looking for one of those
+			// cannot use d_type for sake of portability
+			if (	!((socket && S_ISSOCK(st.st_mode))
+				|| (file && S_ISREG(st.st_mode))))
 			{
 				free(full_path);
 				continue;
@@ -123,7 +121,7 @@ void clar_cat(int argc, char* argv[])
 		}
 
 		free(dir_p);
-		errx(1, "No socket found in "PATH);
+		errx(1, "No source found in "PATH);
 	}
 }
 
