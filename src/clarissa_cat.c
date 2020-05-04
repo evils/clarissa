@@ -191,7 +191,7 @@ void f_cat(char* path, bool header)
 
 	cat_header(path, false, header);
 
-	char c;
+	int c;
 	while ((c = fgetc(fd)) != EOF)
 	{
 		putchar(c);
