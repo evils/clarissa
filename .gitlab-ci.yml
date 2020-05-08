@@ -16,8 +16,6 @@ test:
 
 debuild:
   stage: debuild
-#  only:
-#    - tags
   script:
     - apt-get install -y -qq debhelper devscripts dh-exec build-essential asciidoctor
     - cp -r distros/debian .
