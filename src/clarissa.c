@@ -518,17 +518,18 @@ void asprint_ipv4(char** dest, const uint8_t* ip)
 		}
 }
 
-// zero IPv4 non-subnet addresses and IPv6 multicast addresses
+// zero non-subnet(/prefix) and multicast IP addresses
+// NOTE: clarissa can currently not obtain IPv6 prefixes
+// so a zero length prefix should be given for IPv6 addresses
 void
 subnet_filter(uint8_t* ip, const struct Subnet* subnet,const bool v6)
 {
 	if (!is_zeros(ip, v6 ? 16 : 4))
 	{
-		uint8_t multicast = 0xff;
-		// if v4 or v6 has 0xff it's multicast
-		// else, bitcompare ip to mask to appropriate length
-		// currently don't have an IPv6 subnet...
-		if (!memcmp(ip, &multicast, 1)
+
+		// zero IP if it has 0xff (multicast)
+		if ( *((uint8_t*)ip + (v6 ? 0 : 12)) == 0xff
+			// or if it doesn't match the given subnet
 			|| ((!v6 || (v6 && is_mapped(ip)))
 			&& bitcmp(ip, subnet->ip + (v6 ? 0 : 12)
 				  , subnet->mask - (v6 ? 0 : 96))))

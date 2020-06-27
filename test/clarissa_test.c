@@ -117,14 +117,14 @@ TQ_TEST("subnet_filter/ipv6/pass/0")
 	uint8_t start[16];
 	memcpy(&start, &ip, sizeof(ip));
 
-	struct Subnet subnet = { .mask = 0,
+	struct Subnet subnet = { .mask = 128,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } };
 
 	subnet_filter((uint8_t*) &ip, &subnet, true);
 
-	// ::1/127 should be in the subnet ::1/127
+	// ::1 should match with ::1/128
 	// nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
 }
@@ -132,19 +132,19 @@ TQ_TEST("subnet_filter/ipv6/pass/0")
 TQ_TEST("subnet_filter/ipv6/pass/1")
 {
 	uint8_t ip[16] =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		{ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
 	uint8_t start[16];
 	memcpy(&start, &ip, sizeof(ip));
 
-	struct Subnet subnet = { .mask = 0,
+	struct Subnet subnet = { .mask = 1,
 		.ip =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } };
+		{ 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
 
 	subnet_filter((uint8_t*) &ip, &subnet, true);
 
-	// ::1/127 should be in the subnet ::1/127
+	// 80::1 should match with 81::/1
 	// nothing should be changed
 	return !memcmp(&ip, &start, sizeof(ip));
 }
@@ -164,7 +164,7 @@ TQ_TEST("subnet_filter/ipv6/fail/0")
 
 	subnet_filter((uint8_t*) &ip, &subnet, true);
 
-	// ::1/127 should not be in ::2/127, (0b01, ob10)
+	// ::1 should not match with ::2/127, (0b01, ob10)
 	// CAUTION! currently don't have an a way to obtain an
 	// IPv6 subnet, hence only filtering out multicast
 	return !memcmp(&ip, &start, sizeof(ip));
@@ -173,18 +173,19 @@ TQ_TEST("subnet_filter/ipv6/fail/0")
 TQ_TEST("subnet_filter/ipv6/fail/1")
 {
 	uint8_t ip[16] =
-		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+		{ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	uint8_t start[16];
 	memcpy(&start, &ip, sizeof(ip));
 
-	struct Subnet subnet = { .mask = 0,
+	struct Subnet subnet = { .mask = 2,
 		.ip =
-		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 } };
+		{ 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
 
 	subnet_filter((uint8_t*) &ip, &subnet, true);
 
+	// ip 0b10000000 is not in subnet 0b11000000 and should be zerod
 	return is_zeros(ip, sizeof(ip));
 }
 
@@ -228,13 +229,85 @@ TQ_TEST("subnet_filter/ipv6_mapped/fail")
 	return is_zeros(ip, sizeof(ip));
 }
 
+TQ_TEST("subnet_filter/ipv6_multicast/0")
+{
+	uint8_t ip[16] =
+		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+
+	// subnet should be ignored (0xff is a special case)
+	struct Subnet subnet = { .mask = 0,
+		.ip =
+		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// IPs starting with 0xff are multicast
+	// multicast addresses should be zeroed
+	return is_zeros(ip, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv6_multicast/1")
+{
+	uint8_t ip[16] =
+		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+
+	// subnet should be ignored (0xff is a special case)
+	struct Subnet subnet = { .mask = 128,
+		.ip =
+		{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, true);
+
+	// IPs starting with 0xff are multicast
+	// multicast addresses should be zeroed
+	return is_zeros(ip, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv4_multicast/0")
+{
+	uint8_t ip[4] = { 255, 168, 0, 0 };
+
+	// subnet should be ignored (255.* is a special case)
+	struct Subnet subnet = { .mask = 0,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 255, 168, 0, 0 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, false);
+
+	// IPs starting with 0xff are multicast
+	// multicast addresses should be zeroed
+	return is_zeros(ip, sizeof(ip));
+}
+
+TQ_TEST("subnet_filter/ipv4_multicast/1")
+{
+	uint8_t ip[4] = { 255, 168, 0, 0 };
+
+	// subnet should be ignored (255.* is a special case)
+	struct Subnet subnet = { .mask = 128,
+		.ip =
+		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0xFF, 0xFF, 255, 168, 0, 0 } };
+
+	subnet_filter((uint8_t*) &ip, &subnet, false);
+
+	// IPs starting with 0xff are multicast
+	// multicast addresses should be zeroed
+	return is_zeros(ip, sizeof(ip));
+}
+
 TQ_TEST("subnet_filter/ipv4/pass/0")
 {
 	uint8_t ip[4] = { 192, 168, 0, 0 };
 	uint8_t start[4];
 	memcpy(&start, &ip, sizeof(ip));
 
-	struct Subnet subnet = { .mask = 127,
+	struct Subnet subnet = { .mask = 128,
 		.ip =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0xFF, 0xFF, 192, 168, 0, 0 } };
