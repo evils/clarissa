@@ -12,6 +12,8 @@
 
 #include "../get_hardware_address/get_hardware_address.h"
 
+int verbosity;
+
 // extraction
 int get_tag(const uint8_t* frame, intptr_t max, struct Addrss* addrss);
 int get_eth_ip(const uint8_t* frame, intptr_t max, struct Addrss* addrss,

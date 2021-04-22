@@ -9,7 +9,7 @@
 
 #include "time_tools.h"	// usec_diff()
 
-int verbosity;
+extern int verbosity;
 
 // extracted frame data
 // this struct must be initialized to all zeros
