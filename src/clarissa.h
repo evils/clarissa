@@ -108,7 +108,7 @@ int asprint_clar(char** dest, const struct Addrss* addrss);
 int asprint_clar_header(char** dest);
 
 // helpers
-void subnet_filter(uint8_t* ip, const struct Subnet* mask,
+void subnet_filter(uint8_t* ip, const struct Subnet* subnet,
 	const bool v6);
 bool is_mapped(const uint8_t* ip);
 bool is_zeros(const uint8_t* target, int count);

@@ -522,26 +522,35 @@ void asprint_ipv4(char** dest, const uint8_t* ip)
 // NOTE: clarissa can currently not obtain IPv6 prefixes
 // so a zero length prefix should be given for IPv6 addresses
 void
-subnet_filter(uint8_t* ip, const struct Subnet* subnet,const bool v6)
+subnet_filter(uint8_t* ip, const struct Subnet* subnet, const bool v6)
 {
-	if (!is_zeros(ip, v6 ? 16 : 4))
+	// nothing to do
+	if (is_zeros(ip, v6 ? 16 : 4)) return;
+
+	if (
+		// multicast IPv4 and IPv6
+		(*(uint8_t*)ip == 0xFF)
+		// multicast IPv4-mapped IPv6
+		|| (v6 && is_mapped(ip)
+			&& *(uint8_t*)ip + 12 == 0xFF)
+		// IPv4 not in subnet
+		|| ((!v6) && bitcmp(ip, subnet->ip + 12
+			, subnet->mask - 96))
+		// IPv6 not in subnet
+		|| (v6 && bitcmp(ip, subnet->ip, subnet->mask))
+		// IPv4-mapped IPv6 not in subnet
+		|| (v6 && is_mapped(ip)
+			&& bitcmp(ip + 12, subnet->ip + 12
+			, subnet->mask - 96))
+	)
 	{
-
-		// zero IP if it has 0xff (multicast)
-		if ( *((uint8_t*)ip + (v6 ? 0 : 12)) == 0xff
-			// or if it doesn't match the given subnet
-			|| ((!v6 || (v6 && is_mapped(ip)))
-			&& bitcmp(ip, subnet->ip + (v6 ? 0 : 12)
-				  , subnet->mask - (v6 ? 0 : 96))))
+		if (verbosity > 3)
 		{
-			if (verbosity > 3)
-			{
-				printf("zerod ip: ");
-				print_ip(ip, v6);
-			}
-
-			memset(ip, 0, v6 ? 16 : 4);
+			printf("zerod ip: ");
+			print_ip(ip, v6);
 		}
+
+		memset(ip, 0, v6 ? 16 : 4);
 	}
 }
 

@@ -165,9 +165,7 @@ TQ_TEST("subnet_filter/ipv6/fail/0")
 	subnet_filter((uint8_t*) &ip, &subnet, true);
 
 	// ::1 should not match with ::2/127, (0b01, ob10)
-	// CAUTION! currently don't have an a way to obtain an
-	// IPv6 subnet, hence only filtering out multicast
-	return !memcmp(&ip, &start, sizeof(ip));
+	return is_zeros(ip, sizeof(ip));
 }
 
 TQ_TEST("subnet_filter/ipv6/fail/1")
