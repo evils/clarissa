@@ -39,7 +39,7 @@ struct Addrss
 struct Subnet
 {
 	// this doesn't use a literal mask because IPv6 masks are big
-	// uses 16 bytes to accomodate either IPv6 or IPv4 mapped
+	// uses 16 bytes to accommodate either IPv6 or IPv4 mapped
 	int	mask;		// number of masked bits
 	uint8_t ip[16];		// base address for this subnet
 };
@@ -47,7 +47,8 @@ struct Subnet
 // host (device) addresses
 struct Host
 {
-	struct	Subnet subnet;	// subnet base addrss and mask
+	struct	Subnet subnet4;	// subnet base addrss and mask (mapped IPv4)
+	struct	Subnet subnet6;	// subnet base addrss and mask (IPv6)
 	uint8_t mac[6];		// MAC for ethernet frames
 	uint8_t ipv6[16];	// IPv6 for NDP packets
 	uint8_t ipv4[4];	// IPv4 for ARP packets

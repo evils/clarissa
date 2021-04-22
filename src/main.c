@@ -196,7 +196,9 @@ int clarissa(int argc, char* argv[])
 							? addrss.ipv6
 							: addrss.ipv4
 					, opts.cidr	? &opts.subnet
-							: &opts.host.subnet
+							: (addrss.v6
+							  ? &opts.host.subnet6
+							  : &opts.host.subnet4)
 					, addrss.v6);
 
 					// go again if extraction failed
@@ -843,7 +845,8 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	// fill in the host ID
 	get_if_mac(opts->host.mac, opts->s_dev);
-	get_if_ipv4_subnet(&opts->host.subnet, opts);
+	get_if_ipv4_subnet(&opts->host.subnet4, opts);
+	// opts.host.subnet6 currently stays all zeros (opts was zerod)
 	get_if_ip(opts->host.ipv4, opts->s_dev, AF_INET, opts->errbuf);
 	get_if_ip(opts->host.ipv6, opts->s_dev, AF_INET6,opts->errbuf);
 
@@ -851,11 +854,11 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	if (!opts->socket || opts->print_filename)
 	{
 		char* ip;
-		// subnet.ip is IPv6 or mapped v4
+		// subnet4.ip is mapped IPv4
 		// but asprint_ip correctly does mapped handling
 		// i want just the dotted quad
 		asprint_ip(&ip, opts->cidr ? opts->subnet.ip + 12
-				: opts->host.subnet.ip + 12, false);
+				: opts->host.subnet4.ip + 12, false);
 		if (asprintf(&auto_name
 			// if reading from file
 			// output to current directory
@@ -865,7 +868,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			, ip
 			, (opts->cidr
 				? opts->subnet.mask
-				: opts->host.subnet.mask) - 96)
+				: opts->host.subnet4.mask) - 96)
 			== -1)
 		{
 			errx(1, "Failed to set the auto_name");
@@ -935,12 +938,10 @@ void print_header(const struct Opts* opts)
 			if (is_zeros(opts->subnet.ip, sizeof(opts->subnet.ip)))
 			{
 				// subnet block,
-				// subnet.ip is IPv6 or mapped v4
-				// if mapped, print it as IPv4
-				bool m = is_mapped(opts->host.subnet.ip);
-				asprint_ip(&ip, opts->host.subnet.ip + (m ? 12 : 0), !m);
-				printf("Host IPv%d subnet:\t%s/%d\n", m ? 4 : 6,
-					ip, opts->host.subnet.mask - (m ? 96 : 0));
+				// subnet4.ip is mapped IPv4
+				asprint_ip(&ip, opts->host.subnet4.ip + 12, false);
+				printf("Host IPv%d subnet:\t%s/%d\n", 4,
+					ip, opts->host.subnet4.mask - 96);
 			}
 			else
 			{
