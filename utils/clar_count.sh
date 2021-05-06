@@ -37,7 +37,7 @@
 # this hashes and salts detected MAC addresses
 # and enters the result in a log file which is deduplicated
 # if no salt provided a random salt is generated at the start of logging
-# if no output file is specified $HOME/.local/clarissa/clar_$(date +%s).log is used
+# if no output file is specified $HOME/.local/share/clar/$(date +%s).log is used
 # this allows anonymous collecting of the number of unique devices seen during the runtime of this logging function
 # and if a salt is supplied, combination of several log files
 # to get the number of unique devices seen across logging instances
@@ -114,7 +114,7 @@ else
 fi
 
 if [ -z "$3" ]; then
-	log=${HOME}/.local/clarissa/clar_"$(date +%s)".log
+	log=${HOME}/.local/share/clar/"$(date +%s)".log
 	mkdir -p "$(dirname "${log}")"
 else
 	log="$3"
