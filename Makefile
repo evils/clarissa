@@ -92,15 +92,16 @@ index.html: README.adoc
 	asciidoctor -o $@ $<
 
 .PHONY: man
-man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1
+man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1 $(DOCDIR)/clar.1 $(DOCDIR)/clar-count.1 $(DOCDIR)/clar-show.1 $(DOCDIR)/clar-scan.1 $(DOCDIR)/clar-sort.1
 
-.PHONY: $(DOCDIR)/clarissa.adoc
 $(DOCDIR)/clarissa.8: $(DOCDIR)/clarissa.adoc
 	asciidoctor -b manpage $<
-
-.PHONY: $(DOCDIR)/clarissa-cat.adoc
 $(DOCDIR)/clarissa-cat.1: $(DOCDIR)/clarissa-cat.adoc
 	asciidoctor -b manpage $<
+$(DOCDIR)/clar.1: $(DOCDIR)/clar.adoc
+	if $(CLAR); then asciidoctor -b manpage $<; fi
+$(DOCDIR)/clar-%.1: $(DOCDIR)/clar-%.adoc
+	if $(CLAR); then asciidoctor -b manpage $<; fi
 
 .PHONY: clean
 clean:

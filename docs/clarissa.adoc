@@ -25,5 +25,5 @@ include::clarissa_options.adoc[]
 include::format.adoc[]
 
 == See Also
-*clarissa-cat*(1), *arp-scan*(1) +
+*clarissa-cat*(1), *arp-scan*(1), *clar*(1) +
 {url-project}

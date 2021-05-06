@@ -1,0 +1,17 @@
+= clar-sort(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clar-sort - utility to show clarissa's output sorted by MAC address
+
+== Synopsis
+*clar sort* [arguments to be passed to clarissa cat]
+
+== Description
+Equivalent to *clarissa cat* but with the output sorted by MAC address. +
+This reduces how much the entries jump around in the output (which may be sorted by most recently seen).
+
+== See Also
+*clarissa*(8), *clarissa-cat*(1), *clar-count*(1), *clar-show*(1), *clar-scan*(1) +
+{url-project}

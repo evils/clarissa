@@ -8,6 +8,10 @@ clar count
 	make sure log() doesn't lose data
 	find a place for macs.csv?
 
+	log needs a portable sha256sum
+		ship source for such?
+			reuse it for OUI_assemble.sh?
+
 OUI_assemble.sh
 	CSV handling with awk is flawed
 	make my own repo with versioned tab separated files from IEEE?

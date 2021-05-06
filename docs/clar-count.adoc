@@ -1,0 +1,50 @@
+= clar-count(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clar-count - utility for counting known and unknown MAC addresses in clarissa's output
+
+== Synopsis
+*clar count* _path_to_macs.csv_ _path_to_clarissa's_output_ _-ctijnal_ | _-nj_
+
+== Description
+*clar count* is a utility intended to count known and unknown MAC addresses from a macs.csv file, in clarissa's output. +
+It can output a variety of formats specified by the option used.
+
+== Options
+*clar count* only takes 1 option, this is required. +
+These control it's output format. +
+Several formats can be parsed by *Telegraf* for use with *InfluxDB*. +
+
+[%hardbreaks]
+    Long      Short
+--csv          -c
+   CSV with a header line (works with Telegraf)
+--title        -t
+   One-line CSV containing the count of known addresses and of everything else.
+--json         -j
+   JSON object (works with Telegraf)
+--influx       -i
+   influx line protocol (works with Telegraf and presumably InfluxDB)
+--names        -n
+   list of names, one per line
+--names_json   -nj
+   same content as -n but in a JSON array
+--log [salt]   -l [salt]
+   Keep a hashed and salted log of unique addresses seen, in $HOME/.local/share/clar/
+   Unless a salt is supplied, a random salt will be used per instance.
+
+== macs.csv format
+MAC address,name +
+MAC address,!name +
+MAC address,name? +
+MAC address,!name? +
+
+Any lines without a MAC address won't get used and any fields after the name will be ignored. +
+Any name with an exclamation mark !  will not be output, +
+and any name containing a question mark ?  will not be counted.
+
+== See Also
+*clarissa*(8), *clarissa-cat*(1), *clar-show*(1), *clar-scan*(1), *clar-sort*(1) +
+{url-project}

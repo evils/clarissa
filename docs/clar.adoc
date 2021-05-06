@@ -1,0 +1,32 @@
+= clar(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clar - clarissa utilities
+
+== Synopsis
+clar [sub-command] [sub-command arguments] | [arguments to be passed to clarissa]
+
+== Description
+*clar* provides a variety of sub-commands that make use of clarissa's output. +
+When no sub-command is used, all arguments get passed to *clarissa*.
+
+== Options
+[%hardbreaks]
+*count*
+{zwsp}	output a count of known and unknown detected devices is a variety of formats
+*show*
+{zwsp}	show detected MAC addresses with vendor ID, IPv4 address, domain name and IPv6 address
+*scan*
+{zwsp}	arp-scan style output
+*sort*
+{zwsp}	same output as *clarissa cat*, but with results sorted by MAC address
+*cat*
+{zwsp}	not a subcommand of *clar* but of *clarissa*, it shows the direct output with some headers (see clarissa-cat(1))
+*help*
+{zwsp}	show exposition
+
+== See Also
+*clarissa*(8), *clarissa-cat*(1), *clar-count*(1), *clar-show*(1), *clar-scan*(1), *clar-sort*(1) +
+{url-project}

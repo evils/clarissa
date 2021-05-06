@@ -1,0 +1,18 @@
+= clar-show(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clar-show - utility for showing clarissa's output along with the MAC vendor ID and the IP's domain
+
+== Synopsis
+*clar show* [arguments to be passed to clarissa cat]
+
+== Description
+*clar-show* is a script to display clarissa's output to humans. +
+It shows the each MAC address along with the MAC vendor ID on one line +
+followed by the IPv4 address, domain name and IPv6 address associated with that MAC address, on another line.
+
+== See Also
+*clarissa*(8), *clarissa-cat*(1), *clar-count*(1), *clar-scan*(1), *clar-sort*(1) +
+{url-project}

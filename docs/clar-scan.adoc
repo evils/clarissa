@@ -1,0 +1,18 @@
+= clar-scan(1)
+include::meta.adoc[]
+:doctype: manpage
+
+== Name
+clar-scan - utility for showing clarissa's output in an arp-scan like format
+
+== Synopsis
+*clar scan* [arguments to be passed to clarissa cat]
+
+== Description
+*clar scan* displays clarissa's output in a format similar to that of arp-scan. +
+Because *clarissa* continually monitors and caches the information, +
+this provides a near instant result without spamming the LAN with ARP requests.
+
+== See Also
+*clarissa*(8), *arp-scan*(1), *clarissa-cat*(1), *clar-count*(1), *clar-show*(1), *clar-sort*(1) +
+{url-project}
