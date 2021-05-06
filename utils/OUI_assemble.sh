@@ -1,6 +1,6 @@
 #!/bin/sh
 
-rev="13521cab38d251b0dcf5caf7faa0fa90b2a95b5f"
+rev="11c55a76d15a14b46ca702020cfe3ba388454fa2"
 path="https://raw.githubusercontent.com/hdm/mac-ages/$rev/data/ieee/"
 tables="cid iab mam oui oui36"
 
@@ -11,7 +11,7 @@ hashing="$dir/matcrc"
 
 # to ensure this script ran correctly
 # should get checked by nix regardless, but not elsewhere
-sum="734ba9e55194f4ba"
+sum="748039495e6ef0f9"
 tries=2
 
 if [ "$(type wget)" ]; then
