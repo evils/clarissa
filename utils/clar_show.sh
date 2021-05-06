@@ -1,6 +1,7 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 oui=clar_OUI.csv
+clar=$(command -v ./clarissa || command -v clarissa || command -v "${dir}"/clarissa)
 
 echo
 
@@ -24,7 +25,7 @@ fi
 # probably should check that for compatibility...
 c_cat() {
 	dir="$(cd "$(dirname "$0")" && pwd -P)"
-	"${dir}"/clarissa cat "$@" | grep -v "#"
+	"${clar}" cat "$@" | grep -v "#"
 }
 
 printf "Interface: %s\\n" "$(echo "$1" | awk -F '[/_]' '{print $4}')"

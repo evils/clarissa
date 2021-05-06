@@ -1,17 +1,46 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # get the count of MAC addresses named in the macs.csv ($1) for all the found MAC addresses ($2)
 # and output a count of the unique names (minus those with "?") and tally of the remaining addresses
 # and provide a list of those names (minus those with "!")
 # in a variety of formats (specified by $3)
 
-# the format options are:
+# the format of macs.csv file ($1) should be:
+# MAC address,name
+# MAC address,!name
+# MAC address,name?
+# MAC address,!name?
+
+# literal line example:
+# ff:ff:ff:ff:ff:ff,broadcast,this is an example, don't use this
+
+# any lines without a MAC address won't get used and any fields after the name will be ignored
+# additionally, any name with an exclamation mark ("!") will not be shown by names()
+# and any name containing a question mark ("?") will not be counted in $COUNT
+
+# NOTE, while having an empty field for the display name column currently hase the same effect as having both "!" and "?", this could be subject to change
+
+# the found MAC addresses argument ($2) should point to an output socket of clarissa
+# for example: /var/run/192.168.0.0-16
+
+# the format options ($3) are:
 # -c or --csv, CSV with header (accepted by telegraf (for influxdb))
 # -t or --title, short CSV showing the count of known entities and everything else
 # -j or --json, json format (accepted by telegraf (for influxdb))
 # -i or --influx, influx line protocol (accepted by telegraf (for influxdb))
 # -n or --names, show all names minus those with an exclamation mark "!"
 # -nj or --names_json, same as --names but in a json array
+# -a or --all
+
+# additionally, there is a --log option
+# count --log <salt> <output file>
+# this hashes and salts detected MAC addresses
+# and enters the result in a log file which is deduplicated
+# if no salt provided a random salt is generated at the start of logging
+# if no output file is specified $HOME/.local/clarissa/clar_$(date +%s).log is used
+# this allows anonymous collecting of the number of unique devices seen during the runtime of this logging function
+# and if a salt is supplied, combination of several log files
+# to get the number of unique devices seen across logging instances
 
 
 # maybe set this to measurement's location? (useful for influxdb)
@@ -22,6 +51,10 @@ if [ -z "$3" ]; then
 echo "Please use the following format:"
 echo "count [path to macs.csv] [path to clarissa's output] [option (-a for all)]"
 fi
+
+
+dir="$(cd "$(dirname "$0")" && pwd -P)"
+clar=$(command -v ./clarissa || command -v clarissa || command -v "${dir}"/clarissa)
 
 # do the actual counting
 
@@ -36,7 +69,7 @@ while read -r "REPLY"; do
 		(( TALLY++ ))
 	fi
 # can't pipe in from the front because of TALLY's scope
-done <<< "$(clarissa cat "$@" | grep -v '#')"
+done <<< "$(${clar} cat "$@" | grep -v '#')"
 
 COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort | uniq | wc -l)"
 
@@ -80,7 +113,13 @@ else
 	echo "Using salt: ${salt}"
 fi
 
-log=~/clar_"$(date +%s)".log
+if [ -z "$3" ]; then
+	log=${HOME}/.local/clarissa/clar_"$(date +%s)".log
+	mkdir -p "$(dirname "${log}")"
+else
+	log="$3"
+fi
+
 
 echo
 echo "Session unique hashes stored in ${log}"
@@ -126,16 +165,3 @@ case "$3" in
 
 	*) exit 1 ;;
 esac
-
-
-# the format of macs.csv should be:
-# MAC address,name
-# MAC address,!name
-# MAC address,name?
-# MAC address,!name?
-
-# any lines without a MAC address won't get used and any fields after the name will be ignored
-# additionally, any name with an exclamation mark ("!") will not be shown by names()
-# and any name containing a question mark ("?") will not be counted in $COUNT
-
-# NOTE, while having an empty field for the display name column currently hase the same effect as having both "!" and "?", this could be subject to change

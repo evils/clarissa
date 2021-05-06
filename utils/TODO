@@ -15,19 +15,20 @@ OUI_assemble.sh
 		need to figure out how to set up reliable automation for that
 
 packaging
-	utils and binary go to /usr/lib
-		/bin/clar[issa] -> /usr/lib/clar.sh
-			single entry point
+	utils go in /usr/lib
+	clarissa binary goes in /bin
+	/bin/clar -> usr/lib/clar.sh
 
 
 Cached Local Area Resources
 
 CLAR
-	clar|clarissa
+	clar
 
 		cat
 		show
 		scan
+		sort
 		count
 		[clarissa options]
 

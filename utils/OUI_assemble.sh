@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 rev="13521cab38d251b0dcf5caf7faa0fa90b2a95b5f"
 path="https://raw.githubusercontent.com/hdm/mac-ages/$rev/data/ieee/"

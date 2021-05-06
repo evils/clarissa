@@ -1,11 +1,12 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 oui=clar_OUI.csv
 tmp=".clar_scan_temp_file_delete_this.tmp"
 
 c_cat() {
-       dir="$(cd "$(dirname "$0")" && pwd -P)"
-       "${dir}"/clarissa cat "$@" | grep -v "#"
+	dir="$(cd "$(dirname "$0")" && pwd -P)"
+	clar=$(command -v ./clarissa || command -v clarissa || command -v "${dir}"/clarissa)
+	"${clar}" cat "$@" | grep -v "#"
 }
 
 if [ -z "$1" ]; then
@@ -43,7 +44,7 @@ c_cat "$@" | sort | grep -sv "0.0.0.0" | tee "$tmp" \
 done
 
 count=$(wc -l "$tmp" | awk '{print $1}')
-printf "\\nEnding, %s responded, consider using \"clarissa show\"" "$count"
+printf "\\nEnding, %s responded, consider using \"clar show\"" "$count"
 clar=$(c_cat "$@" | wc -l | awk '{print $1}')
 diff=$(( clar - count ))
 if [ "$diff" -gt 0 ]; then

@@ -31,10 +31,11 @@ SYSDIR = /lib/systemd/system
 SYSDINST = true
 DOCDIR = docs
 GETOUI = true
-clar_OUI.csv: matcrc
-	if $(GETOUI); then ./OUI_assemble.sh; fi
-matcrc: matcrc64min.c
-	$(CC) $(CFLAGS) -o $@ matcrc64min.c
+CLAR = true
+clar_OUI.csv: utils/matcrc
+	if $(GETOUI); then utils/OUI_assemble.sh; fi
+utils/matcrc: $(SRCDIR)/matcrc64min.c
+	$(CC) $(CFLAGS) -o $@ $^
 .PHONY: install
 install: clarissa man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
@@ -43,6 +44,7 @@ install: clarissa man
 	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
 	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && cp clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
 	if $(GETOUI); then mkdir -p $(DESTDIR)$(PREFIX)/share/clarissa && cp clar_OUI.csv $(DESTDIR)$(PREFIX)/share/clarissa/clar_OUI.csv; fi
+	if $(CLAR); then mkdir -P $(DESTDIR)$(PREFIX)/lib/clarissa && cp utils/clar*.sh $(DESTDIR)$(PREFIX)/lib/clarissa/. && ln -s $(DESTDIR)$(PREFIX)/lib/clarissa/clar.sh $(DESTDIR)$(PREFIX)/bin/clar
 .PHONY: uninstall
 uninstall:
 	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
@@ -106,5 +108,5 @@ clean:
 	rm -rf *.o $(OUTDIR)
 	rm -rf docs/*.[0-9] index.html
 	rm -rf clar_OUI.csv
-	rm -rf matcrc
+	rm -rf matcrc utils/matcrc
 	rm -rf cflow*
