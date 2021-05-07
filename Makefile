@@ -1,6 +1,7 @@
 SHELL = /bin/sh
 # this Makefile only works with GNU Make!
 
+# build
 CFLAGS = -pedantic -Wall -Wextra -g
 LDFLAGS = -lpcap
 SRCDIR = src
@@ -20,45 +21,62 @@ clarissa: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
 get_hardware_address.o: get_hardware_address/get_hardware_address.c
 	$(CC) $(CFLAGS) -c $^
 
-.PHONY: static
-static: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
-	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
+clar_OUI.csv: utils/matcrc
+	utils/OUI_assemble.sh
+utils/matcrc: $(SRCDIR)/matcrc64min.c
+	$(CC) $(CFLAGS) -o $@ $^
 
 
+# install
 DESTDIR =
 PREFIX = /usr
 SYSDIR = /lib/systemd/system
-SYSDINST = true
 DOCDIR = docs
-GETOUI = true
-CLAR = true
-clar_OUI.csv: utils/matcrc
-	if $(GETOUI); then utils/OUI_assemble.sh; fi
-utils/matcrc: $(SRCDIR)/matcrc64min.c
-	$(CC) $(CFLAGS) -o $@ $^
+
 .PHONY: install
-install: clarissa man
-	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man8
-	install clarissa $(DESTDIR)$(PREFIX)/bin/clarissa
-	install $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
-	install $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
-	if $(SYSDINST); then mkdir -p $(DESTDIR)$(SYSDIR) && cp clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service; fi
-	if $(GETOUI); then mkdir -p $(DESTDIR)$(PREFIX)/share/clarissa && cp clar_OUI.csv $(DESTDIR)$(PREFIX)/share/clarissa/clar_OUI.csv; fi
-	if $(CLAR); then mkdir -P $(DESTDIR)$(PREFIX)/lib/clarissa && cp utils/clar*.sh $(DESTDIR)$(PREFIX)/lib/clarissa/. && ln -s $(DESTDIR)$(PREFIX)/lib/clarissa/clar.sh $(DESTDIR)$(PREFIX)/bin/clar
+install: install-clarissa install-sysd install-oui install-clar
+.PHONY: install-clarissa
+install-clarissa: clarissa man
+	install -D clarissa $(DESTDIR)$(PREFIX)/bin/clarissa
+	install -D $(DOCDIR)/clarissa-cat.1  $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1
+	install -D $(DOCDIR)/clarissa.8  $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8
+.PHONY: install-clar
+install-clar: man
+	install -D utils/clar.sh $(DESTDIR)$(PREFIX)/bin/clar
+	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
+	install -D $(DOCDIR)/clar.1 $(DOCDIR)/clar-*.1 $(DESTDIR)$(PREFIX)/share/man/man1
+.PHONY: install-oui
+install-oui: clar_OUI.csv
+	install -D clar_OUI.csv $(DESTDIR)$(PREFIX)/share/misc/clar_OUI.csv
+.PHONY: install-sysd
+install-sysd:
+	install -D clarissa.service $(DESTDIR)$(SYSDIR)/clarissa.service
 .PHONY: uninstall
 uninstall:
 	rm -rf $(DESTDIR)$(PREFIX)/bin/clarissa
 	rm -rf $(DESTDIR)$(PREFIX)/share/man/man1/clarissa-cat.1*
 	rm -rf $(DESTDIR)$(PREFIX)/share/man/man8/clarissa.8*
-	if $(SYSDINST); then systemctl stop clarissa; rm -rf $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+	if $(SYSDINST); then systemctl stop clarissa; rm -f $(DESTDIR)$(SYSDIR)/clarissa.service; fi
+	if $(GETOUI); then rm -f $(DESTDIR)$(PREFIX)/share/misc/clar_OUI.csv; fi
+	if $(CLAR); then rm -f $(CLARDIR)$(PREFIX)/bin/clar; \
+		$(CLARDIR)$(PREFIX)/share/man/man1/clar.1; \
+		$(CLARDIR)$(PREFIX)/share/man/man1/clar-*.1; \
+	fi
 
-# uses pycflow2dot (from pip)
+
+# trivia
+.PHONY: static
+static: main.o clarissa.o time_tools.o get_hardware_address.o clarissa_cat.o
+	$(CC) $(CFLAGS) -static -o clarissa_static $^ $(LDFLAGS)
+
+# uses cflow2dot (from pycflow2dot)
 .PHONY: graph
 graph:
 	rm -f cflow_sum.c
-	cat *.c > cflow_sum.c
+	cat $(SRCDIR)/*.c > cflow_sum.c
 	cflow2dot -i cflow_sum.c -f svg
 	rm -f cflow_sum.c
+
 
 # tests
 OUTDIR = out
@@ -86,23 +104,27 @@ $(OUTDIR)/clar_test: $(ALL_TEST:%.c=$(OUTDIR)/%.o) $(OUTDIR)/libtq.a
 	$(CC) $(CFLAGS) $(TEST_CFLAGS) -o $@ $^ $(LDFLAGS)
 
 
-# not tests
+# docs
 .PHONY: index.html
 index.html: README.adoc
 	asciidoctor -o $@ $<
 
-.PHONY: man
-man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1 $(DOCDIR)/clar.1 $(DOCDIR)/clar-count.1 $(DOCDIR)/clar-show.1 $(DOCDIR)/clar-scan.1 $(DOCDIR)/clar-sort.1
+.PHONY: clarissa-man
+man: $(DOCDIR)/clarissa.8 $(DOCDIR)/clarissa-cat.1
+.PHONY: clar-man
+man: $(DOCDIR)/clar.1 $(DOCDIR)/clar-count.1 $(DOCDIR)/clar-show.1 $(DOCDIR)/clar-scan.1 $(DOCDIR)/clar-sort.1
 
 $(DOCDIR)/clarissa.8: $(DOCDIR)/clarissa.adoc
 	asciidoctor -b manpage $<
 $(DOCDIR)/clarissa-cat.1: $(DOCDIR)/clarissa-cat.adoc
 	asciidoctor -b manpage $<
 $(DOCDIR)/clar.1: $(DOCDIR)/clar.adoc
-	if $(CLAR); then asciidoctor -b manpage $<; fi
+	asciidoctor -b manpage $<
 $(DOCDIR)/clar-%.1: $(DOCDIR)/clar-%.adoc
-	if $(CLAR); then asciidoctor -b manpage $<; fi
+	asciidoctor -b manpage $<
 
+
+# cleaning
 .PHONY: clean
 clean:
 	rm -rf clarissa clarissa_static
