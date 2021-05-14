@@ -8,9 +8,24 @@ dir="$(cd "$(dirname "$0")" && pwd -P)"
 clar=$(command -v ./clarissa || command -v clarissa || command -v "${dir}"/clarissa)
 
 
-clar_show() {
+if [ -f "$CLAR_OUI" ]; then
+	oui="$CLAR_OUI"
+elif [ -f "$PWD"/clar_OUI.csv ]; then
+	oui="$PWD"/clar_OUI.csv
+elif [ -f /usr/share/misc/clar_OUI.csv ]; then
+	oui=/usr/share/misc/clar_OUI.csv
+elif [ -f "$dir"/../share/misc/clar_OUI.csv ]; then
+	oui=$(realpath "$dir"/../share/misc/clar_OUI.csv)
+elif [ -f "$HOME"/.local/share/clar/clar_OUI.csv ]; then
+	oui="$HOME"/.local/share/clar/clar_OUI.csv
+elif [ -f "$dir"/clar_OUI.csv ]; then
+	oui="$dir"/clar_OUI.csv
+elif [ -f "$dir"/../clar_OUI.csv ]; then
+	oui=$(realpath "$dir"/../clar_OUI.csv)
+fi
 
-	oui=clar_OUI.csv
+
+clar_show() {
 
 	echo
 
@@ -94,7 +109,6 @@ clar_show() {
 
 clar_scan() {
 
-	oui=clar_OUI.csv
 	tmp=".clar_scan_temp_file_delete_this.tmp"
 
 	c_cat() {
