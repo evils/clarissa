@@ -1,4 +1,5 @@
 clarissa
+!clarissa/
 clarissa_static
 *.o
 *.out
