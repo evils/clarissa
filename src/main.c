@@ -132,7 +132,7 @@ int clarissa(int argc, char* argv[])
 	pcap_fd = pcap_get_selectable_fd(opts.l_handle);
 	if (pcap_fd == PCAP_ERROR)
 	{
-		pcap_perror(opts.l_handle, "pcap_fd setup: ");
+		pcap_perror(opts.l_handle, "pcap_fd setup");
 		exit(1);
 	}
 
@@ -177,7 +177,7 @@ int clarissa(int argc, char* argv[])
 					goto end;
 				case -1:
 					pcap_perror(opts.l_handle,
-						"Reading packet: ");
+						"Reading packet");
 					continue;
 				case 0:
 					warnx
@@ -784,13 +784,14 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			// warnings supported by pcap_perror()
 			case PCAP_WARNING_PROMISC_NOTSUP:
 				pcap_perror
-				(opts->l_handle, "Activation: ");
+				// results in "Activation: <further pcap_perror() output>"
+				(opts->l_handle, "Activation");
 				warnx
 				("promiscuous mode not supported");
 				break;
 			case PCAP_WARNING:
 				pcap_perror
-				(opts->l_handle, "Activation: ");
+				(opts->l_handle, "Activation");
 				break;
 			// errors
 			case PCAP_ERROR_ACTIVATED:
@@ -805,16 +806,16 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			// errors supported by pcap_perror()
 			case PCAP_ERROR_NO_SUCH_DEVICE:
 				pcap_perror
-				(opts->l_handle, "Activation: ");
+				(opts->l_handle, "Activation");
 				errx(1, "no such capture source");
 			case PCAP_ERROR_PERM_DENIED:
 				pcap_perror
-				(opts->l_handle, "Activation: ");
+				(opts->l_handle, "Activation");
 				errx
 				(1, "no permission to open source");
 			case PCAP_ERROR:
 				pcap_perror
-				(opts->l_handle, "Activation: ");
+				(opts->l_handle, "Activation");
 				exit(1);
 		}
 	}
