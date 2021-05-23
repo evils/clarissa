@@ -7,7 +7,10 @@
 #define FORMAT_VERSION "v1.0"
 
 // output path where the socket is found
-#define PATH "/var/run/clar"
+#define RUN_DIR "/var/run/clar"
+
+// output path where the output file is saved (also used for will file)
+#define STATE_DIR "/var/lib/clar"
 
 // asprintf() galore
 #define _GNU_SOURCE

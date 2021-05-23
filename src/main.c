@@ -56,16 +56,16 @@ int clarissa(int argc, char* argv[])
 		// TODO move this to a separate function
 		// maybe move more around here away...
 		struct stat st = {0};
-		if (stat(PATH, &st) == -1)
+		if (stat(RUN_DIR, &st) == -1)
 		{
-			if (mkdir(PATH, 0755) == -1)
+			if (mkdir(RUN_DIR, 0755) == -1)
 			{
 				// not sure if mkdir sets errno
-				err(1, "Failed to create output directory");
+				err(1, "Failed to create output socket's directory");
 			}
 			if (verbosity > 2)
 			{
-				warnx("created "PATH);
+				warnx("created "RUN_DIR);
 			}
 		}
 
@@ -125,6 +125,23 @@ int clarissa(int argc, char* argv[])
 		if (listen(sock_d, 5) == -1) // "5 is way more than enough"
 		{
 			err(1, "Failed to set socket to listening mode");
+		}
+	}
+
+	if (opts.print_interval || opts.will)
+	{
+		struct stat st = {0};
+		if (stat(STATE_DIR, &st) == -1)
+		{
+			if (mkdir(STATE_DIR, 0755) == -1)
+			{
+				// not sure if mkdir sets errno
+				err(1, "Failed to create output file's directory");
+			}
+			if (verbosity > 2)
+			{
+				warnx("created "STATE_DIR);
+			}
 		}
 	}
 
@@ -475,10 +492,10 @@ void print_opts()
 		"   set a CIDR subnet to which IPv4 activity is limited\n"
 		"--file              -f   none\n"
 		"   set an input File (pcap file, works with - (stdin))\n"
-		"--socket            -s   "PATH"/[Interface]_[subnet]-[mask]\n"
+		"--socket            -s   "RUN_DIR"/[Interface]_[subnet]-[mask]\n"
 		"   set the output socket name (incl. path)\n"
-		"--output_file       -o   [socket].clar\n"
-		"   set the output filename\n"
+		"--output_file       -o   "STATE_DIR"/[Interface]_[subnet]-[mask]\n"
+		"   set the output filename (unused without --output_interval or --will)\n"
 		"--output_interval   -O   0\n"
 		"   set the Output interval (in ms), 0 = no periodic output\n"
 		, DEFAULT_NAGS, DEFAULT_TIMEOUT
@@ -852,7 +869,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	get_if_ip(opts->host.ipv6, opts->s_dev, AF_INET6,opts->errbuf);
 
 	// if auto_name is required
-	if (!opts->socket || opts->print_filename)
+	if (!(opts->socket || opts->print_filename))
 	{
 		char* ip;
 		// subnet4.ip is mapped IPv4
@@ -864,7 +881,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 			// if reading from file
 			// output to current directory
 			, filename ? "clar_parsed-%s"
-			: PATH"/%s_%s-%i"
+			: "%s_%s-%i"
 			, filename ? filename : opts->l_dev
 			, ip
 			, (opts->cidr
@@ -879,7 +896,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->print_filename)
 	{
-		if (asprintf(&opts->print_filename, "%s.clar", auto_name)
+		if (asprintf(&opts->print_filename, STATE_DIR"/%s", auto_name)
 			== -1)
 		{
 			errx(1, "Failed to set the output filename");
@@ -888,10 +905,19 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->socket)
 	{
-		if (asprintf(&opts->socket, "%s", auto_name) == -1)
+		if (asprintf(&opts->socket, RUN_DIR"%s", auto_name) == -1)
 		{
 			errx(1, "Failed to set the output socket path name");
 		}
+	}
+
+	// warn of unused output filename
+	if ((!auto_name) && opts->print_filename
+		&& (!(opts->print_interval || opts->will)))
+	{
+		fprintf(stderr, "Unused output filename \"%s\"\n"
+			"due to no set file output interval or will option\n\n"
+			, opts->print_filename);
 	}
 
 	if (auto_dev)	free(auto_dev);

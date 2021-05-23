@@ -1,7 +1,9 @@
 code
-	abstract socket setup
+	abstract setup of socket and output file directories
 	implement --preload (load will file)
 	add stats subcommand
+		catch SIGUSR1 and pcap_stat?
+			is SIGUSR1 portable?
 		do iproute2 style subcommand substring matching?
 
 packaging
@@ -12,9 +14,9 @@ packaging
 		procd for openwrt
 			started
 		systemd for everything else?
-			prefer $RUNTIME_DIRECTORY if available?
-				default will to $STATE_DIRECTORY and/or /var/lib/clarissa/?
-				may require checking both the env var path and default path?
+			prefer $RUNTIME_DIRECTORY and/or $STATE_DIRECTORY if available?
+				currently hard-coded defaults to /var/{run,lib}/clar
+				unit can pass in -o $STATE_DIRECTORY or -s $RUNTIME_DIRECTORY
 			wants time-sync.target?
 			add capabilities?
 

@@ -41,7 +41,7 @@
    set an input File (pcap file, works with - (stdin))
 --socket            -s   /var/run/clar/[Interface]_[subnet]-[mask]
    set the output socket name (incl. path)
---output_file       -o   [socket].clar
-   set the output filename
+--output_file       -o   /var/lib/clar/[Interface]_[subnet]-[mask]
+   set the output filename (unused without --output_interval or --will)
 --output_interval   -O   0
    set the Output interval (in ms), 0 = no periodic output

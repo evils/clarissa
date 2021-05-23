@@ -86,10 +86,10 @@ void clar_cat(int argc, char* argv[])
 	// no argument, attempt to find something in PATH
 	if (args <= 0)
 	{
-		DIR* dir_p = opendir(PATH);
+		DIR* dir_p = opendir(RUN_DIR);
 		if (dir_p == NULL)
 		{
-			err(1, "Failed to open "PATH", does it exist?");
+			err(1, "Failed to open "RUN_DIR", does it exist?");
 		}
 
 		struct stat st;
@@ -98,7 +98,7 @@ void clar_cat(int argc, char* argv[])
 			; dir_e != NULL; dir_e = readdir(dir_p))
 		{
 			if (asprintf(&full_path, "%s/%s"
-				, PATH, dir_e->d_name) == -1)
+				, RUN_DIR, dir_e->d_name) == -1)
 			{
 				errx(1, "Failed to save full path");
 			}
@@ -121,7 +121,7 @@ void clar_cat(int argc, char* argv[])
 		}
 
 		free(dir_p);
-		errx(1, "No source found in "PATH);
+		errx(1, "No source found in "RUN_DIR);
 	}
 }
 
