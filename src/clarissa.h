@@ -82,6 +82,17 @@ struct Opts
 	bool socket_output;	// whether to output to a socket
 };
 
+struct Stats
+{
+	// can do at least 420 packets per second, ~100 days with 32b
+	// not in opts so that only describes config state
+	uint64_t count;		// count of packets sent
+
+	// separate to be added to with stats_update()
+	// separate to allow handle replacement
+	struct pcap_stat ps;	// pcap statistics
+};
+
 // extraction
 struct Addrss get_addrss
 (pcap_t* handle, const uint8_t* frame, struct pcap_pkthdr* header);
@@ -113,3 +124,7 @@ void subnet_filter(uint8_t* ip, const struct Subnet* subnet,
 	const bool v6);
 bool is_mapped(const uint8_t* ip);
 bool is_zeros(const uint8_t* target, int count);
+void l_handle_setup(struct Opts* opts);
+struct pcap_stat pcap_sum_stats(struct pcap_stat* a, struct pcap_stat* b);
+void stats_print(struct Stats* stats);
+void stats_update(struct Stats* stats, struct Opts* opts);

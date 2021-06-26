@@ -26,6 +26,9 @@
 #define DEFAULT_NAGS 4
 #define DEFAULT_TIMEOUT 5000
 
+// seconds to wait before creating a new pcap handle if the previous causes POLLERR
+#define IF_WAIT 30
+
 // ethernet types
 #define IPv4 0x0800
 #define IPv6 0x86DD

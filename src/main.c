@@ -36,9 +36,7 @@ int clarissa(int argc, char* argv[])
 	struct Addrss* head = NULL;
 	struct Addrss addrss;
 	struct timeval now, last_print, checked = {0};
-	// can do at least 420 packets per second, ~100 days with 32b
-	// not in opts so that only describes config state
-	uint64_t count = 0;
+	struct Stats stats = {0};
 
 	// socket setup
 	int sock_d, sock_v, pcap_fd;
@@ -247,6 +245,29 @@ int clarissa(int argc, char* argv[])
 					continue;
 			}
 		}
+		else if (fds[0].revents & POLLERR)
+		{
+			warnx("pcap_fd got POLLERR");
+
+			// add stats of previous handle to total kept in stats
+			stats_update(&stats, &opts);
+
+			pcap_close(opts.l_handle);
+			// kinda assuming POLLERR happened due to suspend
+			warnx("Waiting %d seconds for the interface to return", IF_WAIT);
+			sleep(IF_WAIT);
+			l_handle_setup(&opts);
+			pcap_fd = pcap_get_selectable_fd(opts.l_handle);
+			if (pcap_fd == PCAP_ERROR)
+			{
+				pcap_perror(opts.l_handle, "pcap_fd setup");
+				exit(1);
+			}
+			fds[0].fd = pcap_fd;
+			fds[0].events = POLLIN;
+			warnx("Regenerated pcap_fd");
+			continue;
+		}
 
 		// socket
 		if (fds[1].revents & POLLIN)
@@ -289,7 +310,7 @@ int clarissa(int argc, char* argv[])
 			// and nag the survivors
 			addrss_list_nag
 				(&head, &now, opts.timeout,
-					&opts, &count);
+					&opts, &stats.count);
 		}
 
 		// output the list to a file
@@ -308,18 +329,8 @@ int clarissa(int argc, char* argv[])
 	// shows up in systemctl status if stopped
 	if (true)
 	{
-		struct pcap_stat ps = {0};
-		if (!pcap_stats(opts.l_handle, &ps))
-		{
-			printf
-			("\nclarissa sent\t\t%"PRIu64"\n", count);
-			printf
-			("clarissa received\t%i\n", ps.ps_recv);
-			printf
-			("buffer dropped\t\t%i\n", ps.ps_drop);
-			printf
-			("interface dropped\t%i\n", ps.ps_ifdrop);
-		}
+		stats_update(&stats, &opts);
+		stats_print(&stats);
 	}
 
 // cleanup
@@ -757,84 +768,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 	// make l_handle
 	if (!filename)
 	{
-		opts->l_handle = pcap_create(opts->l_dev,
-			opts->errbuf);
-		if (opts->l_handle == NULL)
-		{
-			errx(1, "pcap failed to create l_handle: %s",
-				opts->errbuf);
-		}
-
-		// CAPLEN is probably 74
-		if (pcap_set_snaplen(opts->l_handle, CAPLEN))
-		{
-			warnx("Failed to set snapshot length");
-		}
-
-		if (pcap_set_promisc(opts->l_handle,
-			opts->promiscuous))
-		{
-			warnx("Failed to set promiscuous mode");
-		}
-
-		// timeout shouldn't have an effect if immediate
-		// pcap timeout = half the interval (in milliseconds)
-		if (pcap_set_timeout(opts->l_handle,
-			opts->interval / 2000))
-		{
-			warnx("Failed to set packet buffer timeout");
-		}
-
-		if (pcap_set_immediate_mode
-			(opts->l_handle, opts->immediate))
-		{
-			warnx("Failed to set immediate mode");
-		}
-
-		int result = pcap_activate(opts->l_handle);
-		switch (result)
-		{
-			// warnings
-			case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
-				warnx("set timestamp not supported");
-				break;
-			// warnings supported by pcap_perror()
-			case PCAP_WARNING_PROMISC_NOTSUP:
-				pcap_perror
-				// results in "Activation: <further pcap_perror() output>"
-				(opts->l_handle, "Activation");
-				warnx
-				("promiscuous mode not supported");
-				break;
-			case PCAP_WARNING:
-				pcap_perror
-				(opts->l_handle, "Activation");
-				break;
-			// errors
-			case PCAP_ERROR_ACTIVATED:
-				errx(1, "l_handle already active");
-			case PCAP_ERROR_PROMISC_PERM_DENIED:
-				errx
-				(1, "no permission for promiscuous");
-			case PCAP_ERROR_RFMON_NOTSUP:
-				errx(1, "can't use monitor mode");
-			case PCAP_ERROR_IFACE_NOT_UP:
-				errx(1, "capture source is not up");
-			// errors supported by pcap_perror()
-			case PCAP_ERROR_NO_SUCH_DEVICE:
-				pcap_perror
-				(opts->l_handle, "Activation");
-				errx(1, "no such capture source");
-			case PCAP_ERROR_PERM_DENIED:
-				pcap_perror
-				(opts->l_handle, "Activation");
-				errx
-				(1, "no permission to open source");
-			case PCAP_ERROR:
-				pcap_perror
-				(opts->l_handle, "Activation");
-				exit(1);
-		}
+		l_handle_setup(opts);
 	}
 
 	// separate sending interface

@@ -1183,3 +1183,117 @@ int asprint_clar_header(char** dest)
 	}
 	return 0;
 }
+
+void l_handle_setup(struct Opts* opts)
+{
+	opts->l_handle = pcap_create(opts->l_dev,
+		opts->errbuf);
+	if (opts->l_handle == NULL)
+	{
+		errx(1, "pcap failed to create l_handle: %s",
+			opts->errbuf);
+	}
+
+	// CAPLEN is probably 74
+	if (pcap_set_snaplen(opts->l_handle, CAPLEN))
+	{
+		warnx("Failed to set snapshot length");
+	}
+
+	if (pcap_set_promisc(opts->l_handle,
+		opts->promiscuous))
+	{
+		warnx("Failed to set promiscuous mode");
+	}
+
+	// timeout shouldn't have an effect if immediate
+	// pcap timeout = half the interval (in milliseconds)
+	if (pcap_set_timeout(opts->l_handle,
+		opts->interval / 2000))
+	{
+		warnx("Failed to set packet buffer timeout");
+	}
+
+	if (pcap_set_immediate_mode
+		(opts->l_handle, opts->immediate))
+	{
+		warnx("Failed to set immediate mode");
+	}
+
+	int result = pcap_activate(opts->l_handle);
+	switch (result)
+	{
+		// warnings
+		case PCAP_WARNING_TSTAMP_TYPE_NOTSUP:
+			warnx("set timestamp not supported");
+			break;
+		// warnings supported by pcap_perror()
+		case PCAP_WARNING_PROMISC_NOTSUP:
+			pcap_perror
+			// results in "Activation: <further pcap_perror() output>"
+			(opts->l_handle, "Activation");
+			warnx
+			("promiscuous mode not supported");
+			break;
+		case PCAP_WARNING:
+			pcap_perror
+			(opts->l_handle, "Activation");
+			break;
+		// errors
+		case PCAP_ERROR_ACTIVATED:
+			errx(1, "l_handle already active");
+		case PCAP_ERROR_PROMISC_PERM_DENIED:
+			errx
+			(1, "no permission for promiscuous");
+		case PCAP_ERROR_RFMON_NOTSUP:
+			errx(1, "can't use monitor mode");
+		case PCAP_ERROR_IFACE_NOT_UP:
+			errx(1, "capture source is not up");
+		// errors supported by pcap_perror()
+		case PCAP_ERROR_NO_SUCH_DEVICE:
+			pcap_perror
+			(opts->l_handle, "Activation");
+			errx(1, "no such capture source");
+		case PCAP_ERROR_PERM_DENIED:
+			pcap_perror
+			(opts->l_handle, "Activation");
+			errx
+			(1, "no permission to open source");
+		case PCAP_ERROR:
+			pcap_perror
+			(opts->l_handle, "Activation");
+			exit(1);
+	}
+}
+
+struct pcap_stat pcap_sum_stats(struct pcap_stat* a, struct pcap_stat* b)
+{
+	struct pcap_stat result = {
+		.ps_recv = a->ps_recv + b->ps_recv,
+		.ps_drop = a->ps_drop + b->ps_drop,
+		.ps_ifdrop = a->ps_ifdrop + b->ps_ifdrop
+	};
+
+	return result;
+}
+
+void stats_print(struct Stats* stats)
+{
+	printf
+	("\nclarissa sent\t\t%"PRIu64"\n", stats->count);
+	printf
+	("clarissa received\t%i\n", stats->ps.ps_recv);
+	printf
+	("buffer dropped\t\t%i\n", stats->ps.ps_drop);
+	printf
+	("interface dropped\t%i\n", stats->ps.ps_ifdrop);
+}
+
+void stats_update(struct Stats* stats, struct Opts* opts)
+{
+	struct pcap_stat ps = {0};
+	if (!pcap_stats(opts->l_handle, &ps))
+	{
+		stats->ps = pcap_sum_stats(&stats->ps, &ps);
+	}
+}
