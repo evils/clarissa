@@ -839,7 +839,7 @@ void handle_opts(int argc, char* argv[], struct Opts* opts)
 
 	if (!opts->socket)
 	{
-		if (asprintf(&opts->socket, RUN_DIR"%s", auto_name) == -1)
+		if (asprintf(&opts->socket, RUN_DIR"/%s", auto_name) == -1)
 		{
 			errx(1, "Failed to set the output socket path name");
 		}
