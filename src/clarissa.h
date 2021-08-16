@@ -3,9 +3,9 @@
 #include "clarissa_defines.h"
 
 #include <pcap.h>	// pcap everything duh
-#include <netinet/in.h> // freebsd
+#include <netinet/in.h>	// freebsd
 #include <stdbool.h>	// type bool
-#include <sys/stat.h>   // chmod
+#include <sys/stat.h>	// chmod
 #include <sys/un.h>	// sockaddr_un
 #include <fcntl.h>	// fcntl()
 
@@ -72,8 +72,8 @@ struct Opts
 	int nags;		// how many times to nag a known MAC before culling it
 	int timeout;		// hold-off time between receiving a frame and [nagging|culling]
 	int interval;		// how often to run through the main loop
-	int print_interval;     // how often to output the file
-	char* print_filename;   // name of the output file
+	int print_interval;	// how often to output the file
+	char* print_filename;	// name of the output file
 	char* socket;		// name of the output socket
 	uint8_t cidr;		// how many subnets have been set (<=1 valid) by handle_opts()
 	bool run;		// whether to run, 0 if just printing the header

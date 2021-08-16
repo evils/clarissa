@@ -1,16 +1,16 @@
 #include "clarissa_cat.h"
 #include "clarissa_defines.h"
 
-#include <stdio.h>      // asprintf()
-#include <stdlib.h>     // exit()
-#include <unistd.h>     // close()
-#include <err.h>        // err(), warnx()
-#include <stdbool.h>    // type bool
-#include <getopt.h>     // getopt_long()
-#include <dirent.h>     // struct dirent, opendir(), readdir()
-#include <sys/un.h>     // sockaddr_un
-#include <sys/stat.h>   // stat(), S_ISSOCK(), S_ISREG()
-#include <sys/socket.h> // socket(), connect()
+#include <stdio.h>	// asprintf()
+#include <stdlib.h>	// exit()
+#include <unistd.h>	// close()
+#include <err.h>	// err(), warnx()
+#include <stdbool.h>	// type bool
+#include <getopt.h>	// getopt_long()
+#include <dirent.h>	// struct dirent, opendir(), readdir()
+#include <sys/un.h>	// sockaddr_un
+#include <sys/stat.h>	// stat(), S_ISSOCK(), S_ISREG()
+#include <sys/socket.h>	// socket(), connect()
 #include <string.h>	// strcpy() on omnios
 
 void cat_cat(char* path, bool sock, bool file, bool header);
