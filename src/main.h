@@ -15,12 +15,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/socket.h> // AF_INET, AF_INET6, freebsd
-
-#include <sys/un.h>	// sockaddr_un
-#include <fcntl.h>	// fcntl()
 #include <poll.h>	// poll(), POLLIN
-#include <dirent.h>	// struct dirent, opendir(), readdir()
-#include <sys/stat.h>	// stat(), S_ISSOCK(), S_ISREG()
 
 extern int verbosity;
 

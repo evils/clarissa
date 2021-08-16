@@ -1,5 +1,6 @@
 code
-	abstract setup of socket and output file directories
+	create full path for output socket and will file
+		currently only creating the last directory in the path
 	implement --preload (load will file)
 	add stats subcommand
 		catch SIGUSR1 and pcap_stat?

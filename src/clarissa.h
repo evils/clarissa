@@ -6,6 +6,8 @@
 #include <netinet/in.h> // freebsd
 #include <stdbool.h>	// type bool
 #include <sys/stat.h>   // chmod
+#include <sys/un.h>	// sockaddr_un
+#include <fcntl.h>	// fcntl()
 
 #include "time_tools.h"	// usec_diff()
 
@@ -128,3 +130,4 @@ void l_handle_setup(struct Opts* opts);
 struct pcap_stat pcap_sum_stats(struct pcap_stat* a, struct pcap_stat* b);
 void stats_print(struct Stats* stats);
 void stats_update(struct Stats* stats, struct Opts* opts);
+void setup_fs(const struct Opts* opts, const int sock_d);

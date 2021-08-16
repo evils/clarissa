@@ -1297,3 +1297,100 @@ void stats_update(struct Stats* stats, struct Opts* opts)
 		stats->ps = pcap_sum_stats(&stats->ps, &ps);
 	}
 }
+
+void setup_fs(const struct Opts* opts, const int sock_d)
+{
+	if (opts->socket_output == true)
+	{
+		struct sockaddr_un local;
+		struct stat st = {0};
+		if (stat(RUN_DIR, &st) == -1)
+		{
+			if (mkdir(RUN_DIR, 0755) == -1)
+			{
+				// not sure if mkdir sets errno
+				err(1, "Failed to create output socket's directory");
+			}
+			if (verbosity > 2)
+			{
+				warnx("created "RUN_DIR);
+			}
+		}
+
+		int snl = snprintf(local.sun_path
+				, sizeof(local.sun_path)
+				, "%s", opts->socket);
+		if (snl == sizeof(local.sun_path))
+		{
+			errx(1, "socket path is too long");
+		}
+
+		int flags = fcntl(sock_d, F_GETFL, 0);
+		if (flags == -1)
+		{
+			err(1, "Failed to get socket flags");
+		}
+		if (fcntl(sock_d, F_SETFL, flags | O_NONBLOCK) == -1)
+		{
+			err(1, "Failed to set O_NONBLOCK on socket");
+		}
+
+		// check if local.sun_path is already in use
+		int s;
+		struct sockaddr_un check;
+		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+		{
+			err(1, "Failed to create socket (check)");
+		}
+		check.sun_family = AF_UNIX;
+		strcpy(check.sun_path, local.sun_path);
+		if (connect(s, (struct sockaddr*)&check, sizeof(check)) == -1)
+		{
+			if (verbosity > 3)
+			{
+				warnx("creating socket %s"
+						, check.sun_path);
+			}
+		}
+		else
+		{
+			errx(1, "socket already in use: %s\n"
+			"change socket name with --socket, or disable socket output with -S"
+			, check.sun_path);
+		}
+
+		unlink(local.sun_path);
+		local.sun_family = AF_UNIX;
+		if (bind(sock_d, (struct sockaddr*)&local, sizeof(local)) == -1)
+		{
+			err(1, "Failed to bind socket");
+		}
+
+		if (chmod(opts->socket, 0666) != 0)
+		{
+			err(1, "Failed to set socket permissions");
+		}
+
+		if (listen(sock_d, 5) == -1) // "5 is way more than enough"
+		{
+			err(1, "Failed to set socket to listening mode");
+		}
+	}
+
+	if (opts->print_interval || opts->will)
+	{
+		struct stat st = {0};
+		if (stat(STATE_DIR, &st) == -1)
+		{
+			if (mkdir(STATE_DIR, 0755) == -1)
+			{
+				// not sure if mkdir sets errno
+				err(1, "Failed to create output file's directory");
+			}
+			if (verbosity > 2)
+			{
+				warnx("created "STATE_DIR);
+			}
+		}
+	}
+}
