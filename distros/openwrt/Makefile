@@ -16,10 +16,6 @@ PKG_LICENSE_FILES:=LICENSE
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
-define Build/Compile
-  $(call Build/Compile/Default,clarissa)
-endef
-
 include $(INCLUDE_DIR)/package.mk
 
 define Package/clarissa
@@ -33,6 +29,10 @@ endef
 define Package/clarissa/description
   Clarissa is a daemon which keeps track of connected MAC addresses on a network.
   It can report these with sub-second resolution and can monitor passively.
+endef
+
+define Build/Compile
+  $(call Build/Compile/Default,clarissa)
 endef
 
 define Package/clarissa/install
