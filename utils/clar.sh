@@ -82,7 +82,7 @@ clar_show() {
 			if [ "$result" -eq 1 ]; then
 				vendor="$(printf "(Locally_Administered_Address)")"
 			else
-				vendor="$(if [ -f oui ]
+				vendor="$(if [ -f "$oui" ]
 						then printf "(vendor_not_listed_(UAA))"
 						else printf "(missing_OUI_file)"
 					fi)"
