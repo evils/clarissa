@@ -67,11 +67,11 @@ clar_show() {
 			| awk -F ',' '{print $2}' | sed 's/"//g' )"
 		ipv4="$(echo "$REPLY" | awk '{print $3}')"
 		ipv6="$(echo "$REPLY" | awk '{print $5}')"
-		domain="$(dig -x "$ipv4" | grep "ANSWER SECTION" -A 1 \
+		domain="$(timeout "0.1" dig -x "$ipv4" | grep "ANSWER SECTION" -A 1 \
 			| awk '{print substr($5, 1, length($5)-1)}' \
 			| sed '/^\s*$/d')"
 		if [ -z "$domain" ]; then
-			domain="$(dig -x "$ipv6" | grep "ANSWER SECTION" -A 1 \
+			domain="$(timeout "0.1" dig -x "$ipv6" | grep "ANSWER SECTION" -A 1 \
 				| awk '{print substr($5, 1, length($5)-1)}' \
 				| sed '/^\s*$/d')"
 		fi
