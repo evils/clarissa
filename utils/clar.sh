@@ -352,7 +352,7 @@ clar_count() {
 # actual clar command
 
 case "$1" in
-	count|show|scan|sort) call=$1; shift 1;  "clar_${call}" ;;
+	count|show|scan|sort) call=$1; shift 1; "clar_${call}" "$@" ;;
 	help)
 		echo "clarissa utility"
 		echo "exposes several sub-commands"
