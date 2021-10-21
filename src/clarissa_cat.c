@@ -240,7 +240,7 @@ void cat_help()
 		"--socket_off   -S\n"
 		"   don't print from Sockets\n"
 		"--all          -a\n"
-		"   print from all supported formats\n"
+		"   print from both files and sockets\n"
 		"--all_off      -A   for completeness\n"
 		"   print nothing\n"
 		"--raw          -r\n"

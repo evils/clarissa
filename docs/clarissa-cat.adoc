@@ -35,7 +35,7 @@ Note: *clarissa*'s output includes a version header, see *clarissa*(8). +
 --socket_off   -S
    don't print from Sockets
 --all          -a
-   print from all supported formats
+   print from both files and sockets
 --all_off      -A   for completeness
    print nothing
 --raw          -r
