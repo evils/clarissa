@@ -231,6 +231,7 @@ clar_count() {
 	if [ -z "$3" ]; then
 	echo "Please use the following format:"
 	echo "count [path to macs.csv] [path to clarissa's output] [option (-a for all)]"
+	exit 1
 	fi
 
 
