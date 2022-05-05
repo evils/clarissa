@@ -241,9 +241,10 @@ clar_count() {
 	TALLY=0
 
 	while read -r "REPLY"; do
-		LINE="$(grep -i "$(echo "$REPLY" | awk '{print $1}')" "$1")"
-		if [ -n "$LINE" ]; then
-			NAMES+=("$(echo "$LINE" | awk -F "," '{print $2}')" )
+		if [[ -z "${REPLY}" ]]; then break; fi
+		LINE="$(grep -i "$(echo "${REPLY}" | awk '{print $1}')" "$1")"
+		if [[ -n "${LINE}" ]]; then
+			NAMES+=("$(echo "${LINE}" | awk -F "," '{print $2}')" )
 		else
 			(( TALLY++ ))
 		fi
