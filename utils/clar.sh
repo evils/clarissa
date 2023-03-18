@@ -238,17 +238,38 @@ clar_count() {
 	# do the actual counting
 
 	NAMES=()
-	TALLY=0
+	INFRA=0
+	BALANCE=0
 
 	while read -r "REPLY"; do
+
 		if [[ -z "${REPLY}" ]]; then break; fi
+
 		LINE="$(grep -i "$(echo "${REPLY}" | awk '{print $1}')" "$1")"
+
 		if [[ -n "${LINE}" ]]; then
-			NAMES+=("$(echo "${LINE}" | awk -F "," '{print $2}')" )
+
+			if [[ "${LINE}" == *#* ]]; then
+				(( INFRA++ ))
+				continue
+			fi
+
+			if [[ "${LINE}" == *‽* ]]; then
+				continue
+			fi
+
+			if [[ "${LINE}" != *?* ]]; then
+				(( HUMANS++ ))
+			fi
+
+			if [[ "${LINE}" != *!* ]]; then
+
+				NAMES+=("$(echo "${LINE}" | awk -F "," '{print $2}')" )
+			fi
 		else
-			(( TALLY++ ))
+			(( BALANCE++ ))
 		fi
-	# can't pipe in from the front because of TALLY's scope
+	# can't pipe in from the front because of HUMANS's scope
 	done <<< "$(${clar} cat "$@" | grep -v '#')"
 
 	COUNT="$(printf '%s\n' "${NAMES[@]}" | sed -e '/^\s*$/d' -e '/[?‽]/d' | sort | uniq | wc -l)"
@@ -258,19 +279,19 @@ clar_count() {
 
 	csv() {
 		echo "name,counted,balance"
-		echo "$NAME"",""$COUNT"",""$TALLY"
+		echo "$NAME"",""$COUNT"",""$HUMANS"",""$INFRA"
 	}
 
 	title() {
-		echo "$COUNT"",""$TALLY"
+		echo "$COUNT"",""$HUMANS"
 	}
 
 	json() {
-	echo "{\"name\":\"""$NAME""\", \"counted\":""$COUNT"", \"balance\":""$TALLY""}"
+	echo "{\"name\":\"""$NAME""\", \"counted\":""$COUNT"", \"balance\":""$HUMANS""}"
 	}
 
 	influx() {
-	echo "$NAME"" counted=""$COUNT"",balance=""$TALLY"
+	echo "$NAME"" counted=""$COUNT"",balance=""$HUMANS"
 	}
 
 	names_json() {
