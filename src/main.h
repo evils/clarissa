@@ -17,8 +17,6 @@
 #include <sys/socket.h>	// AF_INET, AF_INET6, freebsd
 #include <poll.h>	// poll(), POLLIN
 
-extern int verbosity;
-
 int clarissa(int argc, char* argv[]);
 
 void help();
